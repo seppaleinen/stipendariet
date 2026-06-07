@@ -1,0 +1,37 @@
+# StipendieAssistenten robots.txt
+# https://stipendieassistenten.labb.site/robots.txt
+
+User-agent: Googlebot
+Allow: /
+Disallow: /auth
+Disallow: /applications
+Disallow: /generate
+Disallow: /generate/*
+Disallow: /profile-setup
+Disallow: /family-setup
+
+User-agent: Bingbot
+Allow: /
+Disallow: /auth
+Disallow: /applications
+Disallow: /generate
+Disallow: /generate/*
+Disallow: /profile-setup
+Disallow: /family-setup
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: *
+Allow: /
+Disallow: /auth
+Disallow: /applications
+Disallow: /generate
+Disallow: /generate/*
+Disallow: /profile-setup
+Disallow: /family-setup
+
+Sitemap: https://stipendieassistenten.labb.site/sitemap.xml

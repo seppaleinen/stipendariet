@@ -1,0 +1,27 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+build
+
+# Environment
+.env
+
+# Runtime
+data/
+*.log
+
+# Turbo cache
+.turbo
+
+# Backend Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.stickler.yml
+stipendariet.db
+
+# Generated artifacts
+graphify-out/

@@ -1,0 +1,662 @@
+openapi: 3.0.3
+info:
+  title: StipendieAssistenten Backend API
+  description: |
+    Required backend endpoints for StipendieAssistenten frontend.
+    All authenticated endpoints require a Bearer token in the Authorization header.
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: Default API path (configure via VITE_API_URL env variable)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+      properties:
+        id:
+          type: string
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+
+    AuthTokens:
+      type: object
+      required:
+        - access_token
+        - user
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: Optional refresh token
+        user:
+          $ref: '#/components/schemas/User'
+
+    FamilyMember:
+      type: object
+      required:
+        - id
+        - name
+        - age
+        - role
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        age:
+          type: integer
+        role:
+          type: string
+          enum: [adult, child]
+
+    ChildNeed:
+      type: object
+      properties:
+        childId:
+          type: string
+        diagnoses:
+          type: array
+          items:
+            type: string
+            enum: [adhd, autism, cp, mobility_impairment, other]
+        needDegree:
+          type: integer
+          minimum: 0
+          maximum: 3
+        otherDiagnosis:
+          type: string
+          nullable: true
+
+    FamilyProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        municipality:
+          type: string
+        maritalStatus:
+          type: string
+          enum: [single, married, cohabiting, divorced, widowed]
+        familyMembers:
+          type: array
+          items:
+            $ref: '#/components/schemas/FamilyMember'
+        childNeeds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChildNeed'
+        helpCategories:
+          type: array
+          items:
+            type: string
+            enum: [activities, home_adaptation, travel, aids, economy, education, special_projects]
+        receivedSupport:
+          type: object
+          properties:
+            careAllowance:
+              type: boolean
+            lssSupport:
+              type: boolean
+            shortTermStay:
+              type: boolean
+            housingBenefits:
+              type: boolean
+        economicSituation:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SubscriptionStatus:
+      type: object
+      required:
+        - plan_type
+      properties:
+        plan_type:
+          type: string
+          enum: [free, subscription, credits]
+        credits_remaining:
+          type: integer
+          nullable: true
+          description: Number of credits remaining (for credits plan)
+        subscription_end:
+          type: string
+          format: date-time
+          nullable: true
+          description: Subscription expiry date (for subscription plan)
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+
+paths:
+  # ============================================
+  # AUTHENTICATION ENDPOINTS
+  # ============================================
+
+  /auth/login:
+    post:
+      summary: Login with email and password
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/signup:
+    post:
+      summary: Register a new user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                name:
+                  type: string
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '400':
+          description: Invalid input or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      summary: Get current authenticated user
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated or token expired
+
+  /auth/logout:
+    post:
+      summary: Logout current user (optional server-side session invalidation)
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+        '401':
+          description: Not authenticated
+
+  /auth/google:
+    get:
+      summary: Initiate Google OAuth flow
+      description: |
+        Redirects user to Google OAuth consent screen.
+        After successful authentication, redirect back to frontend with tokens.
+        Typically redirects to: {frontend_url}/auth/callback?access_token=xxx&refresh_token=xxx
+      tags: [Authentication]
+      responses:
+        '302':
+          description: Redirect to Google OAuth
+
+  # ============================================
+  # SUBSCRIPTION / PREMIUM STATUS
+  # ============================================
+
+  /subscription/status:
+    get:
+      summary: Get user's subscription/premium status
+      tags: [Subscription]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current subscription status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionStatus'
+        '401':
+          description: Not authenticated
+
+  # ============================================
+  # FAMILY PROFILE
+  # ============================================
+
+  /profile/family:
+    get:
+      summary: Get user's family profile
+      tags: [Profile]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Family profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyProfile'
+        '404':
+          description: No profile found (user should create one)
+        '401':
+          description: Not authenticated
+
+    put:
+      summary: Create or update family profile
+      tags: [Profile]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyProfile'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyProfile'
+        '400':
+          description: Invalid profile data
+        '401':
+          description: Not authenticated
+
+  # ============================================
+  # GRANTS (Public + Authenticated features)
+  # ============================================
+
+  /grants:
+    get:
+      summary: List available grants
+      description: Public endpoint - no authentication required
+      tags: [Grants]
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of grants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  grants:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        organization:
+                          type: string
+                        summary:
+                          type: string
+                        category:
+                          type: string
+                        deadline:
+                          type: string
+                          format: date
+                          nullable: true
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+  /grants/{id}:
+    get:
+      summary: Get grant details
+      description: Public endpoint - no authentication required
+      tags: [Grants]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Grant details
+        '404':
+          description: Grant not found
+
+  # ============================================
+  # SAVED/FAVORITE GRANTS (Authenticated)
+  # ============================================
+
+  /profile/saved-grants:
+    get:
+      summary: Get user's saved/favorite grants
+      tags: [Profile, Grants]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of saved grant IDs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved_grants:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          description: Not authenticated
+
+    post:
+      summary: Save a grant to favorites
+      tags: [Profile, Grants]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - grant_id
+              properties:
+                grant_id:
+                  type: string
+      responses:
+        '201':
+          description: Grant saved successfully
+        '401':
+          description: Not authenticated
+
+  /profile/saved-grants/{grantId}:
+    delete:
+      summary: Remove a grant from favorites
+      tags: [Profile, Grants]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: grantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Grant removed from favorites
+        '401':
+          description: Not authenticated
+
+  # ============================================
+  # APPLICATIONS (Authenticated)
+  # ============================================
+
+  /applications:
+    get:
+      summary: Get user's grant applications
+      tags: [Applications]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    grant_id:
+                      type: string
+                    grant_name:
+                      type: string
+                    status:
+                      type: string
+                      enum: [draft, submitted, approved, rejected]
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+        '401':
+          description: Not authenticated
+
+    post:
+      summary: Create a new application
+      tags: [Applications]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - grant_id
+              properties:
+                grant_id:
+                  type: string
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Application created
+        '401':
+          description: Not authenticated
+
+  /applications/{id}:
+    get:
+      summary: Get application details
+      tags: [Applications]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Application details
+        '401':
+          description: Not authenticated
+        '404':
+          description: Application not found
+
+    put:
+      summary: Update application
+      tags: [Applications]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                status:
+                  type: string
+                  enum: [draft, submitted]
+      responses:
+        '200':
+          description: Application updated
+        '401':
+          description: Not authenticated
+
+    delete:
+      summary: Delete application
+      tags: [Applications]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Application deleted
+        '401':
+          description: Not authenticated
+
+  # ============================================
+  # AI GENERATION (Premium feature)
+  # ============================================
+
+  /generate/application:
+    post:
+      summary: Generate AI-assisted application text (Premium feature)
+      description: |
+        Requires premium subscription or available credits.
+        Uses family profile data to personalize the generated application.
+      tags: [Generation, Premium]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - grant_id
+              properties:
+                grant_id:
+                  type: string
+                additional_context:
+                  type: string
+                  description: Optional additional information from user
+      responses:
+        '200':
+          description: Generated application text
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  generated_text:
+                    type: string
+                  credits_remaining:
+                    type: integer
+                    nullable: true
+        '401':
+          description: Not authenticated
+        '402':
+          description: Premium subscription required or no credits remaining
+        '404':
+          description: Grant not found

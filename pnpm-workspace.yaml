@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  # Note: backend/ is excluded — it's Python-only (no npm deps).
+  # It's only included in the turbo pipeline for Docker build orchestration.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true

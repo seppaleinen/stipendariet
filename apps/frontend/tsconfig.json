@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    /* Local app alias — must match vite.config.ts resolve.alias */
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: stipendiatet-backend
+description: A Helm chart bundling stipendiatet backend services
+version: 0.1.0
+appVersion: latest

@@ -1,0 +1,13 @@
+resources:
+
+service:
+  port: 8000
+
+envs:
+  - name: TZ
+    value: Europe/Stockholm
+
+image:
+  repository: seppaleinen/stipendariet-backend
+  tag: latest
+  pullPolicy: Always

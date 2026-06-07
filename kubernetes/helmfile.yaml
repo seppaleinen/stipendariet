@@ -1,0 +1,46 @@
+releases:
+  - name: postgres-secret
+    namespace: stipendiatet
+    createNamespace: true
+    chart: ./postgres/secrets
+    version: "0.0.1"
+    secrets:
+      - ./postgres/secrets/secrets.yaml
+
+
+  - name: postgres
+    namespace: stipendiatet
+    chart: oci://registry-1.docker.io/bitnamicharts/postgresql
+    createNamespace: true
+    version: "18.1.13"
+    values:
+      - ./postgres/values.yaml
+    needs:
+      - postgres-secret
+
+  - name: backend
+    chart: backend
+    namespace: stipendiatet
+    createNamespace: true
+    values:
+      - ./backend/values.yaml
+    secrets:
+      - ./backend/secrets.yaml
+
+  - name: frontend
+    chart: frontend
+    namespace: stipendiatet
+    createNamespace: true
+    values:
+      - ./frontend/values.yaml
+    secrets:
+      - ./frontend/secrets.yaml
+
+  - name: admin-frontend
+    chart: admin-frontend
+    namespace: stipendiatet
+    createNamespace: true
+    values:
+      - ./admin-frontend/values.yaml
+    #secrets:
+    #  - ./admin-frontend/secrets.yaml

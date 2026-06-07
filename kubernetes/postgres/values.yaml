@@ -1,0 +1,89 @@
+# postgres-bitnami-values.yaml
+
+# --- 1. PostgreSQL Image Configuration (pgvector) ---
+image:
+  registry: docker.io
+  repository: pgvector/pgvector
+  # Use a simple numeric tag that corresponds to PostgreSQL 16
+  tag: "pg16-trixie"
+  pullPolicy: IfNotPresent
+
+# --- 2. Authentication Configuration ---
+auth:
+  enablePostgresUser: true
+  database: "stipendariet"
+  username: "stipendariet_user"
+  existingSecret: "postgres-credentials"
+
+# --- 3. Database Configuration ---
+postgresqlDatabase: "stipendariet"
+postgresqlUsername: "stipendariet_user"
+
+# --- 4. Service Configuration ---
+service:
+  type: ClusterIP
+
+# --- 5. Primary Server Configuration ---
+primary:
+  # Extra volumes to handle runtime files that need write access
+  # Mounting needed directories to ensure PostgreSQL can create runtime files
+  extraVolumeMounts:
+  - name: run-postgres
+    mountPath: /var/run/postgresql
+
+  extraVolumes:
+  - name: run-postgres
+    emptyDir: {}
+
+  # Setting PostgreSQL to use /tmp for socket directory to avoid read-only filesystem issues
+  postgresqlUnixSocketDirectories: "/tmp"
+
+  # Postgres configuration to handle read-only root filesystem
+  configuration: |-
+    # Use /tmp for runtime files instead of /var/run/postgresql
+    stats_temp_directory = '/tmp'
+    external_pid_file = '/tmp/postgresql.pid'
+    unix_socket_directories = '/tmp'
+
+  # Additional environment variables to handle read-only filesystem issues
+  extraEnv:
+    - name: POSTGRESQL_TMP_DIR
+      value: "/tmp"
+    - name: PGHOST
+      value: "/tmp"
+
+  # Security context settings to resolve read-only filesystem issues
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1001
+    
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+      - ALL
+    privileged: false
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+
+  # Persistence Configuration
+  persistence:
+    enabled: true
+    # Change 'longhorn' to the StorageClass available on your dev machine
+    # (e.g., 'standard' for minikube/Docker Desktop, or 'local-path' for k3s)
+    storageClass: standard
+    size: 10Gi
+
+  initdb:
+    scripts:
+      create_vector_ext.sql: |
+        CREATE EXTENSION IF NOT EXISTS "vector";
+
+global:
+  security:
+    allowInsecureImages: true

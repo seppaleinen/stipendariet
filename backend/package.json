@@ -1,0 +1,8 @@
+{
+  "name": "@stipendariet/backend",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "docker compose -f ../docker-compose.yml build backend"
+  }
+}

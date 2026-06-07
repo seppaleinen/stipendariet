@@ -1,0 +1,25 @@
+{
+  "name": "stipendariet",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "StipendieAssistenten monorepo — grant assistant application for Swedish foundations",
+  "packageManager": "pnpm@11.4.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "ci:build-all": "turbo run build",
+    "docker:build-backend": "docker compose -f docker-compose.yml build backend",
+    "docker:up": "docker compose -f docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker-compose.yml down"
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "typescript": "^5.8.3"
+  }
+}

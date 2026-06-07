@@ -1,0 +1,35 @@
+# Development Dockerfile for React + Vite frontend with hot reload
+FROM node:25-alpine
+
+# Install dependencies for native modules (if needed)
+RUN apk add --no-cache python3 make g++ wget
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodegroup && \
+    adduser -u 1001 -S nodeuser -G nodegroup
+
+# Set working directory and ensure proper ownership
+WORKDIR /app
+RUN chown -R nodeuser:nodegroup /app
+
+# Switch to non-root user early
+USER nodeuser
+
+# Copy package files
+COPY --chown=nodeuser:nodegroup package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY --chown=nodeuser:nodegroup . .
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+
+# Start development server with hot reload
+CMD ["npm", "run", "dev"]

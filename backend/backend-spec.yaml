@@ -1,0 +1,208 @@
+openapi: 3.0.3
+info:
+  title: StipendieAssistenten Backend
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+
+paths:
+  /api/grants:
+    get:
+      summary: Get list of grants
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of grants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Grant"
+
+  /api/grants/{id}:
+    get:
+      summary: Get a single grant by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: A single grant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grant"
+
+  /api/applications:
+    get:
+      summary: Get all applications
+      responses:
+        "200":
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Application"
+
+    post:
+      summary: Create a new application record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationCreate"
+      responses:
+        "201":
+          description: Created
+
+  /api/applications/{id}:
+    get:
+      summary: Get an application by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Application
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Application"
+
+    patch:
+      summary: Update an application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationUpdate"
+      responses:
+        "200":
+          description: Updated
+
+  /api/profile:
+    post:
+      summary: Save family profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Profile"
+      responses:
+        "200":
+          description: Saved
+
+    get:
+      summary: Get saved family profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /api/generate-application:
+    post:
+      summary: Generate a draft application email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grantId: { type: integer }
+                profile: { $ref: "#/components/schemas/Profile" }
+      responses:
+        "200":
+          description: Draft email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  emailText: { type: string }
+
+components:
+  schemas:
+    Grant:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        provider: { type: string }
+        summary: { type: string }
+        description: { type: string }
+        amount: { type: string }
+        deadline: { type: string, format: date }
+        cadence: { type: string }
+        link: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+
+    Application:
+      type: object
+      properties:
+        id: { type: integer }
+        grantId: { type: integer }
+        status: { type: string }
+        appliedAt: { type: string, format: date }
+        nextAllowedApplicationDate: { type: string, format: date }
+        notes: { type: string }
+
+    ApplicationCreate:
+      type: object
+      required: [grantId]
+      properties:
+        grantId: { type: integer }
+        status: { type: string }
+        appliedAt: { type: string, format: date }
+        notes: { type: string }
+
+    ApplicationUpdate:
+      type: object
+      properties:
+        status: { type: string }
+        notes: { type: string }
+        nextAllowedApplicationDate: { type: string, format: date }
+
+    Profile:
+      type: object
+      properties:
+        familyMembers:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              age: { type: integer }
+              role: { type: string }
+        economicSituation: { type: string }
+        background: { type: string }
+        achievements: { type: string }
+        goals: { type: string }

@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{  .Release.Name }}
+    name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      name: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: {{ .Release.Name }}
+    spec:
+      #securityContext:
+      #  runAsUser: 999
+      #  runAsGroup: 999
+      #  fsGroup: 2000
+      containers:
+        - name: webapp
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          env:
+            {{ toYaml .Values.env | nindent 12 }}
+          envFrom:
+            - secretRef:
+                name: {{ printf "%s-env-secrets" .Release.Name }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          startupProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            timeoutSeconds: 10
+            failureThreshold: 10
+          resources:
+            {{ toYaml .Values.resources | nindent 12 }}
+      restartPolicy: Always
