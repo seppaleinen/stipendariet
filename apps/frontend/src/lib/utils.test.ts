@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { cn, formatFoundationText, formatParagraph, cleanTextForPreview } from "@/lib/utils";
+import { cn } from "@stipendariet/ui";
+import { formatFoundationText, formatParagraph, cleanTextForPreview } from "@/lib/utils";
 
 describe("cn (tailwind-merge utility)", () => {
   it("merges class names correctly", () => {

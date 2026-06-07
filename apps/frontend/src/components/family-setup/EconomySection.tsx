@@ -1,8 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@stipendariet/ui";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@stipendariet/ui";
+import { Input } from "@stipendariet/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@stipendariet/ui";
+import { Checkbox } from "@stipendariet/ui";
 import { HelpCircle } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 

@@ -1,7 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@stipendariet/ui";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@stipendariet/ui";
+import { Input } from "@stipendariet/ui";
+import { Textarea } from "@stipendariet/ui";
 import { User } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 

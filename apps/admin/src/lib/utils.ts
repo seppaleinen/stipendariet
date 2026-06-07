@@ -1,9 +1,4 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+import { cn } from '@stipendariet/ui'
 
 export function formatTimeRemaining(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || seconds <= 0) return '';

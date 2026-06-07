@@ -10,7 +10,7 @@ import {
   PlayCircle,
   BarChart2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@stipendariet/ui';
 import { useAuth } from '@/hooks/useAuth';
 
 interface AdminLayoutProps {

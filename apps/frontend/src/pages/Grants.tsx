@@ -1,9 +1,9 @@
 import { Helmet } from "react-helmet-async";
 import { useState, useEffect, useCallback } from "react";
 import { Search, Bookmark, Sparkles } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@stipendariet/ui";
+import { Button } from "@stipendariet/ui";
+import { Badge } from "@stipendariet/ui";
 import {
   Card,
   CardContent,
@@ -11,14 +11,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@stipendariet/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@stipendariet/ui";
 import {
   getGrants,
   getSavedGrants,

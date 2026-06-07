@@ -1,5 +1,5 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@stipendariet/ui";
+import { Card } from "@stipendariet/ui";
 import { Users, Heart, HelpCircle } from "lucide-react";
 import { FamilyBasicInfo } from "./FamilyBasicInfo";
 import { ChildNeeds } from "./ChildNeeds";

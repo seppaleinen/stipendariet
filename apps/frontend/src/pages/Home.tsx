@@ -1,13 +1,13 @@
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@stipendariet/ui";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@stipendariet/ui";
 import { Search, FileText, Sparkles, ArrowRight, User } from "lucide-react";
 import { SITE_URL } from "@/lib/page-metadata";
 

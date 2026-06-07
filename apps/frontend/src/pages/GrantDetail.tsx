@@ -2,14 +2,14 @@ import { Helmet } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ExternalLink, Bookmark, FileText, Phone, MapPin, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@stipendariet/ui";
+import { Badge } from "@stipendariet/ui";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@stipendariet/ui";
 import { getGrant, getSavedGrants, saveGrant, removeSavedGrant } from "@/lib/api";
 import { formatFoundationText, formatParagraph } from "@/lib/utils";
 import { Grant } from "@/types/grants";

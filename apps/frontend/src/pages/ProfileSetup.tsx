@@ -3,14 +3,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@stipendariet/ui";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@stipendariet/ui";
+import { Checkbox } from "@stipendariet/ui";
+import { Label } from "@stipendariet/ui";
+import { Textarea } from "@stipendariet/ui";
+import { Input } from "@stipendariet/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@stipendariet/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@stipendariet/ui";
 import { SITE_URL } from "@/lib/page-metadata";
 import {
   MapPin,

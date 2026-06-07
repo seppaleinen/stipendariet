@@ -1,8 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@stipendariet/ui";
+import { Separator } from "@stipendariet/ui";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@stipendariet/ui";
+import { Input } from "@stipendariet/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@stipendariet/ui";
 import { Info } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 

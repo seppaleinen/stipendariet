@@ -1,17 +1,17 @@
 import { Helmet } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@stipendariet/ui";
+import { Input } from "@stipendariet/ui";
+import { Label } from "@stipendariet/ui";
+import { Textarea } from "@stipendariet/ui";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@stipendariet/ui";
 import { Sparkles, Copy, Download, Plus, Trash2 } from "lucide-react";
 import { FamilyProfile, FamilyMember, Grant } from "@/types/grants";
 import { getProfile, getGrant, generateApplicationWithAI } from "@/lib/api";

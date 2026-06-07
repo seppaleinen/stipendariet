@@ -1,8 +1,8 @@
 import { Helmet } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { Sparkles, MapPin, ArrowLeft, RefreshCw, Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@stipendariet/ui";
+import { Badge } from "@stipendariet/ui";
 import {
     Card,
     CardContent,
@@ -10,9 +10,9 @@ import {
     CardFooter,
     CardHeader,
     CardTitle,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+} from "@stipendariet/ui";
+import { Switch } from "@stipendariet/ui";
+import { Label } from "@stipendariet/ui";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { findMatchingFoundationsByProfile, MatchedFoundation } from "@/lib/api";

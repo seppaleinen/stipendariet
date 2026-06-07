@@ -1,8 +1,8 @@
 import { Helmet } from "react-helmet-async";
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@stipendariet/ui";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@stipendariet/ui";
+import { Textarea } from "@stipendariet/ui";
 import { Save, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { saveProfile, getProfile } from "@/lib/api";

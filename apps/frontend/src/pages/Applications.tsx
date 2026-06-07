@@ -1,16 +1,16 @@
 import { Helmet } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { Plus, Clock, CheckCircle2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@stipendariet/ui";
+import { Badge } from "@stipendariet/ui";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@stipendariet/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@stipendariet/ui";
 import { getApplications } from "@/lib/api";
 import { Application } from "@/types/grants";
 import { Link } from "react-router-dom";

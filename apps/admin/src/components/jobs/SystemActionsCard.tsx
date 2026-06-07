@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
+import { Button } from '@stipendariet/ui';
 import { backendApi } from '@/lib/api';
 import { ActionState } from '@/types/jobs';
 

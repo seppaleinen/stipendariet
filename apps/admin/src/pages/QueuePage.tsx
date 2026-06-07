@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@stipendariet/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@stipendariet/ui';
+import { Badge } from '@stipendariet/ui';
 import { 
   Table, 
   TableBody, 
@@ -9,8 +9,8 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
+} from '@stipendariet/ui';
+import { Skeleton } from '@stipendariet/ui';
 import { Play, Search, Eye } from 'lucide-react';
 import { ScholarshipQueueItem } from '@/types';
 import scholarshipService from '@/lib/scholarshipService';

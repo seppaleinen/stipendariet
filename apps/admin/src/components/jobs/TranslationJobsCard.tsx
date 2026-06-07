@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
+import { Button } from '@stipendariet/ui';
+import { Input } from '@stipendariet/ui';
 import { backendApi } from '@/lib/api';
 import { JobProgressState, ActionState, FoundationStats } from '@/types/jobs';
 import { formatTimeRemaining } from '@/lib/utils';

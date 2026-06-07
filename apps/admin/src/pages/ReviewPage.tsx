@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@stipendariet/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@stipendariet/ui';
+import { Badge } from '@stipendariet/ui';
+import { Separator } from '@stipendariet/ui';
+import { ScrollArea } from '@stipendariet/ui';
+import { Skeleton } from '@stipendariet/ui';
 import { AlertCircle, CheckCircle, FileText, ExternalLink } from 'lucide-react';
 import { Scholarship } from '@/types';
 import scholarshipService from '@/lib/scholarshipService';

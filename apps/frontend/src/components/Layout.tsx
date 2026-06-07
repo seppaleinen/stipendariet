@@ -1,16 +1,16 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Search, FileText, PenSquare, Users, LogIn, LogOut, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@stipendariet/ui";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
+import { Button } from "@stipendariet/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "@stipendariet/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@stipendariet/ui";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
