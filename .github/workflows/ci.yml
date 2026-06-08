@@ -32,7 +32,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.x
+          version: 11.x
 
       - name: Cache dependencies
         id: cache-deps
@@ -44,9 +44,9 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      # Run lint on all workspace packages — will pass once eslint is wired up in turbo
-      # Currently eslint configs reference local files that don't exist in monorepo structure,
-      # so we skip for now and revisit when Phase E is done.
+      # Lint all workspace packages — shared eslint-config is now wired via workspace deps
+      - name: Lint
+        run: pnpm lint
 
   # ── test (frontend only — admin has no tests yet) ──────────
   test:
@@ -64,7 +64,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.x
+          version: 11.x
 
       - name: Cache dependencies
         id: cache-deps
@@ -97,7 +97,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.x
+          version: 11.x
 
       - name: Cache dependencies
         id: cache-deps
@@ -142,8 +142,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./backend/Dockerfile
+          context: ./backend
+          dockerfile: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
@@ -152,22 +152,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Build frontend and admin Docker images (only for main)
-      - name: Login to GitHub Container Registry (frontend)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
+      # NOTE: Frontend and admin Dockerfiles are currently standalone (per-app npm deps).
+      # For production monorepo Docker builds, these will need monorepo-aware Dockerfiles
+      # that install pnpm and build from the workspace root.
       - name: Build frontend image (main only)
         id: build-frontend
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./apps/frontend/Dockerfile
+          context: ./apps/frontend
+          dockerfile: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
@@ -180,8 +174,8 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./apps/admin/Dockerfile
+          context: ./apps/admin
+          dockerfile: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

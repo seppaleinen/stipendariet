@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@stipendariet/eslint-config": "workspace:*",
     "@stipendariet/types": "workspace:*",
     "@stipendariet/ui": "workspace:*",
     "@tailwindcss/typography": "^0.5.16",

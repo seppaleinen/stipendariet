@@ -24,11 +24,12 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@stipendariet/eslint-config": "workspace:*",
     "@stipendariet/types": "workspace:*",
-    "@vitejs/plugin-react": "^4.0.3",
+    "@vitejs/plugin-react-swc": "^4.3.1",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.27",
     "tailwindcss": "^3.3.3",
-    "vite": "^4.4.5"
+    "vite": "^5.4.19"
   }
 }
