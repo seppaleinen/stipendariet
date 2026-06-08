@@ -71,6 +71,10 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      # Build shared packages first so @stipendariet/ui dist/ exists for test imports
+      - name: Build shared packages
+        run: pnpm turbo run build --filter=@stipendariet/types --filter=@stipendariet/ui --filter=@stipendariet/eslint-config
+
       # Run frontend tests with vitest (has jsdom environment, coverage thresholds)
       - name: Run frontend tests
         working-directory: apps/frontend
@@ -110,7 +114,7 @@ jobs:
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, test, build]
     steps:
       - uses: actions/checkout@v4
 

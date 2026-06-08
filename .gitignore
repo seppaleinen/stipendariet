@@ -9,7 +9,7 @@ build
 .env
 
 # Runtime
-data/
+/data/
 *.log
 
 # Turbo cache
