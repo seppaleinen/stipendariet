@@ -14,7 +14,6 @@ concurrency:
 env:
   # Use Node LTS for CI builds
   NODE_VERSION: "20"
-  PNPM_CACHE_KEY: pnpm-lock.yaml
 
 jobs:
   # ── lint & type-check (fast) ──────────────────────────────
@@ -39,7 +38,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/' + env.PNPM_CACHE_KEY) }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -71,7 +70,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/' + env.PNPM_CACHE_KEY) }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -104,7 +103,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/' + env.PNPM_CACHE_KEY) }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
