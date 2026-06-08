@@ -30,8 +30,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11.x
 
       - name: Cache dependencies
         id: cache-deps
@@ -62,8 +60,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11.x
 
       - name: Cache dependencies
         id: cache-deps
@@ -95,8 +91,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11.x
 
       - name: Cache dependencies
         id: cache-deps
