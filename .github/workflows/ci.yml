@@ -13,7 +13,7 @@ concurrency:
 
 env:
   # Use Node LTS for CI builds
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
 
 jobs:
   # ── lint & type-check (fast) ──────────────────────────────
