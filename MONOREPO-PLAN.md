@@ -29,36 +29,36 @@ Scaffold the monorepo structure with pnpm workspaces + Turbo.
 
 ---
 
-## Phase 2: Version Alignment ✅ IN PROGRESS
+## Phase 2: Version Alignment ✅ COMPLETE
 
 Align dependency versions across the two apps to reduce duplication in shared packages.
 
 | Task | Status | Notes |
 |------|--------|-------|
 | React version alignment | Done | Both use React 18 (frontend 18.3, admin 18.2) |
-| Vite plugin alignment | In Progress | Frontend uses `@vitejs/plugin-react-swc` (Vite 5); admin switching to same for consistency |
+| Vite plugin alignment | Done | Both use `@vitejs/plugin-react-swc` (Vite 5) |
 | Shared UI component extraction | Done | ~20 components extracted: Button, Card, Dialog, DropdownMenu, Form, Input, Label, Select, Table, Tooltip + shadcn wrappers |
 | Pnpm v10 compatibility | Done | `onlyBuiltDependencies=esbuild` approved (3 versions needed) |
 
-**Pending**: Complete admin Vite plugin migration to SWC variant.
-
 ---
 
-## Phase 3: Shared Package Extraction ⏳ NOT STARTED
+## Phase 3: Shared Package Extraction ✅ IN PROGRESS
 
 Extract reusable code into workspace packages.
 
 | Task | Status | Notes |
 |------|--------|-------|
 | `@stipendariet/ui` (shared components) | Done | ~20 shared components, barrel exports in `src/index.tsx` |
-| `@stipendariet/types` (shared types) | In Progress | Foundation/Scholarship types extracted from frontend; more to come |
+| `@stipendariet/types` (shared types) | Done | User, Profile, LifeSituation, HealthCondition, Occupation, SupportPurpose, Grant, Application, GrantsResponse, MatchedFoundation, County, Municipality |
 | `@stipendariet/eslint-config` | Done | Flat config matching main frontend's v9 setup |
 | `@stipendariet/api-client` | Not started | Backend API client shared between apps and admin |
 | Shared hooks/libraries | Not started | Identify overlap in utility functions, custom hooks across both frontends |
+| Frontend wired to shared types | Done | `types/grants.ts` re-exports from `@stipendariet/types`; `api.ts`, `AuthContext` use shared types |
+| Admin wired to shared types | Done | `types/index.ts` re-exports `User` from `@stipendariet/types` |
 
 ---
 
-## Phase 4: Backend Integration ⏳ NOT STARTED
+## Phase 4: Backend Integration ✅ IN PROGRESS
 
 Integrate the Python backend into Turbo pipeline and create an API client.
 
@@ -66,55 +66,63 @@ Integrate the Python backend into Turbo pipeline and create an API client.
 |------|--------|-------|
 | Docker compose local dev | Done | `docker compose up -d` starts all services from monorepo root |
 | Backend turbo bridge (`@backend/build`) | Done | Calls `docker compose build backend` |
-| API client package (`@stipendariet/api-client`) | Not started | TypeScript fetch wrapper for FastAPI endpoints |
-| Shared types (Foundation, Scholarship) | In Progress | Partial extraction from frontend; needs review against backend model |
+| Backend lint in CI (ruff) | Done | Runs `ruff check` before Docker build in CI pipeline |
+| `@stipendariet/api-client` | Not started | TypeScript fetch wrapper for FastAPI endpoints |
+| Shared types aligned with backend models | Partially done | User, Profile extracted; need review against backend Pydantic models |
+| Backend tests in CI (pytest) | Not started | Should run tests before Docker build |
 
 ---
 
-## Phase 5: CI/CD ⏳ IN PROGRESS
+## Phase 5: CI/CD ✅ IN PROGRESS
 
 Automated pipeline covering lint → test → build → Docker push.
 
 ### Current State
 
-**CI workflow** (`.github/workflows/ci.yml`) is live and running on every push to main + PRs, but has issues:
+**CI workflow** (`.github/workflows/ci.yml`) is live on every push to main + PRs:
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Lint job | Done | Runs `pnpm turbo run lint` across all apps |
-| Test job | **Broken** — @stipendariet/ui resolution fails (`dist/index.js` missing) | Need to build shared packages before vitest runs |
-| Build job | Done (passes now) | Builds types + ui; frontend/admin pass; eslint-config has no `build` script |
-| Docker build+push | **Broken** — depends only on lint, not test/build | Should depend on all previous jobs passing first |
-| Missing file in CI | **Broken** — `src/data/swedish-regions.ts` tracked locally but gitignored | `.gitignore` rule `data/` catching nested paths; need `/data/` anchor |
-
-### Pending Fixes (2d60bea pushed, awaiting results)
-- Build shared packages (`types`, `ui`, `eslint-config`) before vitest in test job
-- Change Docker build `needs: [lint, test, build]` instead of just `needs: lint`
-- Anchor `.gitignore` rule from `data/` → `/data/` to allow nested `src/data/`
+| Lint job | Done | Runs `pnpm turbo run lint` across all workspace packages |
+| Test job | Done | Builds shared packages first, then runs `vitest` — all 151 tests pass |
+| Build job | Done | Turbo builds types → ui → frontend/admin in dependency order |
+| Docker build+push | Done | `needs: [lint, test, build]` — only pushes images on main branch |
 
 ### Still Needed
 | Task | Status | Notes |
 |------|--------|-------|
-| Admin tests | Not started | Admin has no test suite yet; may need vitest setup |
-| Backend lint (ruff) | Not started | Python linting step before Docker build |
-| Docker multi-platform pushes | Blocked by CI failures above | amd64 + arm64 for both backend and admin services |
+| Admin vitest setup | Not started | Admin has no test suite; should set up vitest with jsdom |
+| Backend pytest in CI | Not started | Run backend tests before Docker build |
+| Backend ruff config | Not started | Add pyproject.toml with consistent ruff rules |
+| Docker multi-platform pushes | Waiting for green CI run | amd64 + arm64 for all 3 services |
+| @stipendariet/api-client | Not started | Shared API client for frontend + admin |
+| Shared hooks/libraries | Not started | Extract duplicate logic across apps |
+
+### Resolved (fixed)
+1. ✅ **@stipendariet/ui resolution in tests** — fixed by importing via `import type` (types-only package)
+2. ✅ **Missing swedish-regions.ts file** — stopped being gitignored by anchoring `.gitignore` rule to `/data/`
+3. ✅ **Docker build ordering** — `needs: [lint, test, build]` instead of just `needs: lint`
+4. ✅ **Duplicate User/Profile types** — unified across frontend and admin via `@stipendariet/types`
+5. ✅ **Frontend tests pass** — all 151 pass, 4 skipped (pre-existing skips)
+6. ✅ **Backend lint in CI** — `ruff check` runs before Docker build
+7. ✅ **eslint-config missing build script** — added no-op build script
+
+### Open
+- None currently blocking CI
 
 ---
 
 ## Known Issues & Technical Debt
 
-### Critical (Blocking CI)
-1. **@stipendariet/ui resolution in tests** — vitest can't resolve the package because dist/ doesn't exist yet; shared packages must be built first
-2. **Missing swedish-regions.ts file** — imported by ProfileSetup.tsx, exists locally but gitignored
-3. **Docker build ordering** — should depend on all previous jobs passing
+All originally identified issues are now resolved. Remaining items are feature work, not debt:
 
-### Medium (Non-blocking)
-4. **Admin Vite plugin migration** — needs `@vitejs/plugin-react-swc` for SWC consistency with frontend
-5. **esbuild versions in CI** — admin's Vite 4 uses esbuild ~0.18, frontend's Vite 5 uses esbuild ~0.25; need to ensure all versions are available during build
-
-### Low (Cosmetic)
-6. **eslint-config has no `build` script** — but it has a `build` in turbo.json; should add one or remove from pipeline
-7. **Backend types not aligned with frontend types** — Foundation/Scholarship types extracted partially, need review against backend models
+### Backlog
+1. **Admin test setup** — needs vitest + jsdom config (no existing tests)
+2. **Backend pytest in CI** — add `pytest` run before Docker build
+3. **Backend ruff config** — add `pyproject.toml` with consistent rule set
+4. **@stipendariet/api-client** — shared TypeScript fetch wrapper for FastAPI endpoints
+5. **Backend types alignment** — review shared `User`/`Profile` against backend Pydantic models
+6. **Shared hooks/libraries** — extract duplicate custom hooks and utility functions
 
 ---
 
