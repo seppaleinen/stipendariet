@@ -1,106 +1,18 @@
-export interface Grant {
-  id: string;
-  title: string;
-  summary: string;
-  description: string;
-  provider: string;
-  amount?: string;
-  deadline?: string;
-  category: string;
-  tags: string[];
-  isRecurring: boolean;
-  websiteUrl?: string;
-  isFavorite?: boolean;
-  isSaved?: boolean;
-  // Foundation-specific fields
-  orgnr?: string;
-  purpose?: string;
-  translatedPurpose?: string;
-  address?: string;
-  postnr?: string;
-  postort?: string;
-  coAddress?: string;
-  phone?: string;
-  signature?: string;
-  roles?: { type?: string; name?: string; number?: string; address?: string; phone?: string; main_responsible?: string }[];
-}
+// Re-export shared types from @stipendariet/types as single source of truth
+export type {
+  Grant,
+  Application,
+  ApplicationStatus,
+  LifeSituation,
+  HealthCondition,
+  Occupation,
+  SupportPurpose,
+  Profile,
+  User,
+} from '@stipendariet/types';
 
-export interface Application {
-  id: string;
-  grantId: string;
-  grantTitle: string;
-  status: "draft" | "submitted" | "approved" | "rejected";
-  createdAt?: string;
-  updatedAt?: string;
-  content?: string;
-  notes?: string;
-}
+// ── App-specific types (not yet extracted to shared package) ───────────
 
-// Life situation options
-export type LifeSituation =
-  | "low_income"
-  | "single_parent"
-  | "widow"
-  | "pensioner"
-  | "student"
-  | "youth"
-  | "unemployed";
-
-// Health condition options
-export type HealthCondition =
-  | "mobility"
-  | "vision_hearing"
-  | "mental_health"
-  | "allergy"
-  | "diabetes"
-  | "cancer"
-  | "chronic_illness";
-
-// Occupation/background options
-export type Occupation =
-  | "hotel_restaurant"
-  | "retail"
-  | "maritime"
-  | "crafts"
-  | "healthcare"
-  | "agriculture"
-  | "arts"
-  | "journalism";
-
-// Support purpose options
-export type SupportPurpose =
-  | "education"
-  | "financial_aid"
-  | "health_care"
-  | "projects"
-  | "research"
-  | "travel"
-  | "equipment";
-
-// Structured profile for matching
-export interface Profile {
-  // Section 1: Geography
-  countyCode?: string;
-  municipalityCode?: string;
-
-  // Section 2: Life Situation
-  lifeSituations?: LifeSituation[];
-
-  // Section 3: Health & Disability
-  healthConditions?: HealthCondition[];
-  healthDetails?: string;
-
-  // Section 4: Occupation & Background
-  occupations?: Occupation[];
-
-  // Section 5: Support Purpose
-  supportPurposes?: SupportPurpose[];
-
-  // Legacy data from old profile format
-  legacyData?: Record<string, unknown>;
-}
-
-// Alias for backward compatibility
 export type FamilyProfile = Profile;
 
 export interface ChildNeed {

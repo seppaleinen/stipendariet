@@ -1,5 +1,9 @@
 import { Grant, Application, ChildNeed } from "@/types/grants";
 import { getAuthToken } from "@/contexts/AuthContext";
+import type { Grant, GrantsResponse, MatchedFoundation, Profile } from "@stipendariet/types";
+
+// Re-export shared types used by components
+export type { MatchedFoundation, Profile, GrantsResponse } from "@stipendariet/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -43,14 +47,6 @@ function formatDate(dateString: string | undefined): string | undefined {
 }
 
 // Grants API
-export interface GrantsResponse {
-  grants: Grant[];
-  total: number;
-  skip: number;
-  limit: number;
-  has_more: boolean;
-}
-
 export async function getGrants(params?: {
   category?: string;
   search?: string;
@@ -84,6 +80,45 @@ export async function getGrants(params?: {
     console.error("Error fetching grants:", error);
     return { grants: [], total: 0, skip: 0, limit: 50, has_more: false };
   }
+}
+
+export function mapGrantFromBackend(grant: BackendGrant): Grant {
+  const deadline = (grant.deadline || grant.application_deadline) as string | undefined;
+  return {
+    id: (grant.id as string | number | undefined)?.toString() ?? "",
+    title: (grant.name as string) || (grant.title as string) || "Namn saknas",
+    summary:
+      (grant.summary as string) ||
+      (grant.description as string) ||
+      "Ingen sammanfattning tillgänglig",
+    description:
+      (grant.description as string) ||
+      (grant.summary as string) ||
+      "Ingen beskrivning tillgänglig",
+    provider:
+      (grant.organization as string) ||
+      (grant.provider as string) ||
+      "Okänd utgivare",
+    amount: (grant.amount as string) || undefined,
+    deadline: formatDate(deadline),
+    category: (grant.category as string) || "Diverse",
+    tags: Array.isArray(grant.tags) ? (grant.tags as string[]) : [],
+    isRecurring: grant.cadence
+      ? String(grant.cadence).toLowerCase().includes("år")
+      : false,
+    websiteUrl:
+      (grant.link as string) || (grant.website_url as string) || undefined,
+    orgnr: (grant.orgnr as string) || undefined,
+    purpose: (grant.purpose as string) || undefined,
+    translatedPurpose: (grant.translated_purpose as string) || undefined,
+    address: (grant.address as string) || undefined,
+    postnr: (grant.postnr as string) || undefined,
+    postort: (grant.postort as string) || undefined,
+    coAddress: (grant.co_address as string) || undefined,
+    phone: (grant.phone as string) || undefined,
+    signature: (grant.signature as string) || undefined,
+    roles: Array.isArray(grant.roles) ? grant.roles : undefined,
+  };
 }
 
 export async function getGrant(id: string): Promise<Grant | undefined> {
@@ -140,48 +175,6 @@ export async function removeSavedGrant(grantId: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-}
-
-export function mapGrantFromBackend(grant: BackendGrant): Grant {
-  const deadline = (grant.deadline || grant.application_deadline) as
-    | string
-    | undefined;
-  return {
-    id: (grant.id as string | number | undefined)?.toString() ?? "",
-    title: (grant.name as string) || (grant.title as string) || "Namn saknas",
-    summary:
-      (grant.summary as string) ||
-      (grant.description as string) ||
-      "Ingen sammanfattning tillgänglig",
-    description:
-      (grant.description as string) ||
-      (grant.summary as string) ||
-      "Ingen beskrivning tillgänglig",
-    provider:
-      (grant.organization as string) ||
-      (grant.provider as string) ||
-      "Okänd utgivare",
-    amount: (grant.amount as string) || undefined,
-    deadline: formatDate(deadline),
-    category: (grant.category as string) || "Diverse",
-    tags: Array.isArray(grant.tags) ? (grant.tags as string[]) : [],
-    isRecurring: grant.cadence
-      ? String(grant.cadence).toLowerCase().includes("år")
-      : false,
-    websiteUrl:
-      (grant.link as string) || (grant.website_url as string) || undefined,
-    // Foundation-specific fields
-    orgnr: (grant.orgnr as string) || undefined,
-    purpose: (grant.purpose as string) || undefined,
-    translatedPurpose: (grant.translated_purpose as string) || undefined,
-    address: (grant.address as string) || undefined,
-    postnr: (grant.postnr as string) || undefined,
-    postort: (grant.postort as string) || undefined,
-    coAddress: (grant.co_address as string) || undefined,
-    phone: (grant.phone as string) || undefined,
-    signature: (grant.signature as string) || undefined,
-    roles: Array.isArray(grant.roles) ? grant.roles : undefined,
-  };
 }
 
 // Applications API
@@ -298,23 +291,6 @@ export function mapApplicationFromBackend(app: BackendApplication): Application 
 }
 
 // Profile API
-export interface Profile {
-  id?: number;
-  name?: string;
-  isDefault?: boolean;
-  countyCode?: string;
-  municipalityCode?: string;
-  lifeSituations?: string[];
-  healthConditions?: string[];
-  healthDetails?: string;
-  occupations?: string[];
-  supportPurposes?: string[];
-  legacyData?: Record<string, any>;
-}
-
-// Legacy alias
-export type FamilyProfile = Profile;
-
 export function mapBackendProfileToFrontend(backendProfile: any): Profile {
   return {
     id: backendProfile.id,
@@ -450,17 +426,6 @@ export async function generateApplicationWithAI(
 }
 
 // Semantic Matching API
-export type MatchedFoundation = {
-  foundation: {
-    id: number;
-    foundation_id: number;
-    name: string;
-    summary: string | null;
-    translated_purpose: string | null;
-    category: string | null;
-  };
-  similarity_score: number;
-};
 
 export async function findMatchingFoundations(
   needs: string,

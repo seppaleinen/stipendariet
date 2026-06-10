@@ -1,12 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
-// User type - adjust to match your backend response
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-  avatar?: string;
-}
+export type { User } from '@stipendariet/types';
 
 // Auth state
 interface AuthState {

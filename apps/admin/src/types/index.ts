@@ -23,9 +23,4 @@ export interface ScholarshipQueueItem {
   created_at: string;
 }
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
+export type { User } from '@stipendariet/types';
