@@ -118,6 +118,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Python setup for backend linting
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # ── Python lint with ruff ──────────────────────────────
+      - name: Lint backend
+        working-directory: backend
+        run: |
+          pip install ruff
+          ruff check .
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
