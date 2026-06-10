@@ -4,8 +4,7 @@ Test script to verify the sync service logic without database dependencies
 """
 import json
 import logging
-from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def extract_and_refine_foundation_data(
-    raw_foundation: Dict[str, Any], last_updated: str
-) -> Dict[str, Any]:
+    raw_foundation: dict[str, Any], last_updated: str
+) -> dict[str, Any]:
     """
     Updated version of the function that properly handles the Foundation model with aliases
     """
@@ -55,10 +54,7 @@ def extract_and_refine_foundation_data(
             summary = clean_purpose[: first_sentence_end + 1]
         else:
             # Just take first 200 characters and add ellipsis if needed
-            if len(clean_purpose) > 200:
-                summary = clean_purpose[:197] + "..."
-            else:
-                summary = clean_purpose
+            summary = clean_purpose[:197] + "..." if len(clean_purpose) > 200 else clean_purpose
 
     # Extract key information like target groups, funding areas from the purpose text
     target_groups = []

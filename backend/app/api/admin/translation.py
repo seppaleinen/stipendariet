@@ -5,6 +5,7 @@ Admin translation endpoints for foundation purpose translation
 import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 def trigger_bulk_purpose_translation_endpoint(force: bool = False):
     """
     Endpoint to trigger translation of all existing foundation purposes as a background task.
-    
+
     Args:
         force: If True, retranslate all foundations even if already translated
     """
@@ -25,7 +26,7 @@ def trigger_bulk_purpose_translation_endpoint(force: bool = False):
 
         # Create a task record in the task manager
         from app.foundation.task_manager import create_task
-        task = create_task(task_id, task_name="bulk_translation")
+        create_task(task_id, task_name="bulk_translation")
 
         # Start the translation as a background task
         from app.foundation.sync_service import background_translate_all_foundations_purposes
@@ -64,7 +65,7 @@ def get_translation_task_status_endpoint(task_id: str):
     """
     try:
         logger.info(f"Admin requested status for translation task: {task_id}")
-        
+
         # Validate task ID format
         try:
             uuid.UUID(task_id)
@@ -73,17 +74,17 @@ def get_translation_task_status_endpoint(task_id: str):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid task ID format"
             )
-        
+
         # Get task from the task manager
         from app.foundation.task_manager import get_task
         task = get_task(task_id)
-        
+
         if not task:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
-        
+
         # Return task status
         return {
             "task_id": task.task_id,
@@ -113,7 +114,7 @@ def translate_single_foundation_endpoint(foundation_id: int, model: str = None, 
     """
     Endpoint to translate a single foundation's purpose and save to database.
     Useful for testing the translation before running bulk translation.
-    
+
     Args:
         foundation_id: The ID of the foundation to translate
         model: Optional LLM model to use (defaults to configured model)
@@ -122,8 +123,8 @@ def translate_single_foundation_endpoint(foundation_id: int, model: str = None, 
     try:
         logger.info(f"Admin triggered translation for foundation ID: {foundation_id} (model={model})")
 
-        from app.db.database import get_db
         from app.db import models
+        from app.db.database import get_db
         from app.services.ollama_translation_service import ollama_translation_service
 
         # Get a database session
@@ -154,8 +155,8 @@ def translate_single_foundation_endpoint(foundation_id: int, model: str = None, 
 
             # Translate the purpose with optional overrides
             translated_purpose = ollama_translation_service.translate_purpose(
-                original_purpose, 
-                model=model, 
+                original_purpose,
+                model=model,
                 custom_prompt=custom_prompt
             )
 
@@ -199,7 +200,7 @@ def get_translation_defaults_endpoint():
     Useful for populating the UI fields with current defaults.
     """
     from app.services.ollama_translation_service import ollama_translation_service
-    
+
     return {
         "model": ollama_translation_service.get_default_model(),
         "prompt_template": ollama_translation_service.get_default_prompt_template()

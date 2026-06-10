@@ -1,14 +1,13 @@
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import create_access_token, get_current_user_payload
-from app.db.database import get_db
 from app.db import models, schemas
+from app.db.database import get_db
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -29,7 +28,7 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
+def get_user_by_email(db: Session, email: str) -> models.User | None:
     return db.query(models.User).filter(models.User.email == email).first()
 
 
@@ -65,17 +64,17 @@ def signup(payload: schemas.UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters"
         )
-    
+
     existing = get_user_by_email(db, payload.email)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
+
     user = create_user(db, payload)
     token = create_token_for_user(user)
-    
+
     return schemas.TokenResponse(
         access_token=token,
         user=schemas.User(
@@ -199,7 +198,7 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
-    
+
     try:
         user_id = UUID(user_id_str)
     except ValueError:
@@ -207,14 +206,14 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
-    
+
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
-    
+
     return schemas.User(
         id=user.id,
         email=user.email,

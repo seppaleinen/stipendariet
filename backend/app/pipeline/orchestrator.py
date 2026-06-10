@@ -3,11 +3,11 @@ import logging
 from datetime import datetime
 
 from app.db.database import SessionLocal
-from app.db.models import Foundation, EnrichmentSource, EnrichmentPage, EnrichmentData
-from app.pipeline.discovery import discover_candidate_urls
-from app.pipeline.validation import validate_candidate_url
+from app.db.models import EnrichmentData, EnrichmentPage, EnrichmentSource, Foundation
 from app.pipeline.crawler import crawl_foundation_site
+from app.pipeline.discovery import discover_candidate_urls
 from app.pipeline.extraction import extract_data_from_content
+from app.pipeline.validation import validate_candidate_url
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +165,7 @@ async def run_foundation_pipeline_task(
     ])
 
     matched_candidates = []
-    for cand, val in zip(candidates, validation_results):
+    for cand, val in zip(candidates, validation_results, strict=False):
         source_id = await asyncio.to_thread(
             _db_save_source, foundation_id, cand["url"], val["is_match"], val["confidence"]
         )

@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
-from app.foundation.foundation_schemas import Foundation, FoundationSearchResponse
+from app.foundation.foundation_schemas import FoundationSearchResponse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 FOUNDATION_OPENDATA_URL = "https://stiftelser.lansstyrelsen.se/Öppendata/Json"
 
 
-def fetch_foundation_opendata() -> Optional[List[Dict[str, Any]]]:
+def fetch_foundation_opendata() -> list[dict[str, Any]] | None:
     """
     Fetch foundation data from the Öppendata endpoint which provides richer information.
 
@@ -94,7 +94,7 @@ def fetch_foundation_opendata() -> Optional[List[Dict[str, Any]]]:
         return None
 
 
-def poll_foundations() -> Optional[FoundationSearchResponse]:
+def poll_foundations() -> FoundationSearchResponse | None:
     """
     Poll the foundation API from Öppendata endpoint for the latest foundation data.
     This function now only uses the Öppendata endpoint which contains all necessary information.
@@ -208,8 +208,8 @@ def poll_foundations() -> Optional[FoundationSearchResponse]:
 
 
 def get_foundations_by_query(
-    query: Optional[str] = None,
-) -> Optional[FoundationSearchResponse]:
+    query: str | None = None,
+) -> FoundationSearchResponse | None:
     """
     Poll the foundation API with an optional search query.
     This function now fetches all data and filters locally instead of using the API search.

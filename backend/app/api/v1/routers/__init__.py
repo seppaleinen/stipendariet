@@ -1,11 +1,11 @@
 from . import (
+    admin_password_reset,
     applications,
     foundation_sync,
     foundations,
     funding,
     profile,
     search,
-    admin_password_reset,
 )
 
 __all__ = [

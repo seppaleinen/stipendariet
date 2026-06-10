@@ -1,4 +1,3 @@
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -36,7 +35,7 @@ def get_saved_grants(
 ):
     """Get authenticated user's saved grant IDs."""
     user_id = get_user_id_from_payload(payload)
-    
+
     saved = db.query(models.SavedGrant).filter(models.SavedGrant.user_id == user_id).all()
     return {"saved_grants": [s.grant_id for s in saved]}
 
@@ -49,20 +48,20 @@ def save_grant(
 ):
     """Save a grant for the authenticated user."""
     user_id = get_user_id_from_payload(payload)
-    
+
     # Check if already saved
     existing = db.query(models.SavedGrant).filter(
         models.SavedGrant.user_id == user_id,
         models.SavedGrant.grant_id == request.grant_id,
     ).first()
-    
+
     if existing:
         return {"message": "Grant already saved", "grant_id": request.grant_id}
-    
+
     saved = models.SavedGrant(user_id=user_id, grant_id=request.grant_id)
     db.add(saved)
     db.commit()
-    
+
     return {"message": "Grant saved", "grant_id": request.grant_id}
 
 
@@ -74,23 +73,23 @@ def remove_saved_grant(
 ):
     """Remove a saved grant for the authenticated user."""
     user_id = get_user_id_from_payload(payload)
-    
+
     deleted = db.query(models.SavedGrant).filter(
         models.SavedGrant.user_id == user_id,
         models.SavedGrant.grant_id == grant_id,
     ).delete()
-    
+
     db.commit()
-    
+
     if deleted == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved grant not found")
-    
+
     return {"message": "Grant removed", "grant_id": grant_id}
 
 
 # --- Multi-Profile Endpoints ---
 
-@router.get("/list", response_model=List[schemas.Profile])
+@router.get("/list", response_model=list[schemas.Profile])
 def list_profiles(
     payload: dict = Depends(get_current_user_payload),
     db: Session = Depends(get_db),
@@ -117,8 +116,8 @@ def create_profile(
     # If setting as default, unset others (though we only enforce one default via logic, not DB constraint yet)
     if is_default:
         db.query(models.Profile).filter(
-            models.Profile.user_id == user_id, 
-            models.Profile.is_default == True
+            models.Profile.user_id == user_id,
+            models.Profile.is_default
         ).update({"is_default": False})
 
     db_profile = models.Profile(
@@ -152,10 +151,10 @@ def get_profile(
         models.Profile.id == profile_id,
         models.Profile.user_id == user_id
     ).first()
-    
+
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-        
+
     return profile
 
 
@@ -172,7 +171,7 @@ def update_profile(
         models.Profile.id == profile_id,
         models.Profile.user_id == user_id
     ).first()
-    
+
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
@@ -180,8 +179,8 @@ def update_profile(
     if profile_data.is_default and not profile.is_default:
         # Unset others
         db.query(models.Profile).filter(
-            models.Profile.user_id == user_id, 
-            models.Profile.is_default == True
+            models.Profile.user_id == user_id,
+            models.Profile.is_default
         ).update({"is_default": False})
         profile.is_default = True
     elif not profile_data.is_default and profile.is_default:
@@ -212,16 +211,16 @@ def delete_profile(
 ):
     """Delete a profile."""
     user_id = get_user_id_from_payload(payload)
-    
+
     # Don't allow deleting the last profile maybe? Or just allow it.
-    
+
     result = db.query(models.Profile).filter(
         models.Profile.id == profile_id,
         models.Profile.user_id == user_id
     ).delete()
-    
+
     db.commit()
-    
+
     if result == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
     return None
@@ -236,17 +235,17 @@ def get_family_profile(
 ):
     """Get authenticated user's default profile (backward compatibility)."""
     user_id = get_user_id_from_payload(payload)
-    
+
     # Try to find default profile
     profile = db.query(models.Profile).filter(
         models.Profile.user_id == user_id,
-        models.Profile.is_default == True
+        models.Profile.is_default
     ).first()
-    
+
     # Fallback to any profile
     if not profile:
         profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
-        
+
     if profile is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
@@ -261,17 +260,17 @@ def upsert_family_profile(
 ):
     """Create or update authenticated user's default profile (backward compatibility)."""
     user_id = get_user_id_from_payload(payload)
-    
+
     # Try to find default profile
     db_profile = db.query(models.Profile).filter(
         models.Profile.user_id == user_id,
-        models.Profile.is_default == True
+        models.Profile.is_default
     ).first()
-    
+
     # Fallback to any profile
     if not db_profile:
         db_profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
-    
+
     if db_profile:
         # Update existing
         db_profile.name = profile_data.name # Update name if provided in legacy call? Sure.
@@ -284,10 +283,10 @@ def upsert_family_profile(
         db_profile.support_purposes = profile_data.support_purposes
         if profile_data.legacy_data is not None:
             db_profile.legacy_data = profile_data.legacy_data
-        
+
         # Ensure it is marked default if we are treating it as such
         db_profile.is_default = True
-        
+
     else:
         # Create new default profile
         db_profile = models.Profile(
@@ -304,7 +303,7 @@ def upsert_family_profile(
             legacy_data=profile_data.legacy_data,
         )
         db.add(db_profile)
-    
+
     db.commit()
     db.refresh(db_profile)
     return db_profile

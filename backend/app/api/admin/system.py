@@ -3,6 +3,7 @@ Admin system endpoints for database management and stats
 """
 
 import logging
+
 from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
@@ -15,8 +16,8 @@ def clear_database_endpoint():
     try:
         logger.warning("Admin triggered database clearing - this is dangerous!")
 
-        from app.db.database import get_db
         from app.crud import crud
+        from app.db.database import get_db
 
         # Get a database session
         db = next(get_db())
@@ -53,17 +54,17 @@ def get_foundation_stats_endpoint():
     Returns counts for translated/untranslated and embedded/not-embedded.
     """
     try:
-        from app.db.database import get_db
+
         from app.db import models
-        from sqlalchemy import func
-        
+        from app.db.database import get_db
+
         db = next(get_db())
         try:
             # Get total count
             total = db.query(models.Foundation).count()
             translated = db.query(models.Foundation).filter(models.Foundation.translated_purpose.isnot(None)).count()
             embedded = db.query(models.Foundation).filter(models.Foundation.purpose_embedding.isnot(None)).count()
-            
+
             return {
                 "total_foundations": total,
                 "translated": translated,
@@ -105,12 +106,13 @@ def search_foundations_admin_endpoint(q: str):
     """
     if not q or len(q) < 3:
         return []
-        
+
     try:
-        from app.db.database import get_db
-        from app.db import models
         from sqlalchemy import or_
-        
+
+        from app.db import models
+        from app.db.database import get_db
+
         db = next(get_db())
         try:
             # PostgreSQL ILIKE search
@@ -120,7 +122,7 @@ def search_foundations_admin_endpoint(q: str):
                     models.Foundation.orgnr.ilike(f"%{q}%")
                 )
             ).limit(10).all()
-            
+
             return [
                 {
                     "id": f.id,

@@ -5,17 +5,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.api.v1.routers import (
+    admin as admin_router,
+)
+from app.api.v1.routers import (
+    admin_password_reset,
     applications,
+    auth,
     foundation_sync,
     foundations,
-    grants,
+    foundations_api,
     funding,
+    grants,
     profile,
     search,
-    admin as admin_router,
-    foundations_api,
-    auth,
-    admin_password_reset,
 )
 from app.db.database import create_tables, get_db
 from app.foundation.scheduler import init_scheduler

@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,11 +9,11 @@ from app.db.database import get_db
 router = APIRouter(prefix="/api/foundations-api", tags=["foundations"])  # Changed to distinguish from other foundation endpoints
 
 
-@router.get("/", response_model=List[schemas.Foundation])
+@router.get("/", response_model=list[schemas.Foundation])
 def get_foundations_api(
-    q: Optional[str] = None,
-    category: Optional[str] = None,
-    sort: Optional[str] = None,
+    q: str | None = None,
+    category: str | None = None,
+    sort: str | None = None,
     db: Session = Depends(get_db),
 ):
     """Get list of foundations with optional filtering and sorting"""

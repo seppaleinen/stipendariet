@@ -1,36 +1,34 @@
 """
 Unit tests for CRUD operations — backend
 """
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from app.crud.crud import (
-    get_foundation_batch_size,
-    get_foundations_with_category_filter,
-    get_applications,
-    get_application,
     create_application,
-    update_application,
-    get_profile,
-    save_profile,
-    get_foundations,
-    get_foundation,
-    get_foundations_by_county_code,
-    get_foundations_by_municipality_code,
-    get_foundation_by_db_id,
-    create_or_update_foundation,
     create_foundations,
     create_foundations_batch,
+    create_grant,
+    create_or_update_foundation,
+    delete_all_applications,
     delete_all_foundations,
     delete_all_profiles,
-    delete_all_applications,
-    get_grants,
-    get_grant,
-    create_grant,
-    update_grant,
     delete_grant,
+    get_application,
+    get_applications,
+    get_foundation,
+    get_foundation_batch_size,
+    get_foundation_by_db_id,
+    get_foundations,
+    get_foundations_by_county_code,
+    get_foundations_by_municipality_code,
+    get_foundations_with_category_filter,
+    get_grant,
+    get_grants,
+    get_profile,
+    save_profile,
+    update_application,
+    update_grant,
 )
-
 
 # db_session fixture is provided by conftest.py — but we also need make_mock_session helper
 
@@ -198,7 +196,7 @@ def test_create_or_update_foundation_existing():
     session.commit = MagicMock()
     session.refresh = MagicMock()
 
-    result = create_or_update_foundation(session, {
+    create_or_update_foundation(session, {
         "foundation_id": 123,
         "name": "Updated Name",
         "translated_purpose": "new translation",
@@ -298,7 +296,7 @@ def test_get_application_not_found(db_session):
 
 def test_create_application(db_session):
     """Creates a new application"""
-    mock_app = MagicMock()
+    MagicMock()
     db_session.add = MagicMock()
     db_session.commit = MagicMock()
     db_session.refresh = MagicMock()
@@ -313,7 +311,7 @@ def test_create_application(db_session):
         "content": "Test content",
     }
 
-    result = create_application(db_session, application)
+    create_application(db_session, application)
     db_session.add.assert_called_once()
     db_session.commit.assert_called_once()
 
@@ -372,7 +370,7 @@ def test_save_profile_create_new(db_session):
     else:
         profile.dict.return_value = {"name": "Test"}
 
-    result = save_profile(db_session, profile)
+    save_profile(db_session, profile)
     db_session.add.assert_called_once()
 
 
@@ -389,7 +387,7 @@ def test_save_profile_update_existing(db_session):
     else:
         profile.dict.return_value = {"name": "Updated"}
 
-    result = save_profile(db_session, profile)
+    save_profile(db_session, profile)
     assert existing.name == "Updated"
     db_session.commit.assert_called_once()
 
@@ -420,7 +418,7 @@ def test_get_grant_not_found(db_session):
 
 def test_create_grant(db_session):
     """Creates a new grant"""
-    mock_grant = MagicMock()
+    MagicMock()
     db_session.add = MagicMock()
     db_session.commit = MagicMock()
     db_session.refresh = MagicMock()
@@ -428,7 +426,7 @@ def test_create_grant(db_session):
     grant = MagicMock()
     grant.dict.return_value = {"name": "Test"}
 
-    result = create_grant(db_session, grant)
+    create_grant(db_session, grant)
     db_session.add.assert_called_once()
 
 

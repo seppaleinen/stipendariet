@@ -5,17 +5,18 @@ Management script for creating an admin user in the backend service
 This script allows creating an admin user directly in the database.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add the app directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent / "app"))
 
-from app.db.database import engine
-from app.db.models import User
 from passlib.context import CryptContext
 from sqlalchemy.orm import sessionmaker
+
+from app.db.database import engine
+from app.db.models import User
 
 
 def hash_password(password: str) -> str:
@@ -59,7 +60,7 @@ def create_admin_user(email: str, password: str, name: str = "Admin"):
         db.commit()
         db.refresh(admin_user)
 
-        print(f"Admin user created successfully!")
+        print("Admin user created successfully!")
         print(f"Email: {admin_user.email}")
         print(f"Name: {admin_user.name}")
         print(f"Is Admin: {admin_user.is_admin}")
@@ -81,8 +82,8 @@ if __name__ == "__main__":
 
     success = create_admin_user(admin_email, admin_password, admin_name)
     if success:
-        print(f"\nAdmin user creation completed successfully!")
-        print(f"You can now log in with:")
+        print("\nAdmin user creation completed successfully!")
+        print("You can now log in with:")
         print(f"  Email: {admin_email}")
         print(f"  Password: {admin_password}")
     else:

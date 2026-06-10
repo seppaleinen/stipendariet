@@ -1,6 +1,8 @@
 import json
 import logging
+
 import requests
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -9,8 +11,8 @@ from app.pipeline.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_PROMP
 
 
 async def validate_candidate_url(
-    candidate: dict, 
-    foundation_name: str, 
+    candidate: dict,
+    foundation_name: str,
     orgnr: str,
     custom_system_prompt: str = None,
     custom_user_prompt: str = None
@@ -21,7 +23,7 @@ async def validate_candidate_url(
     """
     sys_prompt = custom_system_prompt or VALIDATION_SYSTEM_PROMPT
     usr_prompt = custom_user_prompt or VALIDATION_USER_PROMPT
-    
+
     prompt = sys_prompt + "\n" + usr_prompt.format(
         name=foundation_name,
         orgnr=orgnr or "Okänt",
@@ -29,10 +31,10 @@ async def validate_candidate_url(
         snippet=candidate.get("snippet", ""),
         url=candidate.get("url", "")
     )
-    
+
     ollama_url = getattr(settings, 'OLLAMA_URL', 'https://ollama.labb.site')
     model = getattr(settings, 'ENRICHMENT_LLM_MODEL', 'phi3:14b')
-    
+
     try:
         response = requests.post(
             f"{ollama_url}/api/generate",
@@ -64,5 +66,5 @@ async def validate_candidate_url(
             "error": str(e),
             "prompt_used": prompt[:800] + "..." if len(prompt) > 800 else prompt,
         }
-        
+
     return {"is_match": False, "confidence": 0.0, "raw_llm_response": None}

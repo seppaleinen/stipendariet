@@ -1,14 +1,11 @@
 import json
 import logging
-from datetime import datetime
-from typing import Any, Dict, List
-from sqlalchemy.orm import Session
+from typing import Any
 
 from app.crud import crud
 from app.db import models
 from app.db.database import get_db
 from app.foundation.foundation_api import poll_foundations
-from app.services.ollama_translation_service import ollama_translation_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def extract_and_refine_foundation_data(
-    raw_foundation: Dict[str, Any], last_updated: str
-) -> Dict[str, Any]:
+    raw_foundation: dict[str, Any], last_updated: str
+) -> dict[str, Any]:
     """
     Extract and refine foundation data by processing the raw data with a local LLM.
     This function would typically call your local LLM to understand and structure the data.
@@ -68,10 +65,7 @@ def extract_and_refine_foundation_data(
             summary = clean_purpose[:first_sentence_end + 1]
         else:
             # Just take first 200 characters and add ellipsis if needed
-            if len(clean_purpose) > 200:
-                summary = clean_purpose[:197] + "..."
-            else:
-                summary = clean_purpose
+            summary = clean_purpose[:197] + "..." if len(clean_purpose) > 200 else clean_purpose
 
     # Extract key information like target groups, funding areas from the purpose text
     target_groups = []
@@ -192,7 +186,7 @@ def sync_foundations(task_id: str = None):
     """
     Main function to sync foundations from the external API to the database.
     This function polls the API, processes the data, and persists it to the database.
-    
+
     Args:
         task_id: Optional task ID for progress tracking via task_manager
     """
@@ -258,7 +252,7 @@ def sync_foundations(task_id: str = None):
                         foundation_id = raw_foundation.id
                     else:
                         foundation_id = "unknown"
-                except:
+                except Exception:
                     foundation_id = "unknown"
                 logger.error(f"Error processing foundation {foundation_id}: {e}")
                 process_failed += 1
@@ -285,11 +279,11 @@ def sync_foundations(task_id: str = None):
             created_total = 0
             updated_total = 0
             persisted_total = 0
-            
+
             for start in range(0, total, batch_size):
                 end = min(start + batch_size, total)
                 batch = refined_foundations[start:end]
-                
+
                 # Count existing vs new for this batch
                 for foundation_data in batch:
                     existing = crud.get_foundation(db, foundation_data.get("foundation_id"))
@@ -297,12 +291,12 @@ def sync_foundations(task_id: str = None):
                         updated_total += 1
                     else:
                         created_total += 1
-                
+
                 # The batch function already does upsert (update if exists, create if not)
                 crud.create_foundations_batch(db, batch)
                 persisted_total += len(batch)
                 logger.info(f"Processed batch {start}-{end}")
-                
+
                 # Report progress during persist phase
                 _update_task(persisted_total, process_failed, 0, total)
 
@@ -344,7 +338,7 @@ def trigger_foundation_sync():
 def translate_all_foundations_purposes(task_id: str = None, force_retranslate: bool = False):
     """
     Function to translate all existing foundation purposes in the database
-    
+
     Args:
         task_id: Optional task ID for progress tracking
         force_retranslate: If True, retranslate all foundations even if already translated
@@ -353,8 +347,8 @@ def translate_all_foundations_purposes(task_id: str = None, force_retranslate: b
 
     try:
         from app.db.database import get_db
-        from app.services.ollama_translation_service import ollama_translation_service
         from app.foundation.task_manager import get_task
+        from app.services.ollama_translation_service import ollama_translation_service
 
         # Get database session
         db = next(get_db())

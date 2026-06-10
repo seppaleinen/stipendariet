@@ -1,6 +1,6 @@
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
-from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -29,13 +29,13 @@ class Settings(BaseSettings):
     OLLAMA_URL: str = Field(default="https://ollama.labb.site", env="OLLAMA_URL")
     OLLAMA_MODEL: str = Field(default="phi3:14b", env="OLLAMA_MODEL")  # Model for translation tasks
     OLLAMA_EMBEDDING_MODEL: str = Field(default="nomic-embed-text", env="OLLAMA_EMBEDDING_MODEL") # Model for embeddings
-    
+
     # Redis/Dragonfly settings (for Arq queue)
     REDIS_URL: str = Field(default="redis://dragonfly.dragonfly.svc.cluster.local:6379", env="REDIS_URL")
-    
+
     # Browserless settings (separated Playwright container)
     BROWSERLESS_URL: str = Field(default="http://browserless:3000", env="BROWSERLESS_URL")
-    
+
     # Enrichment settings
     ENRICHMENT_LLM_MODEL: str = Field(default="phi3:14b", env="ENRICHMENT_LLM_MODEL")
     ENRICHMENT_BATCH_SIZE: int = Field(default=50, env="ENRICHMENT_BATCH_SIZE")

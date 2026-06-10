@@ -2,8 +2,6 @@
 Pydantic schemas for enrichment data validation.
 Used to validate LLM output before persisting to database.
 """
-from typing import Optional, Union, List
-from pydantic import BaseModel, Field, field_validator
 
 
 class EnrichmentStatus:

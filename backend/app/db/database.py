@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
@@ -24,7 +24,7 @@ def create_engine_with_retry(max_attempts=10, delay=2):
             # Create engine
             engine = create_engine(SQLALCHEMY_DATABASE_URL)
             # Test the connection
-            with engine.connect() as conn:
+            with engine.connect():
                 pass
             print(f"Database connection established on attempt {attempt + 1}")
             return engine
@@ -65,7 +65,7 @@ def create_tables():
     """Create all tables in the database"""
     from sqlalchemy import text
 
-    from app.db.models import Base, Foundation, User, SavedGrant, Profile, Application
+    from app.db.models import Base
 
     # Enable pgvector extension
     with engine.connect() as conn:
@@ -201,8 +201,9 @@ def create_tables():
 
 def create_admin_user():
     """Create an admin user if it doesn't exist"""
-    from app.core.config import settings
     from passlib.context import CryptContext
+
+    from app.core.config import settings
 
     # Configure bcrypt for password hashing
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

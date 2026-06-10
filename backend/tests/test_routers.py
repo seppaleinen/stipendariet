@@ -2,14 +2,13 @@
 Unit tests for API routers — backend
 Tests all router endpoints by mocking their dependencies (CRUD, services, DB sessions)
 """
-import pytest
 from unittest.mock import MagicMock, patch
-from fastapi.testclient import TestClient
 from uuid import UUID
+
+from fastapi.testclient import TestClient
 
 # Import app — database engine is mocked via conftest.py autouse fixture
 from app.main import app
-from app.db import schemas
 
 client = TestClient(app)
 

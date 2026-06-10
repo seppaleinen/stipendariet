@@ -1,10 +1,9 @@
 """
 Unit tests for services — embedding, scraping, translation
 """
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-import requests
+from unittest.mock import MagicMock, patch
 
+import requests
 
 # =============================================================================
 # Embedding Service Tests

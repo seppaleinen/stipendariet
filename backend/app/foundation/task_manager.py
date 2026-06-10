@@ -1,11 +1,9 @@
 import threading
-import time
 from datetime import datetime
-from typing import Dict, Optional
-from enum import Enum
+from enum import StrEnum
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -19,15 +17,15 @@ class TranslationTask:
         self.status = TaskStatus.PENDING
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
-        self.start_time: Optional[datetime] = None
+        self.start_time: datetime | None = None
         self.progress = 0
         self.total = 0
         self.completed = 0
         self.failed = 0
         self.skipped = 0
-        self.estimated_remaining_seconds: Optional[float] = None
-        self.result: Optional[Dict] = None
-        self.error: Optional[str] = None
+        self.estimated_remaining_seconds: float | None = None
+        self.result: dict | None = None
+        self.error: str | None = None
         self._lock = threading.Lock()
 
     def update_status(self, status: TaskStatus):
@@ -47,7 +45,7 @@ class TranslationTask:
             if total > 0:
                 self.progress = processed / total * 100
             self.updated_at = datetime.utcnow()
-            
+
             # Calculate estimated time remaining
             if self.start_time and processed > 0 and processed < total:
                 elapsed = (datetime.utcnow() - self.start_time).total_seconds()
@@ -57,7 +55,7 @@ class TranslationTask:
             else:
                 self.estimated_remaining_seconds = None
 
-    def set_result(self, result: Dict):
+    def set_result(self, result: dict):
         with self._lock:
             self.result = result
             self.status = TaskStatus.COMPLETED
@@ -73,10 +71,10 @@ class TranslationTask:
 
 
 # In-memory storage for tasks (in production, use Redis or database)
-_active_tasks: Dict[str, TranslationTask] = {}
+_active_tasks: dict[str, TranslationTask] = {}
 
 
-def get_task(task_id: str) -> Optional[TranslationTask]:
+def get_task(task_id: str) -> TranslationTask | None:
     """Get a task by ID"""
     return _active_tasks.get(task_id)
 
@@ -93,9 +91,9 @@ def remove_task(task_id: str):
     _active_tasks.pop(task_id, None)
 
 
-def get_active_tasks_summary() -> Dict[str, Optional[Dict]]:
+def get_active_tasks_summary() -> dict[str, dict | None]:
     """
-    Returns a summary of running tasks across different task_names. 
+    Returns a summary of running tasks across different task_names.
     E.g. {'sync_foundations': {'task_id': '123...', 'status': 'running'}, 'bulk_translation': None}
     """
     summary = {}

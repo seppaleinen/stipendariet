@@ -1,4 +1,3 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -10,7 +9,7 @@ from app.db.database import get_db
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
 
-@router.get("/", response_model=List[schemas.Application])
+@router.get("/", response_model=list[schemas.Application])
 def get_applications(db: Session = Depends(get_db)):
     """Get all applications"""
     applications = crud.get_applications(db=db)

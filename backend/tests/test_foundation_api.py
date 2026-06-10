@@ -2,7 +2,6 @@
 """
 Test script to verify the foundation API functionality
 """
-import asyncio
 
 from app.foundation.foundation_api import get_foundations_by_query, poll_foundations
 

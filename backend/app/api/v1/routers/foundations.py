@@ -1,19 +1,18 @@
-from typing import Optional, List
-from pydantic import BaseModel
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user_payload
 from app.crud import crud
 from app.db import models, schemas
 from app.db.database import get_db
 from app.foundation.foundation_api import get_foundations_by_query, poll_foundations
 from app.foundation.foundation_schemas import FoundationSearchResponse
 from app.foundation.profile_text_generator import generate_profile_text
+from app.services.embedding_service import SIMILARITY_THRESHOLD, ollama_embedding_service
 from app.services.ollama_translation_service import ollama_translation_service
-from app.services.embedding_service import ollama_embedding_service, SIMILARITY_THRESHOLD
-from app.core.security import get_current_user_payload
 
 
 class TranslationRequest(BaseModel):
@@ -22,15 +21,15 @@ class TranslationRequest(BaseModel):
 
 class MatchingRequest(BaseModel):
     needs: str  # User's description of their needs
-    threshold: Optional[float] = SIMILARITY_THRESHOLD  # Similarity threshold (0-1)
-    limit: Optional[int] = 20  # Max results
+    threshold: float | None = SIMILARITY_THRESHOLD  # Similarity threshold (0-1)
+    limit: int | None = 20  # Max results
 
 
 class ProfileMatchingRequest(BaseModel):
-    profile_id: Optional[int] = None  # Specific profile to match against
+    profile_id: int | None = None  # Specific profile to match against
     use_geographic_filter: bool = True  # If True, hard filter by county/municipality
-    threshold: Optional[float] = SIMILARITY_THRESHOLD
-    limit: Optional[int] = 20
+    threshold: float | None = SIMILARITY_THRESHOLD
+    limit: int | None = 20
 
 
 class MatchedFoundation(BaseModel):
@@ -53,7 +52,7 @@ def get_all_foundations():
 
 
 @router.get("/search", response_model=FoundationSearchResponse)
-def search_foundations(query: Optional[str] = None):
+def search_foundations(query: str | None = None):
     """Search foundations by query parameter"""
     result = get_foundations_by_query(query)
     if result is None:
@@ -164,7 +163,7 @@ def reset_categories(db: Session = Depends(get_db)):
         categorizer = FoundationCategorizer()
         reset_count = categorizer.reset_categories_in_db()
         return {
-            "message": f"All foundation categories have been reset",
+            "message": "All foundation categories have been reset",
             "status": "success",
             "reset_foundations": reset_count,
         }
@@ -187,7 +186,7 @@ def categorize_db_foundations(db: Session = Depends(get_db)):
         categorizer = FoundationCategorizer()
         updated_count = categorizer.categorize_foundations_in_db()
         return {
-            "message": f"Database foundation categorization completed",
+            "message": "Database foundation categorization completed",
             "status": "success",
             "updated_foundations": updated_count,
         }
@@ -233,7 +232,7 @@ def translate_purpose(translation_request: TranslationRequest):
         )
 
 
-@router.post("/matching", response_model=List[MatchedFoundation])
+@router.post("/matching", response_model=list[MatchedFoundation])
 def find_matching_foundations(
     matching_request: MatchingRequest,
     db: Session = Depends(get_db)
@@ -241,10 +240,10 @@ def find_matching_foundations(
     """
     Find foundations that semantically match the user's needs.
     Uses vector similarity search on translated purposes.
-    
+
     Args:
         matching_request: Contains the user's needs description and optional threshold/limit
-        
+
     Returns:
         List of foundations ranked by similarity score (highest first)
     """
@@ -254,28 +253,28 @@ def find_matching_foundations(
                 status_code=400,
                 detail="Needs description is required"
             )
-        
+
         # Generate embedding for user's needs
         needs_embedding = ollama_embedding_service.generate_embedding(matching_request.needs)
-        
+
         if needs_embedding is None:
             raise HTTPException(
                 status_code=503,
                 detail="Could not generate embedding. Embedding service may be unavailable."
             )
-        
+
         # Convert embedding to string format for pgvector
         embedding_str = "[" + ",".join(str(x) for x in needs_embedding) + "]"
-        
+
         # Calculate threshold as cosine distance (lower is more similar)
         # Cosine similarity = 1 - cosine distance
         # If threshold is 0.5, we want similarity >= 0.5, so distance <= 0.5
-        distance_threshold = 1 - matching_request.threshold
-        
+        1 - matching_request.threshold
+
         # Query using pgvector cosine distance operator (<=>)
         # Returns foundations with embeddings, ordered by similarity
         query = text("""
-            SELECT 
+            SELECT
                 id,
                 foundation_id,
                 name,
@@ -307,17 +306,17 @@ def find_matching_foundations(
             ORDER BY similarity_score DESC
             LIMIT :limit
         """)
-        
+
         result = db.execute(query, {
             "embedding": embedding_str,
             "threshold": matching_request.threshold,
             "limit": matching_request.limit
         })
-        
+
         rows = result.fetchall()
-        
+
         import json
-        
+
         def parse_json_field(value, default):
             """Parse a field that might be a JSON string or already parsed."""
             if value is None:
@@ -328,7 +327,7 @@ def find_matching_foundations(
                 except (json.JSONDecodeError, TypeError):
                     return default
             return value
-        
+
         matched_foundations = []
         for row in rows:
             foundation = schemas.Foundation(
@@ -361,9 +360,9 @@ def find_matching_foundations(
                 foundation=foundation,
                 similarity_score=round(row.similarity_score, 4)
             ))
-        
+
         return matched_foundations
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -373,7 +372,7 @@ def find_matching_foundations(
         )
 
 
-@router.post("/matching-by-profile", response_model=List[MatchedFoundation])
+@router.post("/matching-by-profile", response_model=list[MatchedFoundation])
 def find_matching_by_profile(
     request: ProfileMatchingRequest,
     payload: dict = Depends(get_current_user_payload),
@@ -385,18 +384,18 @@ def find_matching_by_profile(
     Optionally applies geographic filtering based on county/municipality.
     """
     from uuid import UUID
-    
+
     try:
         # Get user ID from token
         user_id_str = payload.get("sub")
         if not user_id_str:
             raise HTTPException(status_code=401, detail="Invalid token")
-        
+
         try:
             user_id = UUID(user_id_str)
         except ValueError:
             raise HTTPException(status_code=401, detail="Invalid token")
-        
+
         # Get user's profile
         if request.profile_id:
             profile = db.query(models.Profile).filter(
@@ -407,15 +406,15 @@ def find_matching_by_profile(
             # Default behavior based on "default" profile
             profile = db.query(models.Profile).filter(
                 models.Profile.user_id == user_id,
-                models.Profile.is_default == True
+                models.Profile.is_default
             ).first()
-            
+
             if not profile:
                  profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
 
         if profile is None:
             raise HTTPException(status_code=404, detail="Profile not found. Please set up your profile first.")
-        
+
         # Convert DB model to schema for text generation
         profile_schema = schemas.Profile(
             county_code=profile.county_code,
@@ -426,46 +425,46 @@ def find_matching_by_profile(
             occupations=profile.occupations or [],
             support_purposes=profile.support_purposes or [],
         )
-        
+
         # Generate Swedish text from profile selections
         profile_text = generate_profile_text(profile_schema, include_geography=not request.use_geographic_filter)
-        
+
         if not profile_text.strip():
             raise HTTPException(
                 status_code=400,
                 detail="Profile is empty. Please fill in at least some information in your profile."
             )
-        
+
         # Generate embedding for profile text
         profile_embedding = ollama_embedding_service.generate_embedding(profile_text)
-        
+
         if profile_embedding is None:
             raise HTTPException(
                 status_code=503,
                 detail="Could not generate embedding. Embedding service may be unavailable."
             )
-        
+
         # Convert embedding to string format for pgvector
         embedding_str = "[" + ",".join(str(x) for x in profile_embedding) + "]"
-        
+
         # Build geographic filter clause
         geo_filter = ""
         geo_params = {}
-        
+
         if request.use_geographic_filter and profile.county_code:
             # Filter foundations that match user's county or are for "Hela Sverige" (nationwide)
             geo_filter = "AND (county_code = :county_code OR county_code IS NULL OR county_code = '')"
             geo_params["county_code"] = profile.county_code
-            
+
             if profile.municipality_code:
                 # Also filter by municipality if specified
                 geo_filter = "AND (municipality_code = :municipality_code OR municipality_code IS NULL OR municipality_code = '' OR county_code = :county_code)"
                 geo_params["municipality_code"] = profile.municipality_code
                 geo_params["county_code"] = profile.county_code
-        
+
         # Query using pgvector cosine distance operator (<=>)
         query_text = f"""
-            SELECT 
+            SELECT
                 id,
                 foundation_id,
                 name,
@@ -498,18 +497,18 @@ def find_matching_by_profile(
             ORDER BY similarity_score DESC
             LIMIT :limit
         """
-        
+
         result = db.execute(text(query_text), {
             "embedding": embedding_str,
             "threshold": request.threshold,
             "limit": request.limit,
             **geo_params
         })
-        
+
         rows = result.fetchall()
-        
+
         import json
-        
+
         def parse_json_field(value, default):
             """Parse a field that might be a JSON string or already parsed."""
             if value is None:
@@ -520,7 +519,7 @@ def find_matching_by_profile(
                 except (json.JSONDecodeError, TypeError):
                     return default
             return value
-        
+
         matched_foundations = []
         for row in rows:
             foundation = schemas.Foundation(
@@ -553,9 +552,9 @@ def find_matching_by_profile(
                 foundation=foundation,
                 similarity_score=round(row.similarity_score, 4)
             ))
-        
+
         return matched_foundations
-        
+
     except HTTPException:
         raise
     except Exception as e:

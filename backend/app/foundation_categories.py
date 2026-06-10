@@ -4,7 +4,6 @@ This file contains the detailed breakdown of foundation categories for the Ollam
 """
 
 from enum import Enum
-from typing import Dict, List
 
 
 class FoundationCategory(Enum):
@@ -390,7 +389,7 @@ CATEGORY_DEFINITIONS = {
 }
 
 
-def get_all_keywords() -> List[str]:
+def get_all_keywords() -> list[str]:
     """Get all keywords from all categories for AI training"""
     all_keywords = []
     for category_info in CATEGORY_DEFINITIONS.values():
@@ -403,7 +402,7 @@ def get_category_description(category: FoundationCategory) -> str:
     return CATEGORY_DEFINITIONS[category]["description"]
 
 
-def get_category_keywords(category: FoundationCategory) -> List[str]:
+def get_category_keywords(category: FoundationCategory) -> list[str]:
     """Get the keywords for a specific category"""
     return CATEGORY_DEFINITIONS[category]["keywords"]
 

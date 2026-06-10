@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Integer, String, Text, Boolean, Float
+
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from pgvector.sqlalchemy import Vector
 
 Base = declarative_base()
 
@@ -110,7 +111,7 @@ class Foundation(Base):
     category = Column(String)  # Main category assigned by the categorization system
     raw_data = Column(JSON)  # Store the original raw data for reference
     purpose_embedding = Column(Vector(768))  # nomic-embed-text embeddings for semantic search
-    
+
     # Enrichment job control
     enrichment_status = Column(String, default="UNPROCESSED")
     enrichment_last_run = Column(DateTime, nullable=True)

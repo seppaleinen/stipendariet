@@ -5,6 +5,7 @@ Admin categorization endpoints for foundation category management
 import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
@@ -48,14 +49,14 @@ def trigger_bulk_categorization_endpoint():
     """
     try:
         logger.info("Admin triggered bulk foundation categorization")
-        
+
         # Generate a unique task ID
         task_id = str(uuid.uuid4())
-        
+
         # Create a task record in the task manager
         from app.foundation.task_manager import create_task
-        task = create_task(task_id, task_name="bulk_categorization")
-        
+        create_task(task_id, task_name="bulk_categorization")
+
         def run_background_categorization():
             try:
                 from app.foundation.categorization.categorize_foundations import FoundationCategorizer
@@ -67,12 +68,12 @@ def trigger_bulk_categorization_endpoint():
                 task = get_task(task_id)
                 if task:
                     task.set_error(str(e))
-        
+
         # Run the background task in a separate thread
         executor = ThreadPoolExecutor(max_workers=1)
         executor.submit(run_background_categorization)
         # Don't wait for the executor to finish
-        
+
         return {
             "status": "started",
             "message": "Bulk foundation categorization started",

@@ -1,10 +1,10 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.db import models, schemas
+from app.db import models
 from app.db.database import get_db
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 @router.get("/foundations")
 def search_foundations(
     query: str, db: Session = Depends(get_db), limit: int = 10
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Search for foundations using SQL text search"""
     try:
         foundations = (
@@ -60,6 +60,6 @@ def search_foundations(
 
 
 @router.get("/profiles")
-def search_profiles(query: str, limit: int = 10) -> List[Dict[str, Any]]:
+def search_profiles(query: str, limit: int = 10) -> list[dict[str, Any]]:
     """Search for profiles (not implemented)"""
     return []

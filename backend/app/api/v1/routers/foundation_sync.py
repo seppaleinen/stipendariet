@@ -1,4 +1,3 @@
-from typing import List
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -34,7 +33,7 @@ def trigger_foundation_sync_endpoint():
         )
 
 
-@router.get("/foundations", response_model=List[schemas.Foundation])
+@router.get("/foundations", response_model=list[schemas.Foundation])
 def get_foundations(db: Session = Depends(get_db)):
     """
     Get all stored foundations from the database.

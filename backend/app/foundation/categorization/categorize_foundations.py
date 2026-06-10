@@ -14,11 +14,8 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List
 
 import aiohttp
-import requests
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
@@ -47,7 +44,6 @@ class Foundation:
 
 def get_db_session():
     """Get a database session - for internal use"""
-    from sqlalchemy.orm import sessionmaker
 
     engine = create_engine_with_retry()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -59,9 +55,9 @@ class FoundationCategorizer:
         self.ollama_url = ollama_url
         self.categories = [cat.value for cat in FoundationCategory]
 
-    def load_foundations_from_file(self, file_path: str) -> List[Foundation]:
+    def load_foundations_from_file(self, file_path: str) -> list[Foundation]:
         """Load foundations from JSON file"""
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
         foundations = []
@@ -221,8 +217,8 @@ class FoundationCategorizer:
             return "Specialiserade Områden"  # Swedish translation for "Specialized Fields"
 
     async def categorize_foundations(
-        self, foundations: List[Foundation], max_concurrent: int = 5
-    ) -> List[Foundation]:
+        self, foundations: list[Foundation], max_concurrent: int = 5
+    ) -> list[Foundation]:
         """Categorize all foundations using Ollama"""
         logger.info(f"Starting categorization for {len(foundations)} foundations")
 
@@ -252,24 +248,6 @@ class FoundationCategorizer:
         return valid_foundations
 
     def reset_categories_in_db(self) -> int:
-        """Reset all category fields in the database to empty string"""
-        logger.info("Resetting all foundation categories in database...")
-
-        db = get_db_session()
-        try:
-            # Reset all categories to empty string
-            updated_count = db.query(DBFoundation).update({DBFoundation.category: ""})
-            db.commit()
-            logger.info(f"Reset {updated_count} foundations to uncategorized")
-            return updated_count
-        except Exception as e:
-            logger.error(f"Error during category reset: {str(e)}", exc_info=True)
-            db.rollback()
-            raise
-        finally:
-            db.close()
-
-    def reset_categories_in_db(self) -> int:
         """Reset all foundation categories in the database to empty string"""
         logger.info("Resetting all foundation categories in database...")
 
@@ -289,7 +267,7 @@ class FoundationCategorizer:
 
     def categorize_foundations_in_db(self, max_concurrent: int = 5, batch_size: int = 100, task_id: str = None) -> int:
         """Categorize all foundations stored in the database in small batches to avoid memory issues.
-        
+
         Args:
             max_concurrent: Maximum number of concurrent categorization tasks
             batch_size: Number of foundations to process in each batch
@@ -332,7 +310,7 @@ class FoundationCategorizer:
             # Process in small batches to avoid memory issues
             total_updated = 0
             failed = 0
-            
+
             while True:
                 # Fetch only the columns we need (avoid loading huge raw_data and embedding columns)
                 foundations_batch = (
@@ -348,16 +326,16 @@ class FoundationCategorizer:
                     .limit(batch_size)
                     .all()
                 )
-                
+
                 if not foundations_batch:
                     break
-                    
+
                 logger.info(f"Processing batch of {len(foundations_batch)} foundations...")
 
                 # Convert to Foundation objects for categorization
                 foundations_to_process = []
                 foundation_id_to_db_id = {}  # Map foundation_id to db id for updates
-                
+
                 for row in foundations_batch:
                     db_id, foundation_id, name, purpose = row
                     foundation_id_to_db_id[foundation_id] = db_id
@@ -396,9 +374,9 @@ class FoundationCategorizer:
                 # Commit this batch
                 db.commit()
                 total_updated += batch_updated
-                
+
                 logger.info(f"Batch complete: {batch_updated} updated, {total_updated} total so far")
-                
+
                 # Update task progress
                 if task:
                     task.update_progress(total_updated, failed, 0, uncategorized_count)
@@ -406,7 +384,7 @@ class FoundationCategorizer:
             logger.info(
                 f"Successfully updated {total_updated} foundations with categories in database"
             )
-            
+
             # Set final result
             if task:
                 task.set_result({
@@ -415,7 +393,7 @@ class FoundationCategorizer:
                     "failed": failed,
                     "total": uncategorized_count
                 })
-                
+
             return total_updated
 
         except Exception as e:
@@ -428,8 +406,8 @@ class FoundationCategorizer:
             db.close()
 
     async def _categorize_foundations_internal(
-        self, foundations: List[Foundation], max_concurrent: int = 5
-    ) -> List[Foundation]:
+        self, foundations: list[Foundation], max_concurrent: int = 5
+    ) -> list[Foundation]:
         """Internal method to categorize foundations using test mode (keyword matching)"""
         logger.info(
             f"Starting internal categorization for {len(foundations)} foundations"
@@ -457,7 +435,7 @@ class FoundationCategorizer:
         )
         return valid_foundations
 
-    def get_category_statistics(self, foundations: List[Foundation]) -> Dict[str, int]:
+    def get_category_statistics(self, foundations: list[Foundation]) -> dict[str, int]:
         """Get statistics about categories"""
         stats = {}
         for f in foundations:
@@ -466,7 +444,7 @@ class FoundationCategorizer:
 
         return stats
 
-    def save_results(self, foundations: List[Foundation], output_path: str):
+    def save_results(self, foundations: list[Foundation], output_path: str):
         """Save categorized foundations to a JSON file"""
         results = []
         for f in foundations:

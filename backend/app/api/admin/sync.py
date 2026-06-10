@@ -5,6 +5,7 @@ Admin sync endpoints for foundation and grant synchronization
 import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ def trigger_foundation_sync_endpoint():
 
         # Create a task record in the task manager
         from app.foundation.task_manager import create_task
-        task = create_task(task_id, task_name="sync_foundations")
+        create_task(task_id, task_name="sync_foundations")
 
         # Start the sync as a background task
         from app.foundation.sync_service import sync_foundations

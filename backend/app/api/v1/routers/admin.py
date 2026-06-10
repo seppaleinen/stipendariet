@@ -1,45 +1,47 @@
 from fastapi import APIRouter, Depends, Query
+
 from app.core.security import get_admin_user
 
 # Initialize router with authentication dependency (Bearer JWT admin)
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(get_admin_user)])
 
 # Import from split modules
-from app.api.admin.sync import (
-    trigger_foundation_sync_endpoint,
-    trigger_grant_sync_endpoint,
-    get_sync_status_endpoint,
-)
 from app.api.admin.categorization import (
     reset_categories_endpoint,
     trigger_bulk_categorization_endpoint,
 )
+from app.api.admin.embeddings import (
+    generate_single_embedding_endpoint,
+    trigger_bulk_embedding_generation_endpoint,
+)
+from app.api.admin.enrichment import (
+    EnrichmentTestRequest,
+    enrich_single_foundation_endpoint,
+    get_enrichment_defaults_endpoint,
+    get_enrichment_details_endpoint,
+    get_enrichment_status_endpoint,
+    get_enrichment_trace_endpoint,
+    reset_enrichment_status_endpoint,
+    trigger_enrichment_endpoint,
+)
+from app.api.admin.sync import (
+    get_sync_status_endpoint,
+    trigger_foundation_sync_endpoint,
+    trigger_grant_sync_endpoint,
+)
 from app.api.admin.system import (
     clear_database_endpoint,
-    get_foundation_stats_endpoint,
     get_active_jobs_endpoint,
+    get_foundation_stats_endpoint,
     search_foundations_admin_endpoint,
 )
 from app.api.admin.translation import (
-    trigger_bulk_purpose_translation_endpoint,
+    get_translation_defaults_endpoint,
     get_translation_task_status_endpoint,
     translate_single_foundation_endpoint,
-    get_translation_defaults_endpoint,
+    trigger_bulk_purpose_translation_endpoint,
 )
-from app.api.admin.embeddings import (
-    trigger_bulk_embedding_generation_endpoint,
-    generate_single_embedding_endpoint,
-)
-from app.api.admin.enrichment import (
-    trigger_enrichment_endpoint,
-    get_enrichment_status_endpoint,
-    reset_enrichment_status_endpoint,
-    enrich_single_foundation_endpoint,
-    get_enrichment_details_endpoint,
-    get_enrichment_defaults_endpoint,
-    get_enrichment_trace_endpoint,
-    EnrichmentTestRequest,
-)
+
 
 # --- Sync Routes ---
 @router.post("/trigger-foundation-sync")
@@ -124,7 +126,7 @@ def reset_enrichment_status():
 
 @router.post("/enrich/foundation/{foundation_id}")
 async def enrich_single_foundation(
-    foundation_id: int, 
+    foundation_id: int,
     request: EnrichmentTestRequest,
     background: bool = Query(True, description="Run in background worker (default: True)")
 ):

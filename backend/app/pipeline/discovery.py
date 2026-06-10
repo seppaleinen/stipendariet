@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import re
-from typing import List
+
 from ddgs import DDGS
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def _probe_url(url: str) -> bool:
 
 async def discover_candidate_urls(
     foundation_name: str, orgnr: str = "", max_urls: int = 7
-) -> List[dict]:
+) -> list[dict]:
     """
     Multi-strategy discovery of candidate URLs for a Swedish foundation.
 

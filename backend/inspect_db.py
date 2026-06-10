@@ -1,4 +1,5 @@
 import os
+
 from sqlalchemy import create_engine, inspect
 
 database_url = os.getenv("DATABASE_URL")

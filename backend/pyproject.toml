@@ -1,0 +1,32 @@
+[tool.ruff]
+# FastAPI + SQLAlchemy codebase — relaxed line length for ORM patterns
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "N", "B", "SIM"]
+ignore = [
+    "E501",    # line-too-long — ORM chains and docstrings exceed 88
+    "B008",    # function-call-in-default-argument — FastAPI Depends() requires this
+    "B904",    # raise-without-from-inside-except — too noisy for existing codebase
+    "SIM102",  # collapsible-if — clarity over brevity
+    "SIM114",  # if-with-same-arms — false positives with side effects
+    "B007",    # unused-loop-control-variable — sometimes intentional
+    "N806",    # non-lowercase-variable-in-function — test fixtures often use caps
+    "N815",    # mixed-case-variable-in-class-scope — SQLAlchemy columns use mixed case
+]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/**" = ["E", "F", "W", "I", "UP", "N", "B", "SIM"]
+"tests/**" = ["N"]
+# Deliberate imports-after-comment for organizing split routers
+"app/api/v1/routers/admin.py" = ["E402"]
+"app/api/v1/routers/foundation_sync.py" = ["E402"]
+# Logger setup before prompts import
+"app/pipeline/extraction.py" = ["E402"]
+"app/pipeline/validation.py" = ["E402"]
+# Standalone scripts — NamedTemporaryFile needs to outlive block
+"test_profile_crud.py" = ["SIM115"]
+
+[tool.ruff.format]
+quote-style = "double"

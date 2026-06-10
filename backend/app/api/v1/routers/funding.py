@@ -1,4 +1,3 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,7 +9,7 @@ from app.db.database import get_db
 router = APIRouter(prefix="/api", tags=["funding"])
 
 
-@router.get("/funding", response_model=List[schemas.FundingOpportunity])
+@router.get("/funding", response_model=list[schemas.FundingOpportunity])
 def get_all_funding(db: Session = Depends(get_db)):
     """
     Get all funding opportunities (grants and foundations) from the database.

@@ -1,8 +1,7 @@
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
 
 from app.crud import crud
 from app.db.database import get_db
@@ -12,8 +11,8 @@ router = APIRouter(prefix="/api/grants", tags=["grants"])
 
 @router.get("")
 def list_grants(
-    category: Optional[str] = None,
-    search: Optional[str] = None,
+    category: str | None = None,
+    search: str | None = None,
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(50, ge=1, le=200, description="Number of items to return (max 200)"),
     db: Session = Depends(get_db),
@@ -34,7 +33,7 @@ def list_grants(
 
     # Get total count before pagination
     total = query.count()
-    
+
     # Apply pagination and order by name for consistent results
     foundations = query.order_by(crud.models.Foundation.name).offset(skip).limit(limit).all()
 
