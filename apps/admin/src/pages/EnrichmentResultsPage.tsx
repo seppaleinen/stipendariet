@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { backendApi } from '@/lib/api';
+import { ApiError } from '@stipendariet/api-client';
 import {
   CheckCircle,
   XCircle,
@@ -148,9 +149,9 @@ const TracePanel: React.FC<{ foundationId: number; onClose: () => void }> = ({ f
 
   useEffect(() => {
     setLoading(true);
-    backendApi.get(`/admin/enrich/trace/${foundationId}`)
+    backendApi.get<{ trace: Trace }>(`/admin/enrich/trace/${foundationId}`)
       .then(r => setTrace(r.data.trace))
-      .catch(e => setError(e.response?.data?.detail ?? e.message))
+      .catch((e: unknown) => setError(e instanceof ApiError ? ((e.body as Record<string, unknown>)?.detail as string) ?? e.message : (e as Error).message))
       .finally(() => setLoading(false));
   }, [foundationId]);
 

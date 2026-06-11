@@ -174,16 +174,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # NOTE: Frontend and admin Dockerfiles are currently standalone (per-app npm deps).
-      # For production monorepo Docker builds, these will need monorepo-aware Dockerfiles
-      # that install pnpm and build from the workspace root.
+      # Frontend and admin now use monorepo-aware Dockerfiles
+      # (pnpm workspace, context: repo root).
       - name: Build frontend image (main only)
         id: build-frontend
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/frontend
-          dockerfile: Dockerfile
+          context: .
+          dockerfile: apps/frontend/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
@@ -196,8 +195,8 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/admin
-          dockerfile: Dockerfile
+          context: .
+          dockerfile: apps/admin/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

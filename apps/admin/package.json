@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.1.0",
+    "@stipendariet/api-client": "workspace:*",
     "@stipendariet/ui": "workspace:*",
-    "axios": "^1.6.0",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.358.0",
     "react": "^18.2.0",

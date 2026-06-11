@@ -7,12 +7,15 @@
 
 | Task | Status | Details |
 |------|--------|---------|
-| Playwright E2E tests migrated | ✅ | `apps/frontend/e2e/frontend-smoke.spec.ts` + `playwright.config.ts` + dep in `package.json` |
-| Admin test suite | ✅ | `vitest.config.ts`, `test-setup.ts`, `App.test.tsx`, wired to CI |
-| Backend pytest in CI | ✅ | Added `pip install pytest ... && pytest -v` to `ci.yml` docker-build job |
-| Helm charts from fleet-infra | ✅ | Replaced stale `kubernetes/{backend,frontend,admin-frontend}/` with production charts at `kubernetes/charts/stipendiatet/{backend,frontend,admin-frontend}/`. Includes browserless, enrichment-worker, ingress templates from fleet-infra |
-| Release workflow | ✅ | `.github/release.yml` — on `v*` tag push: builds Docker images + Helm charts, pushes to GHCR with semver tags |
-| Helm publish on main | ✅ | Added to `ci.yml` — packages/pushes charts as `0.0.0+git.<sha>` to `oci://ghcr.io/.../charts/` |
+| ~~Migrate Playwright E2E tests~~ | ✅ | **Done** — `apps/frontend/e2e/frontend-smoke.spec.ts` + `playwright.config.ts` + dep in `package.json` |
+| ~~Admin test suite~~ | ✅ | **Done** — `vitest.config.ts`, `test-setup.ts`, `App.test.tsx`, wired to CI |
+| ~~Backend pytest in CI~~ | ✅ | **Done** — Added `pip install pytest ... && pytest -v` to `ci.yml` docker-build job |
+| ~~Helm charts from fleet-infra~~ | ✅ | **Done** — Replaced stale `kubernetes/{backend,frontend,admin-frontend}/` with production charts at `kubernetes/charts/stipendiatet/{backend,frontend,admin-frontend}/`. Includes browserless, enrichment-worker, ingress templates from fleet-infra |
+| ~~Release workflow~~ | ✅ | **Done** — `.github/release.yml` — on `v*` tag push: builds Docker images + Helm charts, pushes to GHCR with semver tags |
+| ~~Helm publish on main~~ | ✅ | **Done** — Added to `ci.yml` — packages/pushes charts as `0.0.0+git.<sha>` to `oci://ghcr.io/.../charts/` |
+| Wire `@stipendariet/api-client` into apps | ✅ | **Done** — Admin uses it instead of `axios` (removed dep). Frontend uses it internally instead of raw `fetch`. Both via `createApiClient` with automatic auth |
+| Monorepo-aware Dockerfiles | ✅ | **Done** — Both frontend & admin Dockerfiles now use pnpm workspace build (context: repo root) |
+| ~~Archive old GitHub repos~~ | ✅ | **Done** — Archived 6 repos in `stipendie-assistenten` org: `backend`, `stipendium-assistenten-frontend`, `stipendie-admin`, `infra-docs`, `data-engine`, `infra-test` |
 
 ---
 
@@ -205,22 +208,23 @@ Monorepo `kubernetes/` charts are simplified copies of the production charts in 
 
 ### Phase B: CI/Flux alignment (high priority) 🔴
 1. Align image registry: decided GHCR-only ✅
-2. ~~Add backend pytest step to CI~~ **Done** ✅
-3. Align Dockerfiles for monorepo-aware builds
+2. ✅ Backend pytest in CI — Done
+3. ✅ Monorepo-aware Dockerfiles — Done
 
 ### Phase C: Monorepo hardening (medium priority) 🟡
-1. Wire `@stipendariet/api-client` into frontend and admin
-2. Remove `axios` from admin
-3. ~~Set up admin test suite~~ **Done** ✅
-4. Fix Dockerfiles for monorepo-aware builds (if not done in Phase B)
+1. ✅ Wire `@stipendariet/api-client` into frontend and admin — Done
+2. ✅ Remove `axios` from admin — Done (replaced by `@stipendariet/api-client`)
+3. ✅ Admin test suite — Done
+4. ✅ Monorepo-aware Dockerfiles — Done
 
 ### Phase D: Migration completion (lower priority) 🟢
-1. ~~Migrate Playwright E2E tests~~ **Done** ✅
-2. ~~Move production Helm charts from fleet-infra to monorepo~~ **Done** ✅ (now at `kubernetes/charts/stipendiatet/`)
-3. Create release workflow for Docker + Helm to GHCR **Done** ✅
-4. Extract shared hooks/libraries into `@stipendariet/hooks`
-5. Align `@stipendariet/types` with backend Pydantic models
-6. Migrate BDD tests from infra-docs if still relevant
+1. ✅ Playwright E2E tests — Done
+2. ✅ Helm charts from fleet-infra — Done (at `kubernetes/charts/stipendiatet/`)
+3. ✅ Release workflow — Done
+4. ✅ Archive old GitHub repos — Done (archived 6 repos in `stipendie-assistenten` org)
+5. Extract shared hooks/libraries into `@stipendariet/hooks`
+6. Align `@stipendariet/types` with backend Pydantic models
+7. Migrate BDD tests from infra-docs if still relevant
 
 ### Phase E: Cleanup (ongoing) 🔵
 1. Remove reference to `stipendie-assistenten` from backend/LICENSE (cosmetic)

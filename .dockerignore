@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+.turbo
+**/.turbo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode
+.idea
+
+# OS files
+.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Container files
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Documentation
+*.md
+README*
+
+# Test files / coverage
+coverage
+.nyc_output
+*.test.*
+*.spec.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime
+.pnpm-store
+pnpm-debug.log*

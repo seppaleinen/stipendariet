@@ -1,59 +1,71 @@
-# Multi-stage build for React + Vite application
+# Multi-stage build for pnpm monorepo workspace (context: repo root)
+# Builds @stipendariet/frontend with all workspace dependencies
 
-# Stage 1: Build stage
-FROM node:25-alpine AS builder
+# Stage 1: Install deps (cache-friendly — only invalidated by lockfile changes)
+FROM node:22-alpine AS deps
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Set working directory
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy package.json files for all workspace packages the frontend needs
+COPY packages/types/package.json ./packages/types/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/api-client/package.json ./packages/api-client/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
+COPY apps/frontend/package.json ./apps/frontend/
+
+RUN pnpm install --frozen-lockfile
+
+# Stage 2: Build
+FROM node:22-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /app
 
-# Install dependencies for native modules (if needed)
-RUN apk add --no-cache python3 make g++
+# Copy root config
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 
-# Copy package files
-COPY package*.json ./
+# Copy node_modules and workspace structure from deps
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/apps ./apps
 
-# Install dependencies
-RUN npm ci
+# Copy workspace package sources (overlays on top of deps structure)
+COPY packages/types/src ./packages/types/src
+COPY packages/types/tsconfig.json ./packages/types/
+COPY packages/ui/src ./packages/ui/src
+COPY packages/ui/tsconfig.json ./packages/ui/
+COPY packages/api-client/src ./packages/api-client/src
+COPY packages/api-client/tsconfig.json ./packages/api-client/
 
-# Copy source code
-COPY . .
+# Copy frontend sources (overlays on top of deps app skeleton)
+COPY apps/frontend/src ./apps/frontend/src
+COPY apps/frontend/public ./apps/frontend/public
+COPY apps/frontend/tsconfig.json apps/frontend/vite.config.ts apps/frontend/index.html apps/frontend/tailwind.config.ts apps/frontend/postcss.config.js apps/frontend/nginx.conf ./apps/frontend/
 
-# Build the application
-RUN npm run build
+RUN pnpm turbo run build --filter=@stipendariet/frontend
 
-# Stage 2: Production stage
+# Stage 3: Production (nginx)
 FROM nginx:1.29-alpine AS production
 
-# Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
+COPY apps/frontend/nginx.conf /etc/nginx/nginx.conf
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
-
-# Set permissions for existing nginx user
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
     chown -R nginx:nginx /etc/nginx/conf.d && \
     chmod -R 755 /usr/share/nginx/html && \
-    # Ensure nginx can write to /tmp for pid file
     chmod 1777 /tmp
 
-# Switch to non-root user
 USER nginx
-
-# Expose port
 EXPOSE 8080
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=2s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
 
-# Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
-
-# Start nginx
 CMD ["nginx", "-g", "daemon off;"]

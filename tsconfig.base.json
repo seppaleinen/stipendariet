@@ -21,8 +21,8 @@
     "baseUrl": ".",
     "paths": {
       "@stipendariet/ui": ["./packages/ui/src/index.ts"],
-      "@stipendariet/types": ["./packages/types/src/index.ts"]
+      "@stipendariet/types": ["./packages/types/src/index.ts"],
+      "@stipendariet/api-client": ["./packages/api-client/src/index.ts"]
     }
-    /* Note: @stipendariet/api-client to be added in Phase 4 (auto-generated from OpenAPI spec) */
   }
 }
