@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enrichment-worker
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: enrichment-worker
+  template:
+    metadata:
+      labels:
+        app: enrichment-worker
+    spec:
+      containers:
+        - name: worker
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["arq", "app.workers.enrichment_worker.WorkerSettings"]
+          env:
+            {{ toYaml .Values.envs | nindent 12 }}
+          envFrom:
+            - secretRef:
+                name: {{ printf "%s-env-secrets" .Release.Name }}
+          resources:
+            {{- toYaml .Values.enrichmentWorker.resources | nindent 12 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: enrichment-worker

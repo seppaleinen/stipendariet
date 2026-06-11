@@ -45,7 +45,7 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-  # ── test (frontend only — admin has no tests yet) ──────────
+  # ── test (frontend + admin) ────────────────────────────────
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -78,6 +78,11 @@ jobs:
       # Run frontend tests with vitest (has jsdom environment, coverage thresholds)
       - name: Run frontend tests
         working-directory: apps/frontend
+        run: npx vitest run
+
+      # Run admin tests with vitest
+      - name: Run admin tests
+        working-directory: apps/admin
         run: npx vitest run
 
   # ── build all packages & apps ─────────────────────────────
@@ -130,6 +135,13 @@ jobs:
         run: |
           pip install ruff
           ruff check .
+
+      # ── Backend tests with pytest ──────────────────────────
+      - name: Run backend tests
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt pytest pytest-asyncio httpx
+          pytest -v
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -192,3 +204,31 @@ jobs:
             ghcr.io/${{ github.repository }}/admin:latest
             ghcr.io/${{ github.repository }}/admin:${{ github.sha }}
           cache-from: type=gha
+
+      # ── Helm chart publish (main only) ───────────────────────
+      - name: Setup Helm
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Login to GHCR for Helm
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Package and push Helm charts (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          CHARTS="backend frontend admin-frontend"
+          mkdir -p /tmp/charts
+          for chart in $CHARTS; do
+            chart_path="kubernetes/charts/stipendiatet/$chart"
+            # Set chart version + appVersion from git SHA
+            sed -i "s/^version:.*/version: 0.0.0+git.${{ github.sha }}/" "$chart_path/Chart.yaml"
+            sed -i "s/^appVersion:.*/appVersion: latest/" "$chart_path/Chart.yaml"
+            helm package "$chart_path" -d /tmp/charts
+          done
+          for chart in $CHARTS; do
+            helm push "/tmp/charts/stipendiatet-$chart-*.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
+          done
+        shell: bash

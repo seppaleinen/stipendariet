@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # Extract version from tag (strip leading "v")
+  version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.strip-v.outputs.semver }}
+      tag: ${{ github.ref_name }}
+    steps:
+      - name: Strip "v" prefix
+        id: strip-v
+        run: echo "semver=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  docker:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: version
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Backend ──────────────────────────────────────────
+      - name: Build & push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          dockerfile: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ needs.version.outputs.tag }}
+            ghcr.io/${{ github.repository }}/backend:${{ needs.version.outputs.semver }}
+            ghcr.io/${{ github.repository }}/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Frontend ─────────────────────────────────────────
+      - name: Build & push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/frontend
+          dockerfile: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:${{ needs.version.outputs.tag }}
+            ghcr.io/${{ github.repository }}/frontend:${{ needs.version.outputs.semver }}
+            ghcr.io/${{ github.repository }}/frontend:latest
+          cache-from: type=gha
+
+      # ── Admin ────────────────────────────────────────────
+      - name: Build & push admin
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/admin
+          dockerfile: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/admin:${{ needs.version.outputs.tag }}
+            ghcr.io/${{ github.repository }}/admin:${{ needs.version.outputs.semver }}
+            ghcr.io/${{ github.repository }}/admin:latest
+          cache-from: type=gha
+
+  helm:
+    name: Package & Push Helm Charts
+    runs-on: ubuntu-latest
+    needs: [version, docker]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Login to GHCR for Helm
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Package and push Helm charts
+        run: |
+          CHARTS="backend frontend admin-frontend"
+          VERSION="${{ needs.version.outputs.semver }}"
+          mkdir -p /tmp/charts
+
+          for chart in $CHARTS; do
+            chart_path="kubernetes/charts/stipendiatet/$chart"
+            # Update chart version + appVersion + image tag
+            sed -i "s/^version:.*/version: $VERSION/" "$chart_path/Chart.yaml"
+            sed -i "s/^appVersion:.*/appVersion: $VERSION/" "$chart_path/Chart.yaml"
+            sed -i "s/tag:.*/tag: ${{ needs.version.outputs.tag }}/" "$chart_path/values.yaml"
+            helm package "$chart_path" -d /tmp/charts
+          done
+
+          for chart in $CHARTS; do
+            helm push "/tmp/charts/stipendiatet-$chart-$VERSION.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
+          done

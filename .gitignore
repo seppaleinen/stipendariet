@@ -26,3 +26,7 @@ stipendariet.db
 # Generated artifacts
 graphify-out/
 out/
+
+# Playwright E2E test artifacts
+test-results/
+playwright-report/

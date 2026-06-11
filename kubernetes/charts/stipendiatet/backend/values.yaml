@@ -1,0 +1,33 @@
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+service:
+  port: 8000
+envs:
+  - name: TZ
+    value: Europe/Stockholm
+  - name: REDIS_URL
+    value: "redis://dragonfly.dragonfly.svc.cluster.local:6379"
+  - name: BROWSERLESS_URL
+    value: "http://browserless.stipendariet.svc.cluster.local:3000"
+  - name: ENRICHMENT_LLM_MODEL
+    value: "phi3:14b"
+  - name: ENRICHMENT_BATCH_SIZE
+    value: "50"
+image:
+  repository: ghcr.io/seppaleinen/stipendariet/backend
+  tag: latest
+  pullPolicy: IfNotPresent
+browserless:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+# Loaded from helmfile secrets at deploy time — placeholder for lint
+env: {}
+enrichmentWorker:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi

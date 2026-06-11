@@ -19,28 +19,28 @@ releases:
       - postgres-secret
 
   - name: backend
-    chart: backend
+    chart: ./charts/stipendiatet/backend
     namespace: stipendiatet
     createNamespace: true
     values:
-      - ./backend/values.yaml
+      - ./charts/stipendiatet/backend/values.yaml
     secrets:
-      - ./backend/secrets.yaml
+      - ./charts/stipendiatet/backend/secrets.yaml
 
   - name: frontend
-    chart: frontend
+    chart: ./charts/stipendiatet/frontend
     namespace: stipendiatet
     createNamespace: true
     values:
-      - ./frontend/values.yaml
+      - ./charts/stipendiatet/frontend/values.yaml
     secrets:
-      - ./frontend/secrets.yaml
+      - ./charts/stipendiatet/frontend/secrets.yaml
 
   - name: admin-frontend
-    chart: admin-frontend
+    chart: ./charts/stipendiatet/admin-frontend
     namespace: stipendiatet
     createNamespace: true
     values:
-      - ./admin-frontend/values.yaml
+      - ./charts/stipendiatet/admin-frontend/values.yaml
     #secrets:
-    #  - ./admin-frontend/secrets.yaml
+    #  - ./charts/stipendiatet/admin-frontend/secrets.yaml

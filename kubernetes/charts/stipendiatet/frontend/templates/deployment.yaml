@@ -19,10 +19,6 @@ spec:
       labels:
         name: {{ .Release.Name }}
     spec:
-      #securityContext:
-      #  runAsUser: 999
-      #  runAsGroup: 999
-      #  fsGroup: 2000
       containers:
         - name: webapp
           image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}

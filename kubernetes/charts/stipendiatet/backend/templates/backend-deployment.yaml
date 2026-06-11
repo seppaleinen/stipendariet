@@ -56,4 +56,11 @@ spec:
             failureThreshold: 20
           resources:
             {{ toYaml .Values.resources | nindent 12 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              name: {{ .Release.Name }}
       restartPolicy: Always
