@@ -26,6 +26,18 @@ import * as AuthContext from "@/contexts/AuthContext";
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
+// Helper: wraps a partial Response-like object with required defaults for the api-client
+function mockFetchResponse(overrides: Record<string, any> = {}): any {
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: () => "application/json" } as unknown as Headers,
+    json: async () => ({}),
+    text: async () => "",
+    ...overrides,
+  };
+}
+
 // Mock localStorage
 const localStorageMock = {
   getItem: vi.fn(),
@@ -101,10 +113,10 @@ describe("API Functions Integration Tests", () => {
         has_more: false,
       };
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockResponse,
-      });
+      }));
 
       const result = await getGrants({ limit: 10 });
 
@@ -121,10 +133,10 @@ describe("API Functions Integration Tests", () => {
     it.skip("handles pagination parameters", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ grants: [], total: 0, has_more: false }),
-      });
+      }));
 
       await getGrants({ category: "Education", search: "test", skip: 10, limit: 20 });
 
@@ -158,11 +170,11 @@ describe("API Functions Integration Tests", () => {
 
     it("handles 401 response", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 401,
         json: async () => ({}),
-      });
+      }));
 
       const result = await getGrants();
 
@@ -172,10 +184,10 @@ describe("API Functions Integration Tests", () => {
 
     it("handles non-array response", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ data: [{ id: 1, name: "Grant" }] }),
-      });
+      }));
 
       const result = await getGrants();
 
@@ -188,10 +200,10 @@ describe("API Functions Integration Tests", () => {
       mockGetAuthToken.mockReturnValue("test-token");
       const mockGrant = { id: 1, name: "Single Grant", description: "Details" };
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockGrant,
-      });
+      }));
 
       const result = await getGrant("1");
 
@@ -205,11 +217,11 @@ describe("API Functions Integration Tests", () => {
 
     it("returns undefined on 404", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 404,
         json: async () => ({}),
-      });
+      }));
 
       const result = await getGrant("nonexistent");
 
@@ -229,10 +241,10 @@ describe("API Functions Integration Tests", () => {
   describe("getSavedGrants()", () => {
     it("returns saved grant IDs", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ saved_grants: ["grant-1", "grant-2"] }),
-      });
+      }));
 
       const result = await getSavedGrants();
 
@@ -241,11 +253,11 @@ describe("API Functions Integration Tests", () => {
 
     it("returns empty array on 401", async () => {
       mockGetAuthToken.mockReturnValue("expired-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 401,
         json: async () => ({}),
-      });
+      }));
 
       const result = await getSavedGrants();
 
@@ -254,10 +266,10 @@ describe("API Functions Integration Tests", () => {
 
     it("handles non-array response", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ saved_grants: "not-an-array" }),
-      });
+      }));
 
       const result = await getSavedGrants();
 
@@ -277,7 +289,7 @@ describe("API Functions Integration Tests", () => {
   describe("saveGrant()", () => {
     it("saves a grant with POST request", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: true }));
 
       await expect(saveGrant("grant-123")).resolves.toBeUndefined();
 
@@ -295,19 +307,19 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 400,
-      });
+      }));
 
-      await expect(saveGrant("grant-123")).rejects.toThrow("HTTP error! status: 400");
+      await expect(saveGrant("grant-123")).rejects.toThrow("HTTP 400");
     });
   });
 
   describe("removeSavedGrant()", () => {
     it("removes a saved grant with DELETE request", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: true }));
 
       await expect(removeSavedGrant("grant-123")).resolves.toBeUndefined();
 
@@ -321,12 +333,12 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 404,
-      });
+      }));
 
-      await expect(removeSavedGrant("grant-123")).rejects.toThrow("HTTP error! status: 404");
+      await expect(removeSavedGrant("grant-123")).rejects.toThrow("HTTP 404");
     });
   });
 
@@ -337,10 +349,10 @@ describe("API Functions Integration Tests", () => {
         { id: 1, grant_id: "g1", grant_name: "Grant A", status: "submitted" },
       ];
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockApps,
-      });
+      }));
 
       const result = await getApplications();
 
@@ -351,10 +363,10 @@ describe("API Functions Integration Tests", () => {
 
     it("returns empty array on 401", async () => {
       mockGetAuthToken.mockReturnValue("expired");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 401,
-      });
+      }));
 
       const result = await getApplications();
       expect(result).toEqual([]);
@@ -362,10 +374,10 @@ describe("API Functions Integration Tests", () => {
 
     it("handles non-array response", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ data: [] }),
-      });
+      }));
 
       const result = await getApplications();
       expect(result).toEqual([]);
@@ -377,10 +389,10 @@ describe("API Functions Integration Tests", () => {
       mockGetAuthToken.mockReturnValue("test-token");
       const mockApp = { id: 1, grant_id: "g1", status: "draft" };
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockApp,
-      });
+      }));
 
       const result = await createApplication({ grantId: "g1", content: "My application" });
 
@@ -396,9 +408,9 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 400 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 400 }));
 
-      await expect(createApplication({ grantId: "g1" })).rejects.toThrow("HTTP error! status: 400");
+      await expect(createApplication({ grantId: "g1" })).rejects.toThrow("HTTP 400");
     });
   });
 
@@ -407,10 +419,10 @@ describe("API Functions Integration Tests", () => {
       mockGetAuthToken.mockReturnValue("test-token");
       const mockApp = { id: 1, status: "submitted" };
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockApp,
-      });
+      }));
 
       const result = await updateApplication("1", { status: "submitted" });
 
@@ -425,16 +437,16 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 404 }));
 
-      await expect(updateApplication("1", {})).rejects.toThrow("HTTP error! status: 404");
+      await expect(updateApplication("1", {})).rejects.toThrow("HTTP 404");
     });
   });
 
   describe("deleteApplication()", () => {
     it("deletes application with DELETE", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: true }));
 
       await expect(deleteApplication("1")).resolves.toBeUndefined();
 
@@ -446,16 +458,16 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 404 }));
 
-      await expect(deleteApplication("1")).rejects.toThrow("HTTP error! status: 404");
+      await expect(deleteApplication("1")).rejects.toThrow("HTTP 404");
     });
   });
 
   describe("getProfile()", () => {
     it("returns null on 401", async () => {
       mockGetAuthToken.mockReturnValue("expired");
-      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 401 }));
 
       const result = await getProfile();
       expect(result).toBeNull();
@@ -463,7 +475,7 @@ describe("API Functions Integration Tests", () => {
 
     it("returns null on 404", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 404 }));
 
       const result = await getProfile();
       expect(result).toBeNull();
@@ -471,10 +483,10 @@ describe("API Functions Integration Tests", () => {
 
     it("returns mapped profile on success", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ id: 1, name: "Profile", is_default: true }),
-      });
+      }));
 
       const result = await getProfile();
       expect(result).not.toBeNull();
@@ -496,10 +508,10 @@ describe("API Functions Integration Tests", () => {
       mockGetAuthToken.mockReturnValue("test-token");
       const mockProfile = { id: 1, name: "Saved" };
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockProfile,
-      });
+      }));
 
       const result = await saveProfile({ name: "Saved" });
 
@@ -522,22 +534,22 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 400 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 400 }));
 
-      await expect(saveProfile({ name: "Test" })).rejects.toThrow("HTTP error! status: 400");
+      await expect(saveProfile({ name: "Test" })).rejects.toThrow("HTTP 400");
     });
   });
 
   describe("listProfiles()", () => {
     it("returns mapped profiles", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => [
           { id: 1, name: "Profile 1", is_default: true },
           { id: 2, name: "Profile 2" },
         ],
-      });
+      }));
 
       const result = await listProfiles();
 
@@ -548,19 +560,19 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 401 }));
 
-      await expect(listProfiles()).rejects.toThrow("Failed to list profiles");
+      await expect(listProfiles()).rejects.toThrow("HTTP 401");
     });
   });
 
   describe("getProfileById()", () => {
     it("returns mapped profile", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ id: 5, name: "By ID" }),
-      });
+      }));
 
       const result = await getProfileById(5);
 
@@ -569,19 +581,19 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 404 }));
 
-      await expect(getProfileById(5)).rejects.toThrow("Failed to get profile");
+      await expect(getProfileById(5)).rejects.toThrow("HTTP 404");
     });
   });
 
   describe("createProfile()", () => {
     it("creates and returns mapped profile", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ id: 3, name: "New" }),
-      });
+      }));
 
       const result = await createProfile({ name: "New" });
 
@@ -590,19 +602,19 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 400 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 400 }));
 
-      await expect(createProfile({ name: "New" })).rejects.toThrow("Failed to create profile");
+      await expect(createProfile({ name: "New" })).rejects.toThrow("HTTP 400");
     });
   });
 
   describe("updateProfileById()", () => {
     it("updates and returns mapped profile", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => ({ id: 1, name: "Updated" }),
-      });
+      }));
 
       const result = await updateProfileById(1, { name: "Updated" });
 
@@ -611,25 +623,25 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 404 }));
 
-      await expect(updateProfileById(1, {})).rejects.toThrow("Failed to update profile");
+      await expect(updateProfileById(1, {})).rejects.toThrow("HTTP 404");
     });
   });
 
   describe("deleteProfile()", () => {
     it("deletes profile", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: true }));
 
       await expect(deleteProfile(1)).resolves.toBeUndefined();
     });
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 404 }));
 
-      await expect(deleteProfile(1)).rejects.toThrow("Failed to delete profile");
+      await expect(deleteProfile(1)).rejects.toThrow("HTTP 404");
     });
   });
 
@@ -638,10 +650,10 @@ describe("API Functions Integration Tests", () => {
       mockGetAuthToken.mockReturnValue("test-token");
       const mockResponse = { generated_text: "AI generated content", credits_remaining: 5 };
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockResponse,
-      });
+      }));
 
       const result = await generateApplicationWithAI("grant-1", "Context");
 
@@ -658,9 +670,9 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 429 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 429 }));
 
-      await expect(generateApplicationWithAI("grant-1")).rejects.toThrow("HTTP error! status: 429");
+      await expect(generateApplicationWithAI("grant-1")).rejects.toThrow("HTTP 429");
     });
   });
 
@@ -671,10 +683,10 @@ describe("API Functions Integration Tests", () => {
         { foundation: { id: 1, name: "Foundation A" }, similarity_score: 0.8 },
       ];
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockResponse,
-      });
+      }));
 
       const result = await findMatchingFoundations("Student", 0.3, 10);
 
@@ -691,9 +703,9 @@ describe("API Functions Integration Tests", () => {
 
     it("throws on error", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+      mockFetch.mockResolvedValue(mockFetchResponse({ ok: false, status: 500 }));
 
-      await expect(findMatchingFoundations("Student")).rejects.toThrow("HTTP error! status: 500");
+      await expect(findMatchingFoundations("Student")).rejects.toThrow("HTTP 500");
     });
   });
 
@@ -704,10 +716,10 @@ describe("API Functions Integration Tests", () => {
         { foundation: { id: 2, name: "Foundation B" }, similarity_score: 0.7 },
       ];
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
         json: async () => mockResponse,
-      });
+      }));
 
       const result = await findMatchingFoundationsByProfile(1, true, 0.25, 20);
 
@@ -728,24 +740,24 @@ describe("API Functions Integration Tests", () => {
 
     it.skip("throws on error with detail message", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 400,
         json: async () => ({ detail: "Invalid profile ID" }),
-      });
+      }));
 
       await expect(findMatchingFoundationsByProfile(999)).rejects.toThrow("Invalid profile ID");
     });
 
     it("throws on error without detail", async () => {
       mockGetAuthToken.mockReturnValue("test-token");
-      mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue(mockFetchResponse({
         ok: false,
         status: 500,
         json: async () => ({}),
-      });
+      }));
 
-      await expect(findMatchingFoundationsByProfile(1)).rejects.toThrow("HTTP error! status: 500");
+      await expect(findMatchingFoundationsByProfile(1)).rejects.toThrow("HTTP 500");
     });
   });
 });

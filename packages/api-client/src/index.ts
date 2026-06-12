@@ -78,7 +78,7 @@ export function createApiClient(config: ApiClientConfig): HttpClient {
 
     // Parse response
     let data: T;
-    const contentType = response.headers.get("content-type");
+    const contentType = response.headers?.get?.("content-type");
     if (contentType?.includes("application/json")) {
       data = (await response.json()) as T;
     } else {

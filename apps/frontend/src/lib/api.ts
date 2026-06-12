@@ -9,7 +9,7 @@ export type { MatchedFoundation, Profile, GrantsResponse } from "@stipendariet/t
 
 const api = createApiClient({
   baseUrl: import.meta.env.VITE_API_URL || "/api",
-  getToken: getAuthToken,
+  getToken: () => getAuthToken(),
 });
 
 type BackendGrant = Record<string, unknown>;
