@@ -10,6 +10,9 @@
   },
   "scripts": {
     "dev": "turbo run dev",
+    "dev:infra": "docker compose -f docker-compose.yml up -d postgres redis browserless",
+    "dev:stop-infra": "docker compose -f docker-compose.yml stop postgres redis browserless",
+    "dev:all": "pnpm run dev:infra && turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
