@@ -16,6 +16,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "test:all": "turbo run test test:e2e",
     "ci:build-all": "turbo run build",
     "docker:build-backend": "docker compose -f docker-compose.yml build backend",
     "docker:up": "docker compose -f docker-compose.yml up -d",
