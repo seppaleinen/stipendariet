@@ -2,7 +2,7 @@ import { Grant, Application, ChildNeed } from "@/types/grants";
 import { createApiClient } from "@stipendariet/api-client";
 import type { ApiError } from "@stipendariet/api-client";
 import { getAuthToken } from "@/contexts/AuthContext";
-import type { Grant, GrantsResponse, MatchedFoundation, Profile } from "@stipendariet/types";
+import type { MatchedFoundation, Profile, GrantsResponse } from "@stipendariet/types";
 
 // Re-export shared types used by components
 export type { MatchedFoundation, Profile, GrantsResponse } from "@stipendariet/types";
@@ -47,20 +47,18 @@ export async function getGrants(params?: {
   skip?: number;
   limit?: number;
 }): Promise<GrantsResponse> {
-  try {
-    const { data } = await api.get('/grants', params);
-    const grantsArray = Array.isArray(data) ? data : data.grants || [];
-    return {
-      grants: grantsArray.map(mapGrantFromBackend),
-      total: data.total || grantsArray.length,
-      skip: data.skip || 0,
-      limit: data.limit || grantsArray.length,
-      has_more: data.has_more || false,
-    };
-  } catch (error) {
-    console.error("Error fetching grants:", error);
-    return { grants: [], total: 0, skip: 0, limit: 50, has_more: false };
+  const { data } = await api.get('/grants', params);
+  if (!data || typeof data !== 'object' || !Array.isArray(data.grants)) {
+    throw new Error("Invalid response format from getGrants");
   }
+  const grantsArray = data.grants as BackendGrant[];
+  return {
+    grants: grantsArray.map(mapGrantFromBackend),
+    total: (data.total as number) || grantsArray.length,
+    skip: (data.skip as number) || 0,
+    limit: (data.limit as number) || grantsArray.length,
+    has_more: !!data.has_more,
+  };
 }
 
 export function mapGrantFromBackend(grant: BackendGrant): Grant {
@@ -71,15 +69,15 @@ export function mapGrantFromBackend(grant: BackendGrant): Grant {
     summary:
       (grant.summary as string) ||
       (grant.description as string) ||
-      "Ingen sammanfattning tillgänglig",
+      "Ingen sammanfattning tillg\u00e4nglig",
     description:
       (grant.description as string) ||
       (grant.summary as string) ||
-      "Ingen beskrivning tillgänglig",
+      "Ingen beskrivning tillg\u00e4nglig",
     provider:
       (grant.organization as string) ||
       (grant.provider as string) ||
-      "Okänd utgivare",
+      "Ok\u00e4nd utgivare",
     amount: (grant.amount as string) || undefined,
     deadline: formatDate(deadline),
     category: (grant.category as string) || "Diverse",
@@ -108,20 +106,16 @@ export async function getGrant(id: string): Promise<Grant | undefined> {
     return mapGrantFromBackend(data);
   } catch (error) {
     if ((error as { status?: number }).status === 404) return undefined;
-    console.error("Error fetching grant:", error);
-    return undefined;
+    throw error;
   }
 }
 
 export async function getSavedGrants(): Promise<string[]> {
-  try {
-    const { data } = await api.get('/profile/saved-grants');
-    return Array.isArray(data.saved_grants) ? data.saved_grants : [];
-  } catch (error) {
-    if ((error as { status?: number }).status === 401) return [];
-    console.error("Error fetching saved grants:", error);
-    return [];
+  const { data } = await api.get('/profile/saved-grants');
+  if (!data || !Array.isArray(data.saved_grants)) {
+    throw new Error("Invalid response format from getSavedGrants");
   }
+  return data.saved_grants as string[];
 }
 
 export async function saveGrant(grantId: string): Promise<void> {
@@ -134,23 +128,18 @@ export async function removeSavedGrant(grantId: string): Promise<void> {
 
 // Applications API
 const applicationStatusMap: Record<string, Application["status"]> = {
-  draft: "draft",
-  submitted: "submitted",
-  approved: "approved",
-  rejected: "rejected",
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
 };
 
 export async function getApplications(): Promise<Application[]> {
-  try {
-    const { data } = await api.get('/applications');
-    return Array.isArray(data)
-      ? data.map(mapApplicationFromBackend)
-      : [];
-  } catch (error) {
-    if ((error as { status?: number }).status === 401) return [];
-    console.error("Error fetching applications:", error);
-    return [];
+  const { data } = await api.get('/applications');
+  if (!data || !Array.isArray(data)) {
+    throw new Error("Invalid response format from getApplications");
   }
+  return data.map(mapApplicationFromBackend);
 }
 
 export async function getApplication(
@@ -162,8 +151,7 @@ export async function getApplication(
   } catch (error) {
     const status = (error as { status?: number }).status;
     if (status === 404 || status === 401) return undefined;
-    console.error("Error fetching application:", error);
-    return undefined;
+    throw error;
   }
 }
 
@@ -179,7 +167,7 @@ export async function createApplication(
 
 export async function updateApplication(
   id: string,
-  updates: { content?: string; status?: "draft" | "submitted" },
+  updates: { content?: string; status?: 'draft' | 'submitted' },
 ): Promise<Application> {
   const { data } = await api.put(`/applications/${id}`, {
     content: updates.content,
@@ -193,14 +181,14 @@ export async function deleteApplication(id: string): Promise<void> {
 }
 
 export function mapApplicationFromBackend(app: BackendApplication): Application {
-  const status = applicationStatusMap[app.status as string] ?? "draft";
+  const status = applicationStatusMap[app.status as string] ?? 'draft';
   return {
-    id: (app.id as string | number | undefined)?.toString() ?? "",
+    id: (app.id as string | number | undefined)?.toString() ?? '',
     grantId:
       (app.grant_id as string | number | undefined)?.toString() ||
       (app.grantId as string | undefined) ||
-      "",
-    grantTitle: (app.grant_name as string) || (app.grantTitle as string) || "",
+      '',
+    grantTitle: (app.grant_name as string) || (app.grantTitle as string) || '',
     status,
     createdAt: app.created_at as string | undefined,
     updatedAt: app.updated_at as string | undefined,
@@ -251,12 +239,12 @@ export async function getProfileById(id: number): Promise<Profile> {
 }
 
 export async function createProfile(profile: Profile): Promise<Profile> {
-  const { data } = await api.post('/profile/', mapFrontendProfileToBackend(profile));
+  const { data } = await api.post('/profile/', mapBackendProfileToFrontend(profile));
   return mapBackendProfileToFrontend(data);
 }
 
 export async function updateProfileById(id: number, profile: Profile): Promise<Profile> {
-  const { data } = await api.put(`/profile/${id}`, mapFrontendProfileToBackend(profile));
+  const { data } = await api.put(`/profile/${id}`, mapBackendProfileToBackend(profile));
   return mapBackendProfileToFrontend(data);
 }
 
@@ -271,19 +259,17 @@ export async function getProfile(): Promise<Profile | null> {
   } catch (error) {
     const status = (error as { status?: number }).status;
     if (status === 401 || status === 404) return null;
-    console.error("Error fetching profile:", error);
-    return null;
+    throw error;
   }
 }
 
 export async function saveProfile(
   profile: Profile,
 ): Promise<Profile> {
-  const { data } = await api.put('/profile/family', mapFrontendProfileToBackend(profile));
+  const { data } = await api.put('/profile/family', mapBackendProfileToFrontend(profile));
   return mapBackendProfileToFrontend(data);
 }
 
-// AI Generation API
 export async function generateApplicationWithAI(
   grantId: string,
   additionalContext?: string,
@@ -295,40 +281,14 @@ export async function generateApplicationWithAI(
   return data;
 }
 
-// Semantic Matching API
-
 export async function findMatchingFoundations(
   needs: string,
   threshold: number = 0.3,
   limit: number = 20,
   profileId?: number
 ): Promise<MatchedFoundation[]> {
-  try {
-    // Determine which endpoint to use
-    // If profileId is passed, we technically should use matching-by-profile if 'needs' was just profile text. 
-    // But this function signature suggests 'needs' is explict text.
-    // However, the backend logic for `matching` (text based) doesn't use profileId.
-    // The `matching-by-profile` endpoint uses the profile from DB.
-    
-    // Let's assume this function is primarily used for text-based matching (e.g. from the 'Generate' page or simple search).
-    // If we want to support profile-based matching here, we might need a separate function or clarify usage.
-    
-    // BUT! I see `findMatchingFoundations` uses `/foundations/matching`.
-    // The matching-by-profile logic is client-side in `Matching.tsx` calling `/foundations/matching-by-profile`.
-    
-    // So I will just update this function to matching the backend signature if needed, but `/foundations/matching` doesn't take profile_id.
-    
-    // Wait, `Matching.tsx` has its own fetch call. I should probably refactor that to use `api.ts` eventually.
-    // For now I will leave this as is unless I need to change it.
-    
-    // Actually, I should export a new function for `findMatchingFoundationsByProfile`.
-    
-    const { data } = await api.post('/foundations/matching', { needs, threshold, limit });
-    return data;
-  } catch (error) {
-    console.error("Error finding matching foundations:", error);
-    throw error;
-  }
+  const { data } = await api.post('/foundations/matching', { needs, threshold, limit });
+  return data;
 }
 
 export async function findMatchingFoundationsByProfile(
