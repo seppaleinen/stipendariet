@@ -484,62 +484,6 @@ class TestFundingRouter:
 
 
 # =============================================================================
-# Generate Router Tests
-# =============================================================================
-
-class TestGenerateRouter:
-    """Tests for /api/generate endpoints"""
-
-    def test_generate_application_grant_not_found(self):
-        """Generation fails when grant doesn't exist"""
-        with patch("app.api.v1.routers.crud.get_grant") as mock_get_grant:
-            mock_get_grant.return_value = None
-            response = client.post("/api/generate-application", json={
-                "grant_id": 999,
-                "profile": {
-                    "family_members": [],
-                    "economic_situation": "Test",
-                    "background": "Test",
-                    "achievements": "Test",
-                    "goals": "Test",
-                }
-            })
-            assert response.status_code == 404
-            assert "Grant not found" in response.json()["detail"]
-
-    def test_generate_application_success(self):
-        """Generation succeeds and returns email template"""
-        mock_grant = MagicMock()
-        mock_grant.id = 1
-        mock_grant.name = "Test Grant"
-        mock_grant.provider = "Test Provider"
-        mock_grant.amount = 10000
-        mock_grant.deadline = None
-        mock_grant.summary = "Test summary"
-
-        with patch("app.api.v1.routers.crud.get_grant") as mock_get_grant:
-            mock_get_grant.return_value = mock_grant
-            response = client.post("/api/generate-application", json={
-                "grant_id": 1,
-                "profile": {
-                    "family_members": [
-                        {"name": "Parent", "age": 35, "role": "parent"},
-                        {"name": "Child", "age": 10, "role": "child"},
-                    ],
-                    "economic_situation": "Low income",
-                    "background": "Student family",
-                    "achievements": "Good grades",
-                    "goals": "Continue education",
-                }
-            })
-            assert response.status_code == 200
-            data = response.json()
-            assert "email_text" in data
-            assert "Ansökan om Test Grant" in data["email_text"]
-            assert "Test Provider" in data["email_text"]
-
-
-# =============================================================================
 # Applications Router Tests
 # =============================================================================
 

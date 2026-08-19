@@ -47,60 +47,6 @@ export interface FamilyMember {
   contactInfo?: ContactInfo;
 }
 
-// Extended family setup types
-export interface FamilySetup {
-  id?: string;
-  family: {
-    municipality: string;
-    adults: number;
-    children: number;
-    maritalStatus: "married" | "cohabiting" | "single" | "other";
-    email?: string;
-    phone?: string;
-  };
-  children: {
-    age: number;
-    diagnoses: (
-      | "adhd"
-      | "autism"
-      | "intellectual_disability"
-      | "cp"
-      | "acquired_brain_injury"
-      | "other"
-    )[];
-    otherDiagnosis?: string;
-    needLevel: "0" | "1" | "2" | "3";
-    mobility: {
-      wheelchair?: boolean;
-      assistiveDevices?: string;
-      stairs?: boolean;
-      supervision?: boolean;
-    };
-  }[];
-  economy: {
-    financialDifficulties?: boolean;
-    monthlyIncome?: string;
-    employment?:
-    | "full_time"
-    | "part_time"
-    | "sick_leave"
-    | "unemployed"
-    | "other";
-    benefits: {
-      unemployment?: boolean;
-      sickness?: boolean;
-      allowance?: boolean;
-      none?: boolean;
-    };
-  };
-  personalDescription?: string;
-  contactInformation?: Record<string, unknown>;
-  livingSituation?: string;
-  additionalNotes?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export interface GeneratedApplication {
   content: string;
   grantId: string;

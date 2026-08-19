@@ -13,7 +13,6 @@ import Matching from "./pages/Matching";
 import GrantDetail from "./pages/GrantDetail";
 import Applications from "./pages/Applications";
 import Generate from "./pages/Generate";
-import FamilySetup from "./pages/FamilySetup";
 import ProfileSetup from "./pages/ProfileSetup";
 import NotFound from "./pages/NotFound";
 import SEOHead from "./components/SEOHead";
