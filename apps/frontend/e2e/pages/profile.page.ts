@@ -15,7 +15,7 @@ export class ProfilePage {
 
   constructor(page: Page) {
     this.page = page;
-    this.nameInput = page.getByLabel('Namn på profil \(t\.ex\. Klient A\)');
+    this.nameInput = page.getByLabel('Namn på profil (t.ex. Klient A)');
     this.countySelect = page.getByLabel('Län');
     this.municipalitySelect = page.getByLabel('Kommun');
     
