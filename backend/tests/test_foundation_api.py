@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Test script to verify the foundation API functionality
+Test script to verify the foundation API functionality.
+Skipped in CI — hits external API (stiftelser.lansstyrelsen.se).
 """
+import pytest
 
 from app.foundation.foundation_api import get_foundations_by_query, poll_foundations
 
 
+@pytest.mark.skip(reason="Hits external API (stiftelser.lansstyrelsen.se) — tested in E2E")
 def test_poll_foundations():
     print("Testing poll_foundations()...")
     result = poll_foundations()
@@ -21,6 +24,7 @@ def test_poll_foundations():
         print("Failed to get foundations from API")
 
 
+@pytest.mark.skip(reason="Hits external API (stiftelser.lansstyrelsen.se) — tested in E2E")
 def test_search_foundations():
     print("\nTesting get_foundations_by_query('stiftelsen')...")
     result = get_foundations_by_query("stiftelsen")
