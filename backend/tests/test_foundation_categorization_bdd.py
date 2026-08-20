@@ -9,18 +9,21 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db.database import DATABASE_URL, Base
+from app.db.database import Base
 from app.main import app
 
-# Setup database for testing
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", f"{DATABASE_URL}_test")
-
-engine = create_engine(TEST_DATABASE_URL)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @pytest.fixture
 def client():
-    """Create a test client for the API"""
+    """Create a test client for the API.
+    Skips if TEST_DATABASE_URL is not set or database is unreachable."""
+    test_database_url = os.getenv("TEST_DATABASE_URL")
+    if not test_database_url:
+        pytest.skip("TEST_DATABASE_URL not set — skipping DB-dependent BDD tests")
+
+    engine = create_engine(test_database_url)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
     Base.metadata.create_all(bind=engine)
     with TestClient(app) as client:
         yield client

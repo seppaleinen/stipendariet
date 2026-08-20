@@ -19,7 +19,7 @@ class TestOllamaEmbeddingService:
         service = OllamaEmbeddingService()
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
+        mock_response.json.return_value = {"data": [{"embedding": [0.1, 0.2, 0.3], "index": 0}]}
 
         with patch('app.services.embedding_service.requests.post', return_value=mock_response):
             result = service.generate_embedding("test text")
@@ -48,7 +48,7 @@ class TestOllamaEmbeddingService:
         service = OllamaEmbeddingService()
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"embeddings": []}
+        mock_response.json.return_value = {"data": []}
 
         with patch('app.services.embedding_service.requests.post', return_value=mock_response):
             result = service.generate_embedding("test text")
@@ -85,7 +85,7 @@ class TestOllamaEmbeddingService:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "models": [{"name": "nomic-embed-text", "size": 1234}]
+            "data": [{"id": "nomic-embed-text-v2", "object": "model"}]
         }
 
         with patch('app.services.embedding_service.requests.get', return_value=mock_response):
@@ -99,7 +99,7 @@ class TestOllamaEmbeddingService:
         service = OllamaEmbeddingService()
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"models": []}
+        mock_response.json.return_value = {"data": []}
 
         with patch('app.services.embedding_service.requests.get', return_value=mock_response):
             result = service.health_check()
