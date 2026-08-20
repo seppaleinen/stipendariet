@@ -198,7 +198,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          dockerfile: Dockerfile
+          file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
@@ -215,7 +215,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          dockerfile: apps/frontend/Dockerfile
+          file: apps/frontend/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
@@ -229,7 +229,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          dockerfile: apps/admin/Dockerfile
+          file: apps/admin/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
