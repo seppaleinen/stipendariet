@@ -14,8 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
+# Build stage
+FROM python:3.13-slim-trixie AS builder
+# ...
+# Build stage
+FROM python:3.13-slim-trixie AS builder
+# ...
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY backend/requirements.txt .
+# ...
+# ...
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --user -r requirements.txt
