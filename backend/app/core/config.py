@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = Field(default="phi3:14b", env="OLLAMA_MODEL")  # Model for translation tasks
     OLLAMA_EMBEDDING_MODEL: str = Field(default="nomic-embed-text", env="OLLAMA_EMBEDDING_MODEL") # Model for embeddings
 
+    # LiteLLM settings (embeddings)
+    LITELLM_URL: str = Field(default="http://litellm.litellm.svc.cluster.local:4000", env="LITELLM_URL")
+    LITELLM_API_KEY: str = Field(default="", env="LITELLM_API_KEY")  # Optional for internal calls
+    LITELLM_EMBEDDING_MODEL: str = Field(default="nomic-embed-text-v2", env="LITELLM_EMBEDDING_MODEL")
+
     # Redis/Dragonfly settings (for Arq queue)
     REDIS_URL: str = Field(default="redis://dragonfly.dragonfly.svc.cluster.local:6379", env="REDIS_URL")
 
