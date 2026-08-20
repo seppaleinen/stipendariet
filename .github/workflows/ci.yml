@@ -22,29 +22,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+    
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
+    
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-
+    
       - name: Cache dependencies
         id: cache-deps
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-
+    
       - name: Install deps
         run: pnpm install --frozen-lockfile
-
+    
       # Lint all workspace packages — shared eslint-config is now wired via workspace deps
       - name: Lint
         run: pnpm lint
-
+    
   # ── test (frontend + admin) ────────────────────────────────
   test:
     name: Test
@@ -52,39 +52,39 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
-
+    
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
+    
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-
+    
       - name: Cache dependencies
         id: cache-deps
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-
+    
       - name: Install deps
         run: pnpm install --frozen-lockfile
-
+    
       # Build shared packages first so @stipendariet/ui dist/ exists for test imports
       - name: Build shared packages
         run: pnpm turbo run build --filter=@stipendariet/types --filter=@stipendariet/api-client --filter=@stipendariet/ui --filter=@stipendariet/eslint-config
-
+    
       # Run frontend tests with vitest (has jsdom environment, coverage thresholds)
       - name: Run frontend tests
         working-directory: apps/frontend
         run: npx vitest run
-
+    
       # Run admin tests with vitest
       - name: Run admin tests
         working-directory: apps/admin
         run: npx vitest run
-
+    
   # ── build all packages & apps ─────────────────────────────
   build:
     name: Build
@@ -92,35 +92,34 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
-
+    
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
+    
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-
+    
       - name: Cache dependencies
         id: cache-deps
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-
+    
       - name: Install deps
         run: pnpm install --frozen-lockfile
-
+    
       # Build shared packages first (types, ui), then apps in parallel
       - name: Build all
         run: pnpm turbo run build
-
+    
   # ── Docker build for backend (multi-platform) ──────────────
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
     needs: [lint, test, build]
-
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -135,7 +134,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
       DATABASE_HOST: localhost
       DATABASE_USER: postgres
@@ -143,23 +141,22 @@ jobs:
       DATABASE_PORT: "5432"
       DATABASE_NAME: stipendariet
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stipendariet
-
     steps:
       - uses: actions/checkout@v4
-
+    
       # Python setup for backend linting
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-
+    
       # ── Python lint with ruff ──────────────────────────────
       - name: Lint backend
         working-directory: backend
         run: |
           pip install ruff
           ruff check .
-
+    
       # ── Wait for Postgres ──────────────────────────────────
       - name: Wait for Postgres to be ready
         run: |
@@ -168,22 +165,22 @@ jobs:
             sleep 2
           done
           echo "Postgres is ready"
-
+    
       # ── Backend tests with pytest ──────────────────────────
       - name: Run backend tests
-        working-directory: backend
+        workingting-directory: backend
         run: |
           pip install -r requirements.txt pytest pytest-asyncio httpx
           pytest -v
-
+    
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
           platforms: linux/amd64,linux/arm64
-
+    
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
+    
       # Only push on main branch pushes; for PRs we just test build
       - name: Login to GitHub Container Registry (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -192,7 +189,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+    
       - name: Build backend image (test only for PRs, push for main)
         id: build
         uses: docker/build-push-action@v5
@@ -206,7 +203,7 @@ jobs:
             ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
+    
       # Frontend and admin now use monorepo-aware Dockerfiles
       # (pnpm workspace, context: repo root).
       - name: Build frontend image (main only)
@@ -222,7 +219,7 @@ jobs:
             ghcr.io/${{ github.repository }}/frontend:latest
             ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
           cache-from: type=gha
-
+    
       - name: Build admin image (main only)
         id: build-admin
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -236,18 +233,18 @@ jobs:
             ghcr.io/${{ github.repository }}/admin:latest
             ghcr.io/${{ github.repository }}/admin:${{ github.sha }}
           cache-from: type=gha
-
+    
       # ── Helm chart publish (main only) ───────────────────────
       - name: Setup Helm
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: azure/setup-helm@v4
         with:
           version: latest
-
+    
       - name: Login to GHCR for Helm
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
-
+    
       - name: Package and push Helm charts (main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
@@ -264,3 +261,4 @@ jobs:
             helm push "/tmp/charts/stipendiatet-$chart-*.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
           done
         shell: bash
+
