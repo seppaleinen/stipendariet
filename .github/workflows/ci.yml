@@ -73,7 +73,7 @@ jobs:
 
       # Build shared packages first so @stipendariet/ui dist/ exists for test imports
       - name: Build shared packages
-        run: pnpm turbo run build --filter=@stipendariet/types --filter=@stipendariet/ui --filter=@stipendariet/eslint-config
+        run: pnpm turbo run build --filter=@stipendariet/types --filter=@stipendariet/api-client --filter=@stipendariet/ui --filter=@stipendariet/eslint-config
 
       # Run frontend tests with vitest (has jsdom environment, coverage thresholds)
       - name: Run frontend tests
