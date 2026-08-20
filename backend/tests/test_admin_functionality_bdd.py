@@ -1,13 +1,13 @@
 """
 BDD-style tests for admin functionality - step implementations
 """
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.core.security import create_access_token
+from app.main import app
 
 
 def _admin_headers():

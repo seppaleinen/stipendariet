@@ -22,7 +22,7 @@ def client():
         pytest.skip("TEST_DATABASE_URL not set — skipping DB-dependent BDD tests")
 
     engine = create_engine(test_database_url)
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     Base.metadata.create_all(bind=engine)
     with TestClient(app) as client:

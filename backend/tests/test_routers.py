@@ -8,9 +8,10 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.security import get_current_user_payload
+
 # Import app — database engine is mocked via conftest.py autouse fixture
 from app.main import app
-from app.core.security import get_current_user_payload
 
 client = TestClient(app, raise_server_exceptions=False)
 
