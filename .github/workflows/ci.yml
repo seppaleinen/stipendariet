@@ -160,8 +160,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/backend:latest
             ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=ci-backend
+          cache-to: type=gha,scope=ci-backend,mode=max
       - name: Build frontend image (main only)
         id: build-frontend
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -174,7 +174,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/frontend:latest
             ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
-          cache-from: type=gha
+          cache-from: type=gha,scope=ci-frontend
+          cache-to: type=gha,scope=ci-frontend,mode=max
       - name: Build admin image (main only)
         id: build-admin
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -187,7 +188,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/admin:latest
             ghcr.io/${{ github.repository }}/admin:${{ github.sha }}
-          cache-from: type=gha
+          cache-from: type=gha,scope=ci-admin
+          cache-to: type=gha,scope=ci-admin,mode=max
       - name: Setup Helm
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: azure/setup-helm@v4

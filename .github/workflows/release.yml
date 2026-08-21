@@ -81,21 +81,19 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Resolved version: semver=$SEMVER tag=$TAG auto=$AUTO"
 
-  docker:
-    name: Build & Push Docker Images
+  # Images are no longer built here: CI already builds and pushes them to
+  # GHCR tagged with the commit SHA on every push to main. This job simply
+  # copies those manifests onto the release tags via `imagetools create`
+  # (no rebuild, multi-arch manifest preserved).
+  retag:
+    name: Retag Images for Release
     runs-on: ubuntu-latest
     needs: version
+    env:
+      # workflow_run events fire on the default branch ref, so github.sha
+      # would point at the merge commit, not the commit CI actually built.
+      SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -103,53 +101,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Backend ──────────────────────────────────────────
-      - name: Build & push backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/backend:${{ needs.version.outputs.semver }}
-            ghcr.io/${{ github.repository }}/backend:latest
-            ${{ needs.version.outputs.tag != '' && format('ghcr.io/{0}/backend:{1}', github.repository, needs.version.outputs.tag) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Retag images
+        run: |
+          set -euo pipefail
+          REPO="ghcr.io/${{ github.repository }}"
+          SEMVER="${{ needs.version.outputs.semver }}"
+          TAG="${{ needs.version.outputs.tag }}"
 
-      # ── Frontend ─────────────────────────────────────────
-      - name: Build & push frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/frontend:${{ needs.version.outputs.semver }}
-            ghcr.io/${{ github.repository }}/frontend:latest
-            ${{ needs.version.outputs.tag != '' && format('ghcr.io/{0}/frontend:{1}', github.repository, needs.version.outputs.tag) || '' }}
-          cache-from: type=gha
-
-      # ── Admin ────────────────────────────────────────────
-      - name: Build & push admin
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/admin/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/admin:${{ needs.version.outputs.semver }}
-            ghcr.io/${{ github.repository }}/admin:latest
-            ${{ needs.version.outputs.tag != '' && format('ghcr.io/{0}/admin:{1}', github.repository, needs.version.outputs.tag) || '' }}
-          cache-from: type=gha
+          for img in backend frontend admin; do
+            SRC="$REPO/$img:$SOURCE_SHA"
+            # Charts pull bare semver on automated runs, v-prefixed on tag
+            # pushes — publish BOTH forms so either consumer resolves.
+            docker buildx imagetools create -t "$REPO/$img:$SEMVER" "$SRC"
+            if [[ -n "$TAG" ]]; then
+              docker buildx imagetools create -t "$REPO/$img:$TAG" "$SRC"
+            fi
+            # NOTE: :latest is intentionally NOT retagged here. It must keep
+            # tracking the tip of main (what CI last pushed), not lag behind
+            # on whichever release ran last.
+          done
 
   helm:
     name: Package & Push Helm Charts
     runs-on: ubuntu-latest
-    needs: [version, docker]
+    needs: [version, retag]
     steps:
       - uses: actions/checkout@v4
 
@@ -194,7 +169,7 @@ jobs:
   bump:
     name: Bump Chart Versions
     runs-on: ubuntu-latest
-    needs: [version, docker, helm]
+    needs: [version, retag, helm]
     if: needs.version.outputs.auto == 'true'
     steps:
       - uses: actions/checkout@v4
@@ -255,7 +230,7 @@ jobs:
   github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [version, docker, helm]
+    needs: [version, retag, helm]
     steps:
       - uses: actions/checkout@v4
         with:
