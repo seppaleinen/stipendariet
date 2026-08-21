@@ -208,6 +208,6 @@ jobs:
             helm package "$chart_path" -d /tmp/charts
           done
           VERSION="0.0.0+git.${{ github.sha }}"
-          for chart in $CHARTS; do
-            helm push "/tmp/charts/stipendiatet-$chart-$VERSION.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
+          for chart_path in /tmp/charts/stipendiatet-*.tgz; do
+            helm push "$chart_path" "oci://ghcr.io/${{ github.repository }}/charts"
           done
