@@ -22,8 +22,6 @@ spec:
       containers:
         - name: webapp
           image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
-          env:
-            {{ toYaml .Values.env | nindent 12 }}
           envFrom:
             - secretRef:
                 name: {{ printf "%s-env-secrets" .Release.Name }}
