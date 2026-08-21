@@ -1,28 +1,85 @@
 name: Release
 
+# Runs when:
+#   - a v* tag is pushed (existing behaviour — version comes from the tag)
+#   - the CI workflow completes successfully on main (automated release;
+#     version comes from the charts and is bumped afterwards)
+#   - manually via workflow_dispatch (optionally pinning an exact version)
+#
+# Chart-only changes reach this workflow through CI: any push to main runs
+# CI, and a successful CI run triggers this workflow. A direct paths-filtered
+# push trigger is deliberately NOT used here to avoid publishing twice for
+# the same commit.
+
 on:
   push:
     tags: ["v*"]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.2.3). Omit to release the version currently set in the charts.'
+        required: false
+        type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
 
 env:
   NODE_VERSION: "22"
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
-  # Extract version from tag (strip leading "v")
+  # Resolve the release version:
+  #   - tag push        -> strip leading "v" from the tag
+  #   - dispatch+input  -> use the provided version
+  #   - otherwise       -> read the version currently declared in the charts
   version:
     name: Determine Version
     runs-on: ubuntu-latest
+    # Only react to workflow_run when CI succeeded on the default branch
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     outputs:
-      semver: ${{ steps.strip-v.outputs.semver }}
-      tag: ${{ github.ref_name }}
+      semver: ${{ steps.resolve.outputs.semver }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      auto: ${{ steps.resolve.outputs.auto }}
     steps:
-      - name: Strip "v" prefix
-        id: strip-v
-        run: echo "semver=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        uses: mikefarah/yq@v4.53.3
+
+      - name: Resolve version
+        id: resolve
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Tag push: existing behaviour
+            SEMVER="${GITHUB_REF_NAME#v}"
+            TAG="$GITHUB_REF_NAME"
+            AUTO="false"
+          elif [[ -n "${{ inputs.version }}" ]]; then
+            SEMVER="${{ inputs.version }}"
+            SEMVER="${SEMVER#v}"
+            TAG="v$SEMVER"
+            AUTO="false"
+          else
+            # Automated: the charts are the source of truth (kept in lockstep)
+            SEMVER="$(yq '.version' kubernetes/charts/stipendiatet/backend/Chart.yaml)"
+            TAG=""
+            AUTO="true"
+          fi
+          {
+            echo "semver=$SEMVER"
+            echo "tag=$TAG"
+            echo "auto=$AUTO"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved version: semver=$SEMVER tag=$TAG auto=$AUTO"
 
   docker:
     name: Build & Push Docker Images
@@ -51,13 +108,13 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          dockerfile: Dockerfile
+          file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/backend:${{ needs.version.outputs.tag }}
             ghcr.io/${{ github.repository }}/backend:${{ needs.version.outputs.semver }}
             ghcr.io/${{ github.repository }}/backend:latest
+            ${{ needs.version.outputs.tag != '' && format('ghcr.io/{0}/backend:{1}', github.repository, needs.version.outputs.tag) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -66,13 +123,13 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          dockerfile: apps/frontend/Dockerfile
+          file: apps/frontend/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/frontend:${{ needs.version.outputs.tag }}
             ghcr.io/${{ github.repository }}/frontend:${{ needs.version.outputs.semver }}
             ghcr.io/${{ github.repository }}/frontend:latest
+            ${{ needs.version.outputs.tag != '' && format('ghcr.io/{0}/frontend:{1}', github.repository, needs.version.outputs.tag) || '' }}
           cache-from: type=gha
 
       # ── Admin ────────────────────────────────────────────
@@ -80,13 +137,13 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          dockerfile: apps/admin/Dockerfile
+          file: apps/admin/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/admin:${{ needs.version.outputs.tag }}
             ghcr.io/${{ github.repository }}/admin:${{ needs.version.outputs.semver }}
             ghcr.io/${{ github.repository }}/admin:latest
+            ${{ needs.version.outputs.tag != '' && format('ghcr.io/{0}/admin:{1}', github.repository, needs.version.outputs.tag) || '' }}
           cache-from: type=gha
 
   helm:
@@ -101,6 +158,9 @@ jobs:
         with:
           version: latest
 
+      - name: Install yq
+        uses: mikefarah/yq@v4.53.3
+
       - name: Login to GHCR for Helm
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
 
@@ -108,17 +168,106 @@ jobs:
         run: |
           CHARTS="backend frontend admin-frontend"
           VERSION="${{ needs.version.outputs.semver }}"
+          IMAGE_TAG="${{ needs.version.outputs.tag != '' && needs.version.outputs.tag || needs.version.outputs.semver }}"
           mkdir -p /tmp/charts
 
           for chart in $CHARTS; do
             chart_path="kubernetes/charts/stipendiatet/$chart"
-            # Update chart version + appVersion + image tag
-            sed -i "s/^version:.*/version: $VERSION/" "$chart_path/Chart.yaml"
+            # Update chart appVersion + image tag
             sed -i "s/^appVersion:.*/appVersion: $VERSION/" "$chart_path/Chart.yaml"
-            sed -i "s/tag:.*/tag: ${{ needs.version.outputs.tag }}/" "$chart_path/values.yaml"
+            sed -i "s/tag:.*/tag: $IMAGE_TAG/" "$chart_path/values.yaml"
+            helm lint "$chart_path"
             helm package "$chart_path" -d /tmp/charts
           done
 
+          # Push using the chart name from Chart.yaml (may differ from the
+          # directory name, e.g. admin-frontend -> stipendiatet-admin)
           for chart in $CHARTS; do
-            helm push "/tmp/charts/stipendiatet-$chart-$VERSION.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
+            chart_path="kubernetes/charts/stipendiatet/$chart"
+            CHART_NAME="$(yq '.name' "$chart_path/Chart.yaml")"
+            helm push "/tmp/charts/$CHART_NAME-$VERSION.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
           done
+
+  # Automated releases only: advance the chart versions so the next
+  # automated release gets a fresh semver. Bump type follows the commit
+  # message of the change that was just released.
+  bump:
+    name: Bump Chart Versions
+    runs-on: ubuntu-latest
+    needs: [version, docker, helm]
+    if: needs.version.outputs.auto == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        uses: mikefarah/yq@v4.53.3
+
+      - name: Bump versions, commit and tag
+        env:
+          HEAD_MSG: ${{ github.event.workflow_run.head_commit.message }}
+        run: |
+          set -euo pipefail
+          MSG="${HEAD_MSG:-$(git log -1 --format=%B)}"
+
+          if echo "$MSG" | grep -q "BREAKING CHANGE"; then
+            BUMP="major"
+          elif echo "$MSG" | grep -qiE "^feat(\(.+\))?:"; then
+            BUMP="minor"
+          else
+            BUMP="patch"
+          fi
+          echo "Bump type: $BUMP"
+
+          TAGS=""
+          for chart in backend frontend admin-frontend; do
+            f="kubernetes/charts/stipendiatet/$chart/Chart.yaml"
+            V="$(yq '.version' "$f")"
+            MAJOR=$(echo "$V" | cut -d. -f1)
+            MINOR=$(echo "$V" | cut -d. -f2)
+            PATCH=$(echo "$V" | cut -d. -f3)
+            case "$BUMP" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            echo "$chart: $V -> $NEW_VERSION"
+            yq -i ".version = \"$NEW_VERSION\"" "$f"
+            git tag "helm/$chart-$NEW_VERSION"
+            TAGS="$TAGS helm/$chart-$NEW_VERSION"
+          done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add kubernetes/charts/*/Chart.yaml
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): bump chart versions after v${{ needs.version.outputs.semver }} [skip ci]"
+            git push
+          else
+            echo "No version bumps to commit."
+          fi
+
+          for t in $TAGS; do
+            git push origin "$t" || echo "Tag $t already exists or push failed"
+          done
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [version, docker, helm]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.version.outputs.semver }}
+          name: Release v${{ needs.version.outputs.semver }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(needs.version.outputs.semver, '-') }}
+          # For automated runs, anchor the release to the exact commit CI tested
+          target_commitish: ${{ github.event.workflow_run.head_sha || github.sha }}
