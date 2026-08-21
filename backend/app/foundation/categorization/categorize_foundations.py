@@ -51,9 +51,22 @@ def get_db_session():
 
 
 class FoundationCategorizer:
-    def __init__(self, ollama_url: str = "http://localhost:11434"):
-        self.ollama_url = ollama_url
+    def __init__(
+        self,
+        base_url: str = None,
+        api_key: str = None,
+        model: str = None,
+    ):
+        self.base_url = base_url or os.getenv("LITELLM_URL", "http://litellm.litellm.svc.cluster.local:4000")
+        self.api_key = api_key if api_key is not None else os.getenv("LITELLM_API_KEY", "")
+        self.model = model or os.getenv("LITELLM_TEXT_MODEL", "gemma-4-12b")
         self.categories = [cat.value for cat in FoundationCategory]
+
+    def _headers(self) -> dict:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
     def load_foundations_from_file(self, file_path: str) -> list[Foundation]:
         """Load foundations from JSON file"""
@@ -78,7 +91,7 @@ class FoundationCategorizer:
     ) -> Foundation:
         """Categorize a single foundation using Ollama API"""
         try:
-            # Prepare the prompt for Ollama with detailed category definitions
+            # Prepare the prompt with detailed category definitions
             categories_with_descriptions = []
             for cat_enum in FoundationCategory:
                 desc = CATEGORY_DEFINITIONS[cat_enum]["description"]
@@ -99,17 +112,27 @@ class FoundationCategorizer:
             """
 
             payload = {
-                "model": "llama2",  # You can change this to another model if needed
-                "prompt": prompt,
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
             }
 
             async with session.post(
-                f"{self.ollama_url}/api/generate", json=payload
+                f"{self.base_url}/chat/completions", json=payload, headers=self._headers()
             ) as response:
                 if response.status == 200:
                     result = await response.json()
-                    category = result.get("response", "").strip()
+                    choices = result.get("choices") or []
+                    content = (choices[0].get("message", {}).get("content", "") if choices else "").strip()
+
+                    if not content:
+                        logger.error(
+                            f"LLM returned empty categorization for {foundation.name}"
+                        )
+                        foundation.category = "Uncategorized"
+                        return foundation
+
+                    category = content
 
                     # Validate the category
                     valid_categories = [cat.lower() for cat in self.categories]

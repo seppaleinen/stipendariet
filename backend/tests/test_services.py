@@ -180,87 +180,89 @@ class TestScraperService:
 
 # =============================================================================
 # Translation Service Tests
+
 # =============================================================================
 
-class TestOllamaTranslationService:
-    """Tests for OllamaTranslationService"""
+def _openai_response(content):
+    """Build an OpenAI-compatible chat completion response mock."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "choices": [{"message": {"content": content}}]
+    }
+    return mock_response
+
+
+class TestLLMTranslationService:
+    """Tests for LLMTranslationService (LiteLLM backend)"""
 
     def test_translate_purpose_empty_text(self):
         """Returns original text for empty input"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
         result = service.translate_purpose("")
         assert result == ""
 
     def test_translate_purpose_whitespace_text(self):
         """Returns original text for whitespace-only input"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
         result = service.translate_purpose("   ")
         assert result == "   "
 
     def test_translate_purpose_success(self):
         """Returns translated text on success"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": "Modern Swedish translation"}
+        service = LLMTranslationService()
 
-        with patch('app.services.ollama_translation_service.requests.post', return_value=mock_response):
+        with patch('app.services.llm_client.requests.post', return_value=_openai_response("Modern Swedish translation")):
             result = service.translate_purpose("Old legalese Swedish")
             assert result == "Modern Swedish translation"
 
     def test_translate_purpose_empty_response(self):
         """Returns original text when API returns empty response"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": ""}
+        service = LLMTranslationService()
 
-        with patch('app.services.ollama_translation_service.requests.post', return_value=mock_response):
+        with patch('app.services.llm_client.requests.post', return_value=_openai_response("")):
             result = service.translate_purpose("Original text")
             assert result == "Original text"
 
     def test_translate_purpose_non_200(self):
         """Returns None when API returns non-200"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Internal error"
 
-        with patch('app.services.ollama_translation_service.requests.post', return_value=mock_response):
+        with patch('app.services.llm_client.requests.post', return_value=mock_response):
             result = service.translate_purpose("Original text")
             assert result is None
 
     def test_translate_purpose_request_exception(self):
         """Returns None when request fails"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
 
-        with patch('app.services.ollama_translation_service.requests.post', side_effect=requests.exceptions.RequestException("timeout")):
+        with patch('app.services.llm_client.requests.post', side_effect=requests.exceptions.RequestException("timeout")):
             result = service.translate_purpose("Original text")
             assert result is None
 
     def test_translate_purpose_custom_model(self):
         """Uses custom model when provided"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": "Translated"}
+        service = LLMTranslationService()
 
-        with patch('app.services.ollama_translation_service.requests.post') as mock_post:
-            mock_post.return_value = mock_response
+        with patch('app.services.llm_client.requests.post') as mock_post:
+            mock_post.return_value = _openai_response("Translated")
 
             result = service.translate_purpose("Original", model="custom-model")
 
@@ -271,70 +273,71 @@ class TestOllamaTranslationService:
 
     def test_translate_purpose_custom_prompt(self):
         """Uses custom prompt when provided"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": "Translated"}
+        service = LLMTranslationService()
 
-        with patch('app.services.ollama_translation_service.requests.post') as mock_post:
-            mock_post.return_value = mock_response
+        with patch('app.services.llm_client.requests.post') as mock_post:
+            mock_post.return_value = _openai_response("Translated")
 
             result = service.translate_purpose("Original", custom_prompt="Custom: {purpose}")
 
-            # Verify custom prompt was used
+            # Verify custom prompt was used as user message content
             call_args = mock_post.call_args
-            assert call_args[1]["json"]["prompt"] == "Custom: Original"
+            assert call_args[1]["json"]["messages"][0]["content"] == "Custom: Original"
+            assert call_args[1]["json"]["stream"] is False
             assert result == "Translated"
 
     def test_get_default_model(self):
-        """Returns default model"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        """Returns default model from settings"""
+        from app.core.config import settings
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
         result = service.get_default_model()
-        assert result == "phi3:14b"
+        expected = getattr(settings, 'LITELLM_TEXT_MODEL', 'gemma-4-12b')
+        assert result == expected
 
     def test_get_default_prompt_template(self):
         """Returns default prompt template with placeholder"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
         result = service.get_default_prompt_template()
         assert "{purpose}" in result
         assert "Du är en expert på äldre juridisk och formell svenska" in result
 
     def test_health_check_available(self):
-        """Returns True when service is available"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        """Returns True when the configured model is served"""
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.json.return_value = {"data": [{"id": f"ollama/{service.model}"}]}
 
-        with patch('app.services.ollama_translation_service.requests.get', return_value=mock_response):
+        with patch('app.services.llm_translation_service.requests.get', return_value=mock_response):
             result = service.health_check()
             assert result is True
 
     def test_health_check_unavailable(self):
         """Returns False when service is unavailable"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
         mock_response = MagicMock()
         mock_response.status_code = 503
 
-        with patch('app.services.ollama_translation_service.requests.get', return_value=mock_response):
+        with patch('app.services.llm_translation_service.requests.get', return_value=mock_response):
             result = service.health_check()
             assert result is False
 
     def test_health_check_request_exception(self):
         """Returns False when request fails"""
-        from app.services.ollama_translation_service import OllamaTranslationService
+        from app.services.llm_translation_service import LLMTranslationService
 
-        service = OllamaTranslationService()
+        service = LLMTranslationService()
 
-        with patch('app.services.ollama_translation_service.requests.get', side_effect=requests.exceptions.RequestException("timeout")):
+        with patch('app.services.llm_translation_service.requests.get', side_effect=requests.exceptions.RequestException("timeout")):
             result = service.health_check()
             assert result is False

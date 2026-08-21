@@ -452,7 +452,7 @@ class TestFoundationsRouter:
 
     def test_translate_purpose_success(self):
         """Translation succeeds"""
-        with patch("app.api.v1.routers.foundations.ollama_translation_service") as mock_service:
+        with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
             mock_service.translate_purpose.return_value = "Translated purpose"
             response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
             assert response.status_code == 200
@@ -462,7 +462,7 @@ class TestFoundationsRouter:
 
     def test_translate_purpose_service_failure(self):
         """Translation fails when service returns None"""
-        with patch("app.api.v1.routers.foundations.ollama_translation_service") as mock_service:
+        with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
             mock_service.translate_purpose.return_value = None
             response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
             assert response.status_code == 500

@@ -23,16 +23,11 @@ async def test_discovery(mock_ddgs):
     assert candidates[0]["url"] == "https://www.test-foundation.se"
 
 
-# Mock Requests for Validation (Ollama)
+# Mock LLM client for Validation (LiteLLM)
 @pytest.mark.asyncio
-@patch('app.pipeline.validation.requests.post')
-async def test_validation(mock_post):
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "response": '{"is_match": true, "confidence": 0.98}'
-    }
-    mock_post.return_value = mock_response
+@patch('app.pipeline.validation.chat_completion')
+async def test_validation(mock_chat):
+    mock_chat.return_value = '{"is_match": true, "confidence": 0.98}'
 
     candidate = {"url": "https://www.test.se", "title": "Test", "snippet": "..."}
     res = await validate_candidate_url(candidate, "Test", "123")
@@ -41,16 +36,11 @@ async def test_validation(mock_post):
     assert res["confidence"] == 0.98
 
 
-# Mock Extractor (Ollama)
+# Mock LLM client for Extraction (LiteLLM)
 @pytest.mark.asyncio
-@patch('app.pipeline.extraction.requests.post')
-async def test_extraction(mock_post):
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "response": '{"application_deadline": "31 mars 2024", "application_open": "1 januari"}'
-    }
-    mock_post.return_value = mock_response
+@patch('app.pipeline.extraction.chat_completion')
+async def test_extraction(mock_chat):
+    mock_chat.return_value = '{"application_deadline": "31 mars 2024", "application_open": "1 januari"}'
 
     res = await extract_data_from_content("Deadline is 31 mars 2024", "Test Foundation")
     assert res is not None

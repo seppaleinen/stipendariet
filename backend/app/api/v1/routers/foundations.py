@@ -12,7 +12,7 @@ from app.foundation.foundation_api import get_foundations_by_query, poll_foundat
 from app.foundation.foundation_schemas import FoundationSearchResponse
 from app.foundation.profile_text_generator import generate_profile_text
 from app.services.embedding_service import SIMILARITY_THRESHOLD, ollama_embedding_service
-from app.services.ollama_translation_service import ollama_translation_service
+from app.services.llm_translation_service import llm_translation_service
 
 
 class TranslationRequest(BaseModel):
@@ -209,7 +209,7 @@ def translate_purpose(translation_request: TranslationRequest):
                 detail="Purpose field is required for translation"
             )
 
-        translated_purpose = ollama_translation_service.translate_purpose(translation_request.purpose)
+        translated_purpose = llm_translation_service.translate_purpose(translation_request.purpose)
 
         if translated_purpose is None:
             raise HTTPException(

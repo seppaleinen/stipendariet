@@ -25,14 +25,10 @@ class Settings(BaseSettings):
     # Foundation sync
     FOUNDATION_BATCH_SIZE: int = Field(default=500, env="FOUNDATION_BATCH_SIZE")
 
-    # Ollama settings
-    OLLAMA_URL: str = Field(default="https://ollama.labb.site", env="OLLAMA_URL")
-    OLLAMA_MODEL: str = Field(default="phi3:14b", env="OLLAMA_MODEL")  # Model for translation tasks
-    OLLAMA_EMBEDDING_MODEL: str = Field(default="nomic-embed-text", env="OLLAMA_EMBEDDING_MODEL") # Model for embeddings
-
-    # LiteLLM settings (embeddings)
+    # LiteLLM settings (OpenAI-compatible proxy for all LLM/embedding calls)
     LITELLM_URL: str = Field(default="http://litellm.litellm.svc.cluster.local:4000", env="LITELLM_URL")
     LITELLM_API_KEY: str = Field(default="", env="LITELLM_API_KEY")  # Optional for internal calls
+    LITELLM_TEXT_MODEL: str = Field(default="gemma-4-12b", env="LITELLM_TEXT_MODEL")  # Model for translation/generation tasks
     LITELLM_EMBEDDING_MODEL: str = Field(default="nomic-embed-text-v2", env="LITELLM_EMBEDDING_MODEL")
 
     # Redis/Dragonfly settings (for Arq queue)
@@ -42,7 +38,7 @@ class Settings(BaseSettings):
     BROWSERLESS_URL: str = Field(default="http://browserless:3000", env="BROWSERLESS_URL")
 
     # Enrichment settings
-    ENRICHMENT_LLM_MODEL: str = Field(default="phi3:14b", env="ENRICHMENT_LLM_MODEL")
+    ENRICHMENT_LLM_MODEL: str = Field(default="gemma-4-12b", env="ENRICHMENT_LLM_MODEL")
     ENRICHMENT_BATCH_SIZE: int = Field(default=50, env="ENRICHMENT_BATCH_SIZE")
 
     model_config = {"env_file": ".env"}

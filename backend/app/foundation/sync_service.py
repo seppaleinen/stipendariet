@@ -348,7 +348,7 @@ def translate_all_foundations_purposes(task_id: str = None, force_retranslate: b
     try:
         from app.db.database import get_db
         from app.foundation.task_manager import get_task
-        from app.services.ollama_translation_service import ollama_translation_service
+        from app.services.llm_translation_service import llm_translation_service
 
         # Get database session
         db = next(get_db())
@@ -384,7 +384,7 @@ def translate_all_foundations_purposes(task_id: str = None, force_retranslate: b
                         continue
 
                     # Translate the purpose
-                    translated_purpose = ollama_translation_service.translate_purpose(foundation.purpose)
+                    translated_purpose = llm_translation_service.translate_purpose(foundation.purpose)
 
                     if translated_purpose:
                         # Update the foundation with the translated purpose

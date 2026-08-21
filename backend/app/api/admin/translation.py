@@ -125,7 +125,7 @@ def translate_single_foundation_endpoint(foundation_id: int, model: str = None, 
 
         from app.db import models
         from app.db.database import get_db
-        from app.services.ollama_translation_service import ollama_translation_service
+        from app.services.llm_translation_service import llm_translation_service
 
         # Get a database session
         db = next(get_db())
@@ -154,7 +154,7 @@ def translate_single_foundation_endpoint(foundation_id: int, model: str = None, 
             existing_translation = foundation.translated_purpose
 
             # Translate the purpose with optional overrides
-            translated_purpose = ollama_translation_service.translate_purpose(
+            translated_purpose = llm_translation_service.translate_purpose(
                 original_purpose,
                 model=model,
                 custom_prompt=custom_prompt
@@ -163,7 +163,7 @@ def translate_single_foundation_endpoint(foundation_id: int, model: str = None, 
             if translated_purpose is None:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Translation failed - Ollama service unavailable"
+                    detail="Translation failed - LLM service unavailable"
                 )
 
             # Save the translated purpose
@@ -178,7 +178,7 @@ def translate_single_foundation_endpoint(foundation_id: int, model: str = None, 
                 "original_purpose": original_purpose,
                 "translated_purpose": translated_purpose,
                 "had_existing_translation": existing_translation is not None,
-                "model_used": model or ollama_translation_service.get_default_model()
+                "model_used": model or llm_translation_service.get_default_model()
             }
 
         finally:
@@ -199,9 +199,9 @@ def get_translation_defaults_endpoint():
     Get the default translation model and prompt template.
     Useful for populating the UI fields with current defaults.
     """
-    from app.services.ollama_translation_service import ollama_translation_service
+    from app.services.llm_translation_service import llm_translation_service
 
     return {
-        "model": ollama_translation_service.get_default_model(),
-        "prompt_template": ollama_translation_service.get_default_prompt_template()
+        "model": llm_translation_service.get_default_model(),
+        "prompt_template": llm_translation_service.get_default_prompt_template()
     }

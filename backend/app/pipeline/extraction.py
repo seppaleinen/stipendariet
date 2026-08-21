@@ -1,10 +1,10 @@
 import json
 import logging
 
-import requests
 from pydantic import BaseModel, ValidationError
 
-from app.core.config import settings
+from app.pipeline.prompts import EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_PROMPT
+from app.services.llm_client import chat_completion, strip_code_fences
 
 logger = logging.getLogger(__name__)
 
@@ -35,25 +35,11 @@ async def extract_data_from_content(
 
     prompt = sys_prompt.format(foundation_name=foundation_name) + "\n" + usr_prompt.format(content=content)
 
-    ollama_url = getattr(settings, 'OLLAMA_URL', 'https://ollama.labb.site')
-    model = getattr(settings, 'ENRICHMENT_LLM_MODEL', 'phi3:14b')
-
     try:
-        response = requests.post(
-            f"{ollama_url}/api/generate",
-            json={
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-            },
-            timeout=120,
-        )
-        if response.status_code == 200:
-            result = response.json()
-            raw_response = result.get("response", "{}")
+        raw_response = chat_completion(prompt, temperature=0.1)
+        if raw_response:
             logger.info(f"Extraction LLM raw response for {foundation_name}: {raw_response}")
-            data = json.loads(raw_response)
+            data = json.loads(strip_code_fences(raw_response))
 
             # Filter to only known fields to avoid Pydantic validation errors
             known_fields = ExtractedFoundationData.model_fields.keys()

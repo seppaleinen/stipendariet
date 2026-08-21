@@ -88,47 +88,24 @@ class GenerationRequest(BaseModel):
 @router.post("/generate-application")
 def generate_application(request: GenerationRequest):
     """
-    Generate an application text using the Ollama API.
-    This endpoint acts as a proxy to the Ollama service to avoid CORS issues.
+    Generate an application text using the LiteLLM OpenAI-compatible API.
+    This endpoint acts as a proxy to the LLM service to avoid CORS issues.
     """
-    # List of models to try in order of preference - gemma3:12b is now the preferred model
-    models_to_try = [
-        "gemma3:12b",
-        "qwen3:8b",
-        "qwen3:14b",
-        "llama3.1:latest",
-        "llama3:latest",
-        "mistral:latest",
-    ]
+    from app.services.llm_client import chat_completion, litellm_text_model
 
-    for model in models_to_try:
-        try:
-            # Call the Ollama API
-            response = requests.post(
-                "https://ollama.labb.site/api/generate",
-                json={"model": model, "prompt": request.prompt, "stream": False},
-                headers={"Content-Type": "application/json"},
-                timeout=60,  # 60 second timeout
-            )
+    model = litellm_text_model()
 
-            # Check if the request was successful
-            if response.status_code == 200:
-                result = response.json()
-                return {
-                    "response": result.get("response", result.get("Response", "")),
-                    "model_used": model,
-                }
+    try:
+        content = chat_completion(request.prompt, timeout=60)
+        if content:
+            return {
+                "response": content,
+                "model_used": model,
+            }
+    except Exception as e:
+        # Log unexpected errors
+        print(f"Unexpected error with model {model}: {str(e)}")
 
-        except requests.exceptions.RequestException as e:
-            # Log the error but try the next model
-            print(f"Model {model} failed: {str(e)}")
-            continue
-        except Exception as e:
-            # Log unexpected errors but try the next model
-            print(f"Unexpected error with model {model}: {str(e)}")
-            continue
-
-    # If all models fail, return an error
     raise HTTPException(
-        status_code=500, detail="All available Ollama models failed to generate content"
+        status_code=500, detail="LLM service failed to generate content"
     )

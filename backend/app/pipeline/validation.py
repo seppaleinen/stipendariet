@@ -1,13 +1,10 @@
 import json
 import logging
 
-import requests
-
-from app.core.config import settings
+from app.pipeline.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_PROMPT
+from app.services.llm_client import chat_completion, strip_code_fences
 
 logger = logging.getLogger(__name__)
-
-from app.pipeline.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_PROMPT
 
 
 async def validate_candidate_url(
@@ -32,24 +29,10 @@ async def validate_candidate_url(
         url=candidate.get("url", "")
     )
 
-    ollama_url = getattr(settings, 'OLLAMA_URL', 'https://ollama.labb.site')
-    model = getattr(settings, 'ENRICHMENT_LLM_MODEL', 'phi3:14b')
-
     try:
-        response = requests.post(
-            f"{ollama_url}/api/generate",
-            json={
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-            },
-            timeout=120,
-        )
-        if response.status_code == 200:
-            result = response.json()
-            raw_response = result.get("response", "{}")
-            data = json.loads(raw_response)
+        raw_response = chat_completion(prompt, temperature=0.1)
+        if raw_response:
+            data = json.loads(strip_code_fences(raw_response))
             logger.debug(f"Validation for {candidate.get('url')}: is_match={data.get('is_match')} confidence={data.get('confidence')}")
             return {
                 "is_match": bool(data.get("is_match", False)),

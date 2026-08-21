@@ -1,25 +1,23 @@
 import logging
 
-import requests
-
 from app.core.config import settings
+from app.services.llm_client import chat_completion, litellm_headers, litellm_url
+
+import requests
 
 logger = logging.getLogger(__name__)
 
-class OllamaTranslationService:
+class LLMTranslationService:
     """
     Service to translate foundation purposes from old/legalese Swedish to modern Swedish
-    using the Ollama API at https://ollama.labb.site
+    using the LiteLLM OpenAI-compatible chat completions API.
     """
 
     def __init__(self):
-        # Use the configured OLLAMA_URL from settings, falling back to the labb.site address
-        self.ollama_url = getattr(settings, 'OLLAMA_URL', 'https://ollama.labb.site')
-        # Using a model that should work well with 16GB RAM, such as Phi 3 or Llama 3
-        self.model = getattr(settings, 'OLLAMA_MODEL', 'phi3:14b')  # Default to phi3 which works well on 16GB
-        self.timeout = 60  # seconds
+        self.model = getattr(settings, 'LITELLM_TEXT_MODEL', 'gemma-4-12b')
+        self.timeout = 120  # seconds
 
-    def translate_purpose(self, purpose: str, model: str = None, custom_prompt: str = None) -> str | None:
+    def translate_purpose(self, purpose: str, model: str | None = None, custom_prompt: str | None = None) -> str | None:
         """
         Translate a foundation purpose from old/legalese Swedish to modern Swedish
 
@@ -41,41 +39,16 @@ class OllamaTranslationService:
         else:
             prompt = self._create_translation_prompt(purpose)
 
-        try:
-            response = requests.post(
-                f"{self.ollama_url}/api/generate",
-                json={
-                    "model": use_model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.1,  # Low temperature for more consistent translations
-                        "num_ctx": 4096,     # Context length
-                    }
-                },
-                timeout=self.timeout
-            )
+        translated_text = chat_completion(prompt, model=use_model, temperature=0.1, timeout=self.timeout)
 
-            if response.status_code == 200:
-                result = response.json()
-                translated_text = result.get('response', '').strip()
-
-                # If translation is empty, return original
-                if not translated_text:
-                    logger.warning(f"Empty translation returned for purpose: {purpose[:100]}...")
-                    return purpose
-
-                return translated_text
-            else:
-                logger.error(f"Ollama API error: {response.status_code} - {response.text}")
-                return None
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error calling Ollama API: {e}")
+        # If translation failed or is empty, fall back appropriately
+        if translated_text is None:
             return None
-        except Exception as e:
-            logger.error(f"Unexpected error during translation: {e}")
-            return None
+        if not translated_text:
+            logger.warning(f"Empty translation returned for purpose: {purpose[:100]}...")
+            return purpose
+
+        return translated_text
 
     def get_default_model(self) -> str:
         """Return the default model being used"""
@@ -115,17 +88,21 @@ class OllamaTranslationService:
 
     def health_check(self) -> bool:
         """
-        Check if the Ollama service is accessible
+        Check if the LiteLLM service is accessible and the configured text model is served.
 
         Returns:
             True if the service is accessible, False otherwise
         """
         try:
-            response = requests.get(f"{self.ollama_url}/api/tags", timeout=10)
-            return response.status_code == 200
+            response = requests.get(f"{litellm_url()}/v1/models", headers=litellm_headers(), timeout=10)
+            if response.status_code == 200:
+                models_data = response.json().get('data', [])
+                model_ids = [m.get('id', '') for m in models_data]
+                return any(self.model in mid for mid in model_ids)
+            return False
         except Exception:
             return False
 
 
 # Create a global instance
-ollama_translation_service = OllamaTranslationService()
+llm_translation_service = LLMTranslationService()
