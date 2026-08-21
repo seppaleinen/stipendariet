@@ -42,7 +42,7 @@ COPY packages/api-client/tsconfig.json ./packages/api-client/
 # Copy admin sources (overlays on top of deps app skeleton)
 COPY apps/admin/src ./apps/admin/src
 COPY apps/admin/public ./apps/admin/public
-COPY apps/admin/tsconfig.json apps/admin/vite.config.ts apps/admin/index.html apps/admin/tailwind.config.ts apps/admin/postcss.config.js apps/admin/nginx.conf ./apps/admin/
+COPY apps/admin/tsconfig.json apps/admin/tsconfig.node.json apps/admin/vite.config.ts apps/admin/index.html apps/admin/tailwind.config.ts apps/admin/postcss.config.js apps/admin/nginx.conf ./apps/admin/
 
 RUN pnpm turbo run build --filter=@stipendariet/admin
 

@@ -42,7 +42,7 @@ COPY packages/api-client/tsconfig.json ./packages/api-client/
 # Copy frontend sources (overlays on top of deps app skeleton)
 COPY apps/frontend/src ./apps/frontend/src
 COPY apps/frontend/public ./apps/frontend/public
-COPY apps/frontend/tsconfig.json apps/frontend/vite.config.ts apps/frontend/index.html apps/frontend/tailwind.config.ts apps/frontend/postcss.config.js apps/frontend/nginx.conf ./apps/frontend/
+COPY apps/frontend/tsconfig.json apps/frontend/tsconfig.app.json apps/frontend/tsconfig.node.json apps/frontend/vite.config.ts apps/frontend/index.html apps/frontend/tailwind.config.ts apps/frontend/postcss.config.js apps/frontend/nginx.conf ./apps/frontend/
 
 RUN pnpm turbo run build --filter=@stipendariet/frontend
 
