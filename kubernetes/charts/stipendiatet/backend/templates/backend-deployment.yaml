@@ -24,7 +24,10 @@ spec:
           image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            {{ toYaml .Values.envs | nindent 12 }}
+            {{- range $name, $value := .Values.envs }}
+            - name: {{ $name | upper | replace "_" "-" }}
+              value: {{ $value | quote }}
+            {{- end }}
           envFrom:
             - secretRef:
                 name: {{ printf "%s-env-secrets" .Release.Name }}
