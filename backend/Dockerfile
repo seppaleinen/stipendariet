@@ -29,7 +29,7 @@ WORKDIR /app
 # Copy Python packages from builder stage
 COPY --from=builder /root/.local /home/appuser/.local
 # Copy application code
-COPY --chown=appuser:appgroup . .
+COPY --chown=appuser:appgroup backend/ .
 # Create data directory with proper permissions
 RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data
 # Switch to non-root user
