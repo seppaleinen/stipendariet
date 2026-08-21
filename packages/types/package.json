@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "lint": "eslint ."
   },
   "exports": {
     ".": {
@@ -14,5 +15,8 @@
     }
   },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts"
+  "types": "./dist/index.d.ts",
+  "devDependencies": {
+    "@stipendariet/eslint-config": "workspace:*"
+  }
 }

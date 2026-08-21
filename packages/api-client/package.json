@@ -13,9 +13,11 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@stipendariet/eslint-config": "workspace:*",
     "typescript": "^5.8.0"
   }
 }

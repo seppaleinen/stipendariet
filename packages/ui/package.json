@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "lint": "eslint ."
   },
   "exports": {
     ".": {
@@ -65,6 +66,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@stipendariet/eslint-config": "workspace:*",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1"
   }
