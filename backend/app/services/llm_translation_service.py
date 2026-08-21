@@ -1,9 +1,9 @@
 import logging
 
+import requests
+
 from app.core.config import settings
 from app.services.llm_client import chat_completion, litellm_headers, litellm_url
-
-import requests
 
 logger = logging.getLogger(__name__)
 

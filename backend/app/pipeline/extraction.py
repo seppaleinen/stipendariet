@@ -18,7 +18,6 @@ class ExtractedFoundationData(BaseModel):
     notes: str | None = None
 
 
-from app.pipeline.prompts import EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_PROMPT
 
 
 async def extract_data_from_content(
