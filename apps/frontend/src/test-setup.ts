@@ -27,6 +27,19 @@ mockIntersectionObserver.mockReturnValue({
 });
 global.IntersectionObserver = mockIntersectionObserver;
 
+// Mock ResizeObserver (required by Radix UI / floating-ui in jsdom)
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+global.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
+// Stub scrollIntoView (not implemented in jsdom; required by cmdk)
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn();
+}
+
 // Mock matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,

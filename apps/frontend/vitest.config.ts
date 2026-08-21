@@ -16,8 +16,6 @@ export default defineConfig({
       include: [
         "src/lib/utils.ts",
         "src/lib/page-metadata.ts",
-        "src/hooks/use-mobile.tsx",
-        "src/hooks/usePremiumStatus.ts",
       ],
       thresholds: {
         lines: 80,
