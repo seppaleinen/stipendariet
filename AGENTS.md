@@ -53,3 +53,7 @@ The project uses `helmfile` for orchestration.
 - **Environment Variables**: Frontend uses `import.meta.env.VITE_API_URL`. Backend/Admin use standard env vars.
 - **Testing Integration**: Integration tests in `apps/frontend/src/lib/api.integration.test.ts` require the backend to be running (via Docker).
 - **Build Order**: Turbo handles the dependency graph, but when manually building, ensure `@stipendariet/types` is built before `@stipendariet/api-client`.
+
+## Git Hooks
+- Hooks live in `.githooks/`. Activate them with: `git config core.hooksPath .githooks`
+- `pre-push` runs `ruff check .` over `backend/` and blocks the push on lint errors.

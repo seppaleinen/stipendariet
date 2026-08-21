@@ -1,0 +1,26 @@
+#!/bin/sh
+# pre-push hook: block push if backend Python lint (ruff) fails.
+
+# Repo root is two levels above this script's directory (.githooks/).
+repo_root="$(git rev-parse --show-toplevel)" || exit 1
+cd "$repo_root/backend" || { echo "pre-push: cannot find backend/" >&2; exit 1; }
+
+if [ -x venv/bin/ruff ]; then
+    RUFF="venv/bin/ruff"
+else
+    if ! python3 -m ruff --version >/dev/null 2>&1; then
+        echo "pre-push: installing ruff..."
+        python3 -m pip install --quiet ruff || { echo "pre-push: failed to install ruff" >&2; exit 1; }
+    fi
+    RUFF="python3 -m ruff"
+fi
+
+echo "pre-push: running ruff check on backend/ ..."
+if ! $RUFF check .; then
+    echo "" >&2
+    echo "push blocked: fix lint errors or run ruff check --fix" >&2
+    exit 1
+fi
+
+echo "pre-push: lint OK."
+exit 0
