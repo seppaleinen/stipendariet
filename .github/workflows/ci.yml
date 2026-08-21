@@ -207,6 +207,7 @@ jobs:
             sed -i "s/^appVersion:.*/appVersion: latest/" "$chart_path/Chart.yaml"
             helm package "$chart_path" -d /tmp/charts
           done
+          VERSION="0.0.0+git.${{ github.sha }}"
           for chart in $CHARTS; do
-            helm push "/tmp/charts/stipendiatet-$chart-*.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
+            helm push "/tmp/charts/stipendiatet-$chart-$VERSION.tgz" "oci://ghcr.io/${{ github.repository }}/charts"
           done
