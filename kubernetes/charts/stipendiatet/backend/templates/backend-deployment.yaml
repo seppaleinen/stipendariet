@@ -24,9 +24,9 @@ spec:
           image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            {{- range $name, $value := .Values.envs }}
-            - name: {{ $name | upper | replace "_" "-" }}
-              value: {{ $value | quote }}
+            {{- range .Values.envs }}
+            - name: {{ .name | upper | replace "_" "-" }}
+              value: {{ .value | quote }}
             {{- end }}
           envFrom:
             - secretRef:
