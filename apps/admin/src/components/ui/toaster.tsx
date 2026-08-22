@@ -63,7 +63,7 @@ export const useToast = () => {
 
 // Simple toaster component that consumes the context
 const Toaster = () => {
-  const { toasts } = useToast();
+  useToast();
   // This component just exists to ensure the context is provided
   return null;
 };

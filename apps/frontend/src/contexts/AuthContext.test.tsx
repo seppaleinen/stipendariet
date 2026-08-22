@@ -62,7 +62,7 @@ global.IntersectionObserver = mockIntersectionObserver;
 // Helper to render with AuthProvider
 function renderWithAuthProvider(
   ui: React.ReactNode,
-  initialUser: User | null = null,
+  _initialUser: User | null = null,
   initialToken: string | null = null
 ) {
   // Setup localStorage mock based on test params

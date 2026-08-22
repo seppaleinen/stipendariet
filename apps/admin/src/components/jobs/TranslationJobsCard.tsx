@@ -71,6 +71,7 @@ export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ active
       setState({ loading: true });
       pollStatus(activeJobId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- start polling once per job id; adding state.loading/pollStatus would restart the poll loop
   }, [activeJobId]);
 
   const trigger = async () => {
@@ -80,8 +81,8 @@ export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ active
         `/admin/trigger-bulk-purpose-translation${forceRetranslate ? '?force=true' : ''}`
       );
       pollStatus(response.data.task_id);
-    } catch (e: any) {
-      setState({ loading: false, error: e.message });
+    } catch (e) {
+      setState({ loading: false, error: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -175,11 +176,11 @@ export const TranslationTestCard: React.FC = () => {
 
   useEffect(() => {
     backendApi.get('/admin/translation-defaults')
-      .then((r: any) => {
+      .then((r: { data: { model?: string; prompt_template?: string } }) => {
         setTestModel(r.data.model || '');
         setTestPrompt(r.data.prompt_template || '');
       })
-      .catch((e: any) => console.error('Failed to load translation defaults', e));
+      .catch((e: unknown) => console.error('Failed to load translation defaults', e));
   }, []);
 
   const translate = async () => {
@@ -193,8 +194,8 @@ export const TranslationTestCard: React.FC = () => {
         `/admin/translate-foundation/${foundationId}?${params.toString()}`
       );
       setState({ loading: false, message: JSON.stringify(response.data, null, 2) });
-    } catch (e: any) {
-      setState({ loading: false, error: e.message });
+    } catch (e) {
+      setState({ loading: false, error: e instanceof Error ? e.message : String(e) });
     }
   };
 

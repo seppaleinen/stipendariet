@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { getGrantMetadata, PAGE_METADATA, SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
 
 describe("page-metadata constants", () => {
@@ -35,7 +35,7 @@ describe("page-metadata constants", () => {
   });
 
   it("PAGE_METADATA includes ogImage for all pages", () => {
-    for (const [route, metadata] of Object.entries(PAGE_METADATA)) {
+    for (const [_route, metadata] of Object.entries(PAGE_METADATA)) {
       expect(metadata.ogImage).toBe(DEFAULT_OG_IMAGE);
     }
   });

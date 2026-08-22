@@ -1,5 +1,3 @@
-import { cn } from '@stipendariet/ui'
-
 export function formatTimeRemaining(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || seconds <= 0) return '';
   if (seconds < 60) return `~${Math.round(seconds)}s kvar`;

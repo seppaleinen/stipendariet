@@ -17,10 +17,10 @@ export const SystemActionsCard: React.FC = () => {
         ...prev, 
         [key]: { loading: false, message: JSON.stringify(response.data, null, 2) } 
       }));
-    } catch (e: any) {
-      setState((prev) => ({ 
-        ...prev, 
-        [key]: { loading: false, error: e.message } 
+    } catch (e) {
+      setState((prev) => ({
+        ...prev,
+        [key]: { loading: false, error: e instanceof Error ? e.message : String(e) }
       }));
     }
   };

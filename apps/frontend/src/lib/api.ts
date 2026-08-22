@@ -1,6 +1,5 @@
-import { Grant, Application, ChildNeed } from "@/types/grants";
+import { Grant, Application } from "@/types/grants";
 import { createApiClient } from "@stipendariet/api-client";
-import type { ApiError } from "@stipendariet/api-client";
 import { getAuthToken } from "@/contexts/AuthContext";
 import type { MatchedFoundation, Profile, GrantsResponse } from "@stipendariet/types";
 
@@ -14,20 +13,28 @@ const api = createApiClient({
 
 type BackendGrant = Record<string, unknown>;
 type BackendApplication = Record<string, unknown>;
-type BackendFamilyMember = {
-  id?: string;
+
+// Raw profile payload from the backend API. Endpoints have historically mixed
+// camelCase and snake_case keys, so mappers accept both spellings.
+type BackendProfile = {
+  id?: number;
   name?: string;
-  age?: number;
-  role?: string;
-};
-type BackendChildNeed = {
-  childId?: string;
-  child_id?: string;
-  diagnoses?: string[];
-  needDegree?: number;
-  need_degree?: number;
-  otherDiagnosis?: string | null;
-  other_diagnosis?: string | null;
+  is_default?: boolean;
+  countyCode?: string;
+  county_code?: string;
+  municipalityCode?: string;
+  municipality_code?: string;
+  lifeSituations?: Profile["lifeSituations"];
+  life_situations?: Profile["lifeSituations"];
+  healthConditions?: Profile["healthConditions"];
+  health_conditions?: Profile["healthConditions"];
+  healthDetails?: Profile["healthDetails"];
+  health_details?: Profile["healthDetails"];
+  occupations?: Profile["occupations"];
+  supportPurposes?: Profile["supportPurposes"];
+  support_purposes?: Profile["supportPurposes"];
+  legacyData?: Profile["legacyData"];
+  legacy_data?: Profile["legacyData"];
 };
 
 function formatDate(dateString: string | undefined): string | undefined {
@@ -197,7 +204,7 @@ export function mapApplicationFromBackend(app: BackendApplication): Application 
 }
 
 // Profile API
-export function mapBackendProfileToFrontend(backendProfile: any): Profile {
+export function mapBackendProfileToFrontend(backendProfile: BackendProfile): Profile {
   return {
     id: backendProfile.id,
     name: backendProfile.name,
@@ -213,7 +220,7 @@ export function mapBackendProfileToFrontend(backendProfile: any): Profile {
   };
 }
 
-export function mapFrontendProfileToBackend(profile: Profile): any {
+export function mapFrontendProfileToBackend(profile: Profile): BackendProfile {
   return {
     name: profile.name,
     is_default: profile.isDefault,
@@ -244,7 +251,7 @@ export async function createProfile(profile: Profile): Promise<Profile> {
 }
 
 export async function updateProfileById(id: number, profile: Profile): Promise<Profile> {
-  const { data } = await api.put(`/profile/${id}`, mapBackendProfileToBackend(profile));
+  const { data } = await api.put(`/profile/${id}`, mapFrontendProfileToBackend(profile));
   return mapBackendProfileToFrontend(data);
 }
 
@@ -285,7 +292,7 @@ export async function findMatchingFoundations(
   needs: string,
   threshold: number = 0.3,
   limit: number = 20,
-  profileId?: number
+  _profileId?: number
 ): Promise<MatchedFoundation[]> {
   const { data } = await api.post('/foundations/matching', { needs, threshold, limit });
   return data;

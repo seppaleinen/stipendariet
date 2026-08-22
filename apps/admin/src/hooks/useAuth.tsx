@@ -9,6 +9,14 @@ interface User {
   role: string;
 }
 
+interface AdminTokenPayload {
+  sub: string;
+  email: string;
+  name: string;
+  role: string;
+  exp: number;
+}
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
@@ -39,7 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const token = localStorage.getItem('adminToken');
     if (token) {
       try {
-        const decoded = jwtDecode(token) as any;
+        const decoded = jwtDecode<AdminTokenPayload>(token);
         if (decoded.exp * 1000 > Date.now()) {
           setUser({
             id: decoded.sub || 'admin',

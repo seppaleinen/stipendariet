@@ -79,7 +79,7 @@ vi.spyOn(Api, "updateProfileById").mockImplementation(mockUpdateProfileById);
 function renderWithProfileProvider(
   ui: React.ReactNode,
   isAuthenticated = true,
-  profiles: Profile[] = []
+  _profiles: Profile[] = []
 ) {
   mockUseAuth.mockReturnValue({ isAuthenticated, user: { id: "1", email: "test@example.com" } });
 

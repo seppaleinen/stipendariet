@@ -20,7 +20,6 @@ import { cleanTextForPreview } from "@/lib/utils";
 import { useProfile } from "@/contexts/ProfileContext";
 import { SITE_URL } from "@/lib/page-metadata";
 
-const ITEMS_PER_PAGE = 20;
 const MIN_SIMILARITY_THRESHOLD = 0.25; // 25% minimum match
 
 export default function Matching() {
@@ -51,6 +50,7 @@ export default function Matching() {
             setResults([]);
             setLastSearchedProfileId(null);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- guarded auto-search: deliberately keyed on profile id only; adding lastSearchedProfileId/findMatches would churn without changing behavior
     }, [isAuthenticated, activeProfile?.id, hasProfileData]);
 
     const findMatches = async () => {

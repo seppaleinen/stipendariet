@@ -60,10 +60,16 @@ interface TraceSource {
   fields_extracted: string[];
 }
 
+interface DiscoveryCandidate {
+  url: string;
+  title?: string;
+  snippet?: string;
+}
+
 interface Trace {
   foundation_id: number;
   name: string;
-  discovery: any[];
+  discovery: DiscoveryCandidate[];
   validation: TraceValidation[];
   sources: TraceSource[];
   merged: Record<string, string | null> | null;
@@ -483,7 +489,7 @@ const EnrichmentResultsPage: React.FC = () => {
   const fetchResults = async () => {
     setLoading(true);
     try {
-      const params: Record<string, any> = { limit };
+      const params: Record<string, string | number> = { limit };
       if (statusFilter !== 'ALL') params.status = statusFilter;
       const response = await backendApi.get('/admin/enrich/details', { params });
       setResults(response.data.foundations ?? []);
@@ -503,6 +509,7 @@ const EnrichmentResultsPage: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on filter state only; adding the fetchers (unstable identity) would refetch on every render
   useEffect(() => { fetchResults(); fetchSummary(); }, [statusFilter, limit]);
 
   const filtered = search

@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet-async";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Search, Bookmark, Sparkles } from "lucide-react";
 import { Input } from "@stipendariet/ui";
 import { Button } from "@stipendariet/ui";
@@ -56,6 +56,7 @@ export default function Grants() {
   // Load grants when filters change
   useEffect(() => {
     loadGrants(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omit loadGrants: it closes over skip; adding it would refetch on every pagination update
   }, [debouncedSearch, categoryFilter]);
 
   useEffect(() => {
@@ -163,6 +164,7 @@ export default function Grants() {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMore identity changes every render by design; state flags below already gate the handler
   }, [loadingMore, hasMore, loading]);
 
   return (

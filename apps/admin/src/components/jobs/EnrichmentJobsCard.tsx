@@ -94,8 +94,8 @@ export const EnrichmentTestCard: React.FC = () => {
 
   useEffect(() => {
     backendApi.get('/admin/enrich/defaults')
-      .then((r: any) => setPrompts(r.data))
-      .catch((e: any) => console.error('Failed to load enrichment defaults', e));
+      .then((r: { data: EnrichmentDefaults }) => setPrompts(r.data))
+      .catch((e: unknown) => console.error('Failed to load enrichment defaults', e));
   }, []);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export const EnrichmentTestCard: React.FC = () => {
       try {
         const response = await backendApi.get(`/admin/foundations/search?q=${encodeURIComponent(searchQuery)}`);
         setSearchResults(response.data);
-      } catch (e: any) {
+      } catch (e) {
         console.error('Search failed', e);
       } finally {
         setIsSearching(false);
@@ -138,8 +138,8 @@ export const EnrichmentTestCard: React.FC = () => {
       } else {
         setSingleResult(response.data);
       }
-    } catch (e: any) {
-      setSingleResult({ error: e.message });
+    } catch (e) {
+      setSingleResult({ error: e instanceof Error ? e.message : String(e) });
       setMessage('Fel vid test-körning');
     } finally {
       setLoading(false);

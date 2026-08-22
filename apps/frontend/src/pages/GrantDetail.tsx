@@ -8,7 +8,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
 } from "@stipendariet/ui";
 import { getGrant, getSavedGrants, saveGrant, removeSavedGrant } from "@/lib/api";
 import { formatFoundationText, formatParagraph } from "@/lib/utils";

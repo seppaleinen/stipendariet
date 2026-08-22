@@ -112,7 +112,7 @@ export default function Generate() {
       let parsedFormData: ParsedFormData | null = null;
       try {
         parsedFormData = JSON.parse(profile.background || "{}");
-      } catch (e) {
+      } catch {
         // If parsing fails, create a basic form data structure from the profile
         parsedFormData = {
           family: {

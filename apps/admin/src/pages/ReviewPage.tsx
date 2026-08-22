@@ -20,6 +20,7 @@ const ReviewPage: React.FC = () => {
     if (id) {
       fetchScholarship();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on route id; fetchScholarship closes over id only
   }, [id]);
 
   const fetchScholarship = async () => {

@@ -51,6 +51,7 @@ export const SyncFoundationsCard: React.FC<SyncFoundationsCardProps> = ({ active
       setSyncState((prev: JobProgressState) => ({ ...prev, loading: true }));
       pollStatus(activeJobId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- start polling once per job id; adding syncState.loading/pollStatus would restart the poll loop
   }, [activeJobId]);
 
   const triggerFoundationSync = async () => {
@@ -58,8 +59,8 @@ export const SyncFoundationsCard: React.FC<SyncFoundationsCardProps> = ({ active
     try {
       const response = await backendApi.post('/admin/trigger-foundation-sync');
       pollStatus(response.data.task_id);
-    } catch (error: any) {
-      setSyncState({ loading: false, error: error.message || 'Okänt fel' });
+    } catch (error) {
+      setSyncState({ loading: false, error: error instanceof Error ? error.message : 'Okänt fel' });
     }
   };
 

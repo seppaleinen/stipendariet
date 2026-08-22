@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Profile, listProfiles, getProfileById, createProfile as apiCreateProfile, updateProfileById } from "@/lib/api";
+import { Profile, listProfiles, createProfile as apiCreateProfile, updateProfileById } from "@/lib/api";
 import { useAuth } from "./AuthContext";
 
 interface ProfileContextType {
@@ -15,7 +15,7 @@ interface ProfileContextType {
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfile, setActiveProfileState] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,32 +75,24 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const createProfile = async (data: Profile): Promise<Profile> => {
-    try {
-      const newProfile = await apiCreateProfile(data);
-      await refreshProfiles(); // Refresh list
-      
-      // If no active profile, or if this is the first one, set it active
-       // (API logic handles default flag, refreshProfiles handles selection logic)
-       
-      // Force set active if it's the only one (handled by refreshProfiles technically but good to be explicit if needed)
-      // Actually, refreshProfiles logic above will select it if it's the first/default.
-      
-      return newProfile;
-    } catch (error) {
-      throw error;
-    }
+    const newProfile = await apiCreateProfile(data);
+    await refreshProfiles(); // Refresh list
+
+    // If no active profile, or if this is the first one, set it active
+    // (API logic handles default flag, refreshProfiles handles selection logic)
+
+    // Force set active if it's the only one (handled by refreshProfiles technically but good to be explicit if needed)
+    // Actually, refreshProfiles logic above will select it if it's the first/default.
+
+    return newProfile;
   };
 
   const updateProfile = async (id: number, data: Profile): Promise<Profile> => {
-    try {
-      const updated = await updateProfileById(id, data);
-      
-      // Update local state without full refresh if possible, but full refresh ensures consistency
-      await refreshProfiles();
-      return updated;
-    } catch (error) {
-      throw error;
-    }
+    const updated = await updateProfileById(id, data);
+
+    // Update local state without full refresh if possible, but full refresh ensures consistency
+    await refreshProfiles();
+    return updated;
   };
 
   return (

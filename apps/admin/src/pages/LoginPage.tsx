@@ -20,7 +20,8 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo = (location.state as any)?.from?.pathname || '/';
+  const redirectTo =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
   const {
     register,
     handleSubmit,
