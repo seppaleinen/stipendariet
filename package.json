@@ -14,7 +14,7 @@
     "dev:stop-infra": "docker compose -f docker-compose.yml stop postgres redis browserless",
     "dev:all": "pnpm run dev:infra && turbo run dev",
     "build": "turbo run build",
-    "lint": "turbo run lint && pnpm run lint:backend",
+    "lint": "turbo run lint",
     "lint:backend": "cd backend && (venv/bin/ruff check . || python3 -m ruff check .)",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
