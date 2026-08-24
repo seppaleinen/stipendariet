@@ -401,7 +401,7 @@ describe("API Functions Integration Tests", () => {
   });
 
   describe("updateApplication()", () => {
-    it("updates application with PUT", async () =>{
+    it("updates application with PATCH", async () =>{
       mockGetAuthToken.mockReturnValue("test-token");
       const mockApp = { id: 1, status: "submitted" };
 
@@ -415,7 +415,7 @@ describe("API Functions Integration Tests", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("/applications/1"),
         expect.objectContaining({
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify({ content: undefined, status: "submitted" }),
         })
       );
@@ -525,9 +525,9 @@ describe("API Functions Integration Tests", () => {
   });
 
   describe("generateApplicationWithAI()", () => {
-    it("generates application with AI", async () =>{
+    it("generates application via foundation-sync generate-application", async () =>{
       mockGetAuthToken.mockReturnValue("test-token");
-      const mockResponse = { generated_text: "AI generated content", credits_remaining: 5 };
+      const mockResponse = { response: "AI generated content", model_used: "phi3:14b" };
 
       mockFetch.mockResolvedValue(mockFetchResponse({
         ok: true,
@@ -537,14 +537,14 @@ describe("API Functions Integration Tests", () => {
       const result = await generateApplicationWithAI("grant-1", "Context");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/generate/application"),
+        expect.stringContaining("/foundation-sync/generate-application"),
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ grant_id: "grant-1", additional_context: "Context" }),
+          body: JSON.stringify({ prompt: "Context" }),
         })
       );
       expect(result.generated_text).toBe("AI generated content");
-      expect(result.credits_remaining).toBe(5);
+      expect(result.credits_remaining).toBeNull();
     });
 
     it("throws on error", async () =>{

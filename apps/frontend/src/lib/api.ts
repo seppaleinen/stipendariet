@@ -176,7 +176,7 @@ export async function updateApplication(
   id: string,
   updates: { content?: string; status?: 'draft' | 'submitted' },
 ): Promise<Application> {
-  const { data } = await api.put(`/applications/${id}`, {
+  const { data } = await api.patch(`/applications/${id}`, {
     content: updates.content,
     status: updates.status,
   });
@@ -278,14 +278,19 @@ export async function saveProfile(
 }
 
 export async function generateApplicationWithAI(
-  grantId: string,
+  _grantId: string,
   additionalContext?: string,
 ): Promise<{ generated_text: string; credits_remaining: number | null }> {
-  const { data } = await api.post('/generate/application', {
-    grant_id: grantId,
-    additional_context: additionalContext,
+  // Backend endpoint: POST {base}/foundation-sync/generate-application
+  // (GenerationRequest takes a prompt string; response: {response, model_used})
+  const { data } = await api.post('/foundation-sync/generate-application', {
+    prompt: additionalContext ?? '',
   });
-  return data;
+  const result = data as { response?: string };
+  return {
+    generated_text: result.response ?? '',
+    credits_remaining: null,
+  };
 }
 
 export async function findMatchingFoundations(

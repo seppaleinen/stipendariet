@@ -84,6 +84,16 @@ def update_application(
     return db_application
 
 
+def delete_application(db: Session, application_id: int) -> bool:
+    """Delete an application by ID. Returns True if deleted, False if not found."""
+    db_application = get_application(db, application_id)
+    if db_application is None:
+        return False
+    db.delete(db_application)
+    db.commit()
+    return True
+
+
 # Profile CRUD operations
 def get_profile(db: Session) -> models.Profile | None:
     """Get the saved profile (assuming single profile for now)"""

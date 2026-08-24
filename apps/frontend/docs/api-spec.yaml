@@ -135,24 +135,6 @@ components:
           type: string
           format: date-time
 
-    SubscriptionStatus:
-      type: object
-      required:
-        - plan_type
-      properties:
-        plan_type:
-          type: string
-          enum: [free, subscription, credits]
-        credits_remaining:
-          type: integer
-          nullable: true
-          description: Number of credits remaining (for credits plan)
-        subscription_end:
-          type: string
-          format: date-time
-          nullable: true
-          description: Subscription expiry date (for subscription plan)
-
     Error:
       type: object
       properties:
@@ -276,26 +258,6 @@ paths:
       responses:
         '302':
           description: Redirect to Google OAuth
-
-  # ============================================
-  # SUBSCRIPTION / PREMIUM STATUS
-  # ============================================
-
-  /subscription/status:
-    get:
-      summary: Get user's subscription/premium status
-      tags: [Subscription]
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Current subscription status
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubscriptionStatus'
-        '401':
-          description: Not authenticated
 
   # ============================================
   # FAMILY PROFILE
@@ -618,13 +580,13 @@ paths:
   # AI GENERATION (Premium feature)
   # ============================================
 
-  /generate/application:
+  /foundation-sync/generate-application:
     post:
-      summary: Generate AI-assisted application text (Premium feature)
+      summary: Generate application text via LLM proxy
       description: |
-        Requires premium subscription or available credits.
-        Uses family profile data to personalize the generated application.
-      tags: [Generation, Premium]
+        Proxies a fully-formed prompt to the LiteLLM service (avoids CORS issues).
+        The client composes the prompt; the backend does not track credits.
+      tags: [Generation]
       security:
         - BearerAuth: []
       requestBody:
@@ -634,29 +596,22 @@ paths:
             schema:
               type: object
               required:
-                - grant_id
+                - prompt
               properties:
-                grant_id:
+                prompt:
                   type: string
-                additional_context:
-                  type: string
-                  description: Optional additional information from user
+                  description: Complete prompt text to send to the LLM
       responses:
         '200':
-          description: Generated application text
+          description: Generated text and model used
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  generated_text:
+                  response:
                     type: string
-                  credits_remaining:
-                    type: integer
-                    nullable: true
-        '401':
-          description: Not authenticated
-        '402':
-          description: Premium subscription required or no credits remaining
-        '404':
-          description: Grant not found
+                  model_used:
+                    type: string
+        '500':
+          description: LLM service failed to generate content

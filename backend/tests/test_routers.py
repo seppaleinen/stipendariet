@@ -571,6 +571,11 @@ class TestApplicationsRouter:
         response = client.patch("/api/applications/1", json={"status": "updated"})
         assert response.status_code in [200, 404, 500]
 
+    def test_delete_application(self):
+        """Delete an application"""
+        response = client.delete("/api/applications/1")
+        assert response.status_code in [204, 404, 500]
+
 
 # =============================================================================
 # Admin Router Tests

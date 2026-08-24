@@ -52,3 +52,11 @@ def update_application(
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
     return {"message": "Application updated successfully"}
+
+
+@router.delete("/{application_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_application(application_id: int, db: Session = Depends(get_db)):
+    """Delete an application"""
+    deleted = crud.delete_application(db=db, application_id=application_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Application not found")
