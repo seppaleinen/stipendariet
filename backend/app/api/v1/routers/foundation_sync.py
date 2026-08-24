@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.security import get_admin_user, get_current_user_payload
 from app.crud import crud
 from app.db import schemas
 from app.db.database import get_db
@@ -11,7 +12,7 @@ from app.foundation.sync_service import trigger_foundation_sync
 router = APIRouter(prefix="/api/foundation-sync", tags=["foundation-sync"])
 
 
-@router.post("/trigger-sync")
+@router.post("/trigger-sync", dependencies=[Depends(get_admin_user)])
 def trigger_foundation_sync_endpoint():
     """
     Trigger a manual foundation sync.
@@ -84,7 +85,9 @@ class GenerationRequest(BaseModel):
     prompt: str
 
 
-@router.post("/generate-application")
+@router.post(
+    "/generate-application", dependencies=[Depends(get_current_user_payload)]
+)
 def generate_application(request: GenerationRequest):
     """
     Generate an application text using the LiteLLM OpenAI-compatible API.

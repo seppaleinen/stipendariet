@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user_payload
+from app.core.security import get_admin_user, get_current_user_payload
 from app.crud import crud
 from app.db import models, schemas
 from app.db.database import get_db
@@ -152,7 +152,11 @@ def get_categorization_status(db: Session = Depends(get_db)):
 
 
 # Categorization endpoints
-@router.post("/reset-categories", summary="Reset all foundation categories in database")
+@router.post(
+    "/reset-categories",
+    summary="Reset all foundation categories in database",
+    dependencies=[Depends(get_admin_user)],
+)
 def reset_categories(db: Session = Depends(get_db)):
     """Reset all foundation categories to allow recategorization"""
     try:
@@ -174,7 +178,9 @@ def reset_categories(db: Session = Depends(get_db)):
 
 
 @router.post(
-    "/categorize-db-foundations", summary="Categorize all foundations in database"
+    "/categorize-db-foundations",
+    summary="Categorize all foundations in database",
+    dependencies=[Depends(get_admin_user)],
 )
 def categorize_db_foundations(db: Session = Depends(get_db)):
     """Trigger categorization of all foundations stored in the database"""
@@ -196,7 +202,11 @@ def categorize_db_foundations(db: Session = Depends(get_db)):
         )
 
 
-@router.post("/translate-purpose", summary="Translate foundation purpose from old Swedish to modern Swedish")
+@router.post(
+    "/translate-purpose",
+    summary="Translate foundation purpose from old Swedish to modern Swedish",
+    dependencies=[Depends(get_admin_user)],
+)
 def translate_purpose(translation_request: TranslationRequest):
     """
     Translate a foundation purpose from old/legalese Swedish to modern Swedish using Ollama.

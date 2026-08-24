@@ -8,7 +8,7 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.security import get_current_user_payload
+from app.core.security import get_admin_user, get_current_user_payload
 
 # Import app — database engine is mocked via conftest.py autouse fixture
 from app.main import app
@@ -433,40 +433,50 @@ class TestFoundationsRouter:
         assert response.status_code in [200, 500]
 
     def test_reset_categories_requires_admin(self):
-        """Reset categories endpoint exists and responds"""
+        """Reset categories endpoint requires admin auth"""
         response = client.post("/api/foundations/reset-categories")
-        # This endpoint has no admin auth guard — it runs the categorizer directly
-        assert response.status_code in [200, 401, 500]
+        assert response.status_code == 401
 
-    @pytest.mark.skip(reason="Endpoint has no auth guard and calls FoundationCategorizer which hangs with mock DB")
     def test_categorize_db_foundations_requires_admin(self):
-        """Categorize DB foundations endpoint exists"""
+        """Categorize DB foundations endpoint requires admin auth"""
         response = client.post("/api/foundations/categorize-db-foundations")
-        assert response.status_code in [200, 401, 500]
+        assert response.status_code == 401
 
     def test_translate_purpose_empty_purpose(self):
         """Translation fails when purpose is empty"""
-        response = client.post("/api/foundations/translate-purpose", json={"purpose": ""})
-        assert response.status_code == 400
-        assert "Purpose field is required" in response.json()["detail"]
+        app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
+        try:
+            response = client.post("/api/foundations/translate-purpose", json={"purpose": ""})
+            assert response.status_code == 400
+            assert "Purpose field is required" in response.json()["detail"]
+        finally:
+            app.dependency_overrides.pop(get_admin_user, None)
 
     def test_translate_purpose_success(self):
         """Translation succeeds"""
-        with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
-            mock_service.translate_purpose.return_value = "Translated purpose"
-            response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "success"
-            assert data["translated_purpose"] == "Translated purpose"
+        app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
+        try:
+            with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
+                mock_service.translate_purpose.return_value = "Translated purpose"
+                response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
+                assert response.status_code == 200
+                data = response.json()
+                assert data["status"] == "success"
+                assert data["translated_purpose"] == "Translated purpose"
+        finally:
+            app.dependency_overrides.pop(get_admin_user, None)
 
     def test_translate_purpose_service_failure(self):
         """Translation fails when service returns None"""
-        with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
-            mock_service.translate_purpose.return_value = None
-            response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
-            assert response.status_code == 500
-            assert "Translation failed" in response.json()["detail"]
+        app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
+        try:
+            with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
+                mock_service.translate_purpose.return_value = None
+                response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
+                assert response.status_code == 500
+                assert "Translation failed" in response.json()["detail"]
+        finally:
+            app.dependency_overrides.pop(get_admin_user, None)
 
     def test_matching_foundations_empty_needs(self):
         """Matching fails when needs is empty"""
@@ -484,6 +494,72 @@ class TestFoundationsRouter:
                 "limit": 10
             })
             assert response.status_code in [200, 401, 500, 503]
+
+
+# =============================================================================
+# Foundation Sync Router Tests
+# =============================================================================
+
+class TestFoundationSyncRouter:
+    """Tests for /api/foundation-sync endpoints"""
+
+    def test_trigger_sync_requires_admin(self):
+        """Trigger sync rejects anonymous requests"""
+        response = client.post("/api/foundation-sync/trigger-sync")
+        assert response.status_code == 401
+
+    def test_trigger_sync_rejects_non_admin(self):
+        """Trigger sync rejects valid non-admin JWTs with 403"""
+        from app.core.security import create_access_token
+
+        token = create_access_token({
+            "sub": "12345678-1234-5678-1234-567890123456",
+            "email": "user@example.com",
+            "role": "user",
+        })
+        response = client.post(
+            "/api/foundation-sync/trigger-sync",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
+
+    def test_trigger_sync_success_as_admin(self):
+        """Trigger sync succeeds for admin"""
+        app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
+        try:
+            with patch("app.api.v1.routers.foundation_sync.trigger_foundation_sync") as mock_sync:
+                mock_sync.return_value = True
+                response = client.post("/api/foundation-sync/trigger-sync")
+                assert response.status_code == 200
+                assert response.json()["status"] == "success"
+        finally:
+            app.dependency_overrides.pop(get_admin_user, None)
+
+    def test_generate_application_requires_auth(self):
+        """Generate application rejects anonymous requests"""
+        response = client.post("/api/foundation-sync/generate-application", json={"prompt": "hello"})
+        assert response.status_code == 401
+
+    def test_generate_application_success(self):
+        """Generate application returns LLM content for authenticated users"""
+        app.dependency_overrides[get_current_user_payload] = lambda: {
+            "sub": "12345678-1234-5678-1234-567890123456"
+        }
+        try:
+            with patch("app.services.llm_client.litellm_text_model") as mock_model, patch(
+                "app.services.llm_client.chat_completion"
+            ) as mock_chat:
+                mock_model.return_value = "test-model"
+                mock_chat.return_value = "Generated text"
+                response = client.post(
+                    "/api/foundation-sync/generate-application", json={"prompt": "hello"}
+                )
+                assert response.status_code == 200
+                data = response.json()
+                assert data["response"] == "Generated text"
+                assert data["model_used"] == "test-model"
+        finally:
+            app.dependency_overrides.pop(get_current_user_payload, None)
 
 
 # =============================================================================
@@ -544,37 +620,83 @@ class TestFundingRouter:
 # =============================================================================
 
 class TestApplicationsRouter:
-    """Tests for /api/applications endpoints"""
+    """Tests for /api/applications endpoints — all require Bearer JWT"""
+
+    def _set_auth(self, mock_payload=None):
+        """Set up dependency override for auth."""
+        if mock_payload is None:
+            mock_payload = {"sub": "12345678-1234-5678-1234-567890123456"}
+        app.dependency_overrides[get_current_user_payload] = lambda: mock_payload
+
+    def _clear_auth(self):
+        """Clear dependency override."""
+        app.dependency_overrides.pop(get_current_user_payload, None)
+
+    def test_requires_authentication(self):
+        """All application endpoints reject anonymous requests"""
+        endpoints = [
+            ("get", "/api/applications/"),
+            ("post", "/api/applications/"),
+            ("get", "/api/applications/1"),
+            ("patch", "/api/applications/1"),
+            ("delete", "/api/applications/1"),
+        ]
+        for method, url in endpoints:
+            if method in ("post", "patch"):
+                response = getattr(client, method)(url, json={"status": "x"})
+            else:
+                response = getattr(client, method)(url)
+            assert response.status_code == 401, f"{method.upper()} {url} not 401"
 
     def test_get_applications(self):
         """Get all applications"""
-        response = client.get("/api/applications/")
-        assert response.status_code in [200, 500]
+        self._set_auth()
+        try:
+            response = client.get("/api/applications/")
+            assert response.status_code in [200, 500]
+        finally:
+            self._clear_auth()
 
     def test_create_application_grant_not_found(self):
         """Create application fails when grant doesn't exist"""
-        with patch("app.api.v1.routers.applications.crud.get_grant") as mock_get_grant:
-            mock_get_grant.return_value = None
-            response = client.post("/api/applications/", json={
-                "grant_id": 999,
-                "user_id": "12345678-1234-5678-1234-567890123456",
-            })
-            assert response.status_code in [404, 422]
+        self._set_auth()
+        try:
+            with patch("app.api.v1.routers.applications.crud.get_grant") as mock_get_grant:
+                mock_get_grant.return_value = None
+                response = client.post("/api/applications/", json={
+                    "grant_id": 999,
+                    "user_id": "12345678-1234-5678-1234-567890123456",
+                })
+                assert response.status_code in [404, 422]
+        finally:
+            self._clear_auth()
 
     def test_get_application_by_id(self):
         """Get application by ID"""
-        response = client.get("/api/applications/1")
-        assert response.status_code in [200, 404, 500]
+        self._set_auth()
+        try:
+            response = client.get("/api/applications/1")
+            assert response.status_code in [200, 404, 500]
+        finally:
+            self._clear_auth()
 
     def test_update_application(self):
         """Update an application"""
-        response = client.patch("/api/applications/1", json={"status": "updated"})
-        assert response.status_code in [200, 404, 500]
+        self._set_auth()
+        try:
+            response = client.patch("/api/applications/1", json={"status": "updated"})
+            assert response.status_code in [200, 404, 500]
+        finally:
+            self._clear_auth()
 
     def test_delete_application(self):
         """Delete an application"""
-        response = client.delete("/api/applications/1")
-        assert response.status_code in [204, 404, 500]
+        self._set_auth()
+        try:
+            response = client.delete("/api/applications/1")
+            assert response.status_code in [204, 404, 500]
+        finally:
+            self._clear_auth()
 
 
 # =============================================================================
@@ -642,8 +764,8 @@ class TestAdminPasswordResetRouter:
         response = client.post("/admin/reset-user-password")
         assert response.status_code in [401, 404, 422]
 
-    def test_emergency_reset_endpoint_exists(self):
-        """Emergency password reset endpoint exists"""
+    def test_emergency_reset_endpoint_removed(self):
+        """Emergency password reset endpoint has been removed (issue #4)"""
         response = client.post("/emergency-reset-admin-password")
-        assert response.status_code in [401, 422]
+        assert response.status_code == 404
 

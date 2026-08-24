@@ -2,11 +2,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user_payload
 from app.crud import crud
 from app.db import schemas
 from app.db.database import get_db
 
-router = APIRouter(prefix="/api/applications", tags=["applications"])
+router = APIRouter(
+    prefix="/api/applications",
+    tags=["applications"],
+    dependencies=[Depends(get_current_user_payload)],
+)
 
 
 @router.get("/", response_model=list[schemas.Application])
