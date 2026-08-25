@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 from app.crud import crud
@@ -337,7 +339,8 @@ def trigger_foundation_sync():
 
 def translate_all_foundations_purposes(task_id: str = None, force_retranslate: bool = False):
     """
-    Function to translate all existing foundation purposes in the database
+    Function to translate all existing foundation purposes in the database.
+    Uses ThreadPoolExecutor for concurrent translations with rate-limit awareness.
 
     Args:
         task_id: Optional task ID for progress tracking
@@ -346,6 +349,7 @@ def translate_all_foundations_purposes(task_id: str = None, force_retranslate: b
     logger.info(f"Starting translation of all foundation purposes... (force={force_retranslate})")
 
     try:
+        from app.core.config import settings
         from app.db.database import get_db
         from app.foundation.task_manager import get_task
         from app.services.llm_translation_service import llm_translation_service
@@ -359,60 +363,101 @@ def translate_all_foundations_purposes(task_id: str = None, force_retranslate: b
             total_foundations = len(foundations)
             logger.info(f"Found {total_foundations} foundations to translate")
 
+            # Filter foundations that need translation
+            to_translate = []
+            skipped = 0
+            for foundation in foundations:
+                if not foundation.purpose:
+                    skipped += 1
+                    continue
+                if not force_retranslate and foundation.translated_purpose:
+                    skipped += 1
+                    continue
+                to_translate.append(foundation)
+
+            logger.info(
+                f"Queued {len(to_translate)} foundations for translation, "
+                f"skipped {skipped}"
+            )
+
             processed = 0
             failed = 0
-            skipped = 0  # Count of foundations that didn't need translation
 
             # Update task progress if a task_id is provided
             if task_id:
-                from app.foundation.task_manager import get_task
                 task = get_task(task_id)
                 if task:
                     task.update_status("running")
-                    task.update_progress(0, 0, 0, total_foundations)
+                    task.update_progress(0, 0, skipped, total_foundations)
 
-            for foundation in foundations:
-                try:
-                    # Skip if purpose is empty
-                    if not foundation.purpose:
-                        skipped += 1
-                        continue
+            max_workers = settings.TRANSLATION_CONCURRENCY
+            delay = settings.TRANSLATION_DELAY
 
-                    # Skip if already translated (unless force_retranslate is True)
-                    if not force_retranslate and foundation.translated_purpose:
-                        skipped += 1
-                        continue
+            def _translate_one(foundation):
+                """Translate a single foundation's purpose."""
+                translated = llm_translation_service.translate_purpose(foundation.purpose)
+                return foundation, translated
 
-                    # Translate the purpose
-                    translated_purpose = llm_translation_service.translate_purpose(foundation.purpose)
+            # Submit all translation tasks with staggered delay
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {}
+                for i, foundation in enumerate(to_translate):
+                    future = executor.submit(_translate_one, foundation)
+                    futures[future] = foundation
+                    # Stagger submissions to avoid bursting the API
+                    if delay > 0 and i < len(to_translate) - 1:
+                        time.sleep(delay)
 
-                    if translated_purpose:
-                        # Update the foundation with the translated purpose
-                        foundation.translated_purpose = translated_purpose
-                        # Commit immediately to persist each translation
-                        # This ensures translations are saved even if the job is interrupted
-                        db.commit()
-                        processed += 1
-                        logger.info(f"Translated foundation {foundation.id}: {foundation.name[:50]}...")
-                    else:
-                        logger.warning(f"Failed to translate purpose for foundation {foundation.id}")
+                commit_batch_size = 10
+                batch_count = 0
+
+                # Process completed futures
+                for future in as_completed(futures):
+                    foundation = futures[future]
+                    try:
+                        _foundation, translated_purpose = future.result()
+                        if translated_purpose:
+                            _foundation.translated_purpose = translated_purpose
+                            processed += 1
+                        else:
+                            failed += 1
+                            logger.warning(
+                                f"Failed to translate purpose for foundation "
+                                f"{_foundation.id}"
+                            )
+                    except Exception as e:
                         failed += 1
+                        logger.error(
+                            f"Error translating foundation {foundation.id}: {e}"
+                        )
 
-                except Exception as e:
-                    logger.error(f"Error translating foundation {foundation.id}: {e}")
-                    failed += 1
-                    continue
+                    batch_count += 1
 
-                # Update task progress if a task_id is provided
-                if task_id:
-                    task = get_task(task_id)
-                    if task:
-                        task.update_progress(processed, failed, skipped, total_foundations)
+                    # Commit and update progress periodically
+                    if batch_count >= commit_batch_size:
+                        db.commit()
+                        batch_count = 0
+                        if task_id:
+                            task = get_task(task_id)
+                            if task:
+                                task.update_progress(
+                                    processed, failed, skipped, total_foundations
+                                )
 
-            # Final commit for any remaining changes
-            db.commit()
+                # Final commit for remaining changes
+                if batch_count > 0:
+                    db.commit()
 
-            logger.info(f"Translation completed: {processed} processed, {failed} failed, {skipped} skipped out of {total_foundations} total foundations")
+            # Final progress update
+            if task_id:
+                task = get_task(task_id)
+                if task:
+                    task.update_progress(processed, failed, skipped, total_foundations)
+
+            logger.info(
+                f"Translation completed: {processed} processed, {failed} failed, "
+                f"{skipped} skipped out of {total_foundations} total foundations"
+            )
 
             result = {
                 "status": "completed",

@@ -3,6 +3,7 @@ Embedding service for generating vector embeddings via LiteLLM.
 Uses nomic-embed-text-v2 model for semantic search functionality.
 """
 import logging
+import time
 
 import requests
 
@@ -17,6 +18,63 @@ EMBEDDING_DIMENSION = 768
 SIMILARITY_THRESHOLD = 0.5
 
 
+def retry_with_backoff(func, max_retries: int = 3, base_delay: float = 1.0):
+    """
+    Retry a callable with exponential backoff on transient errors.
+
+    Retries on:
+    - HTTP 429 (rate limited): uses Retry-After header, falls back to exponential
+    - ConnectionError: network connectivity issues
+    - Timeout: request timed out
+
+    Args:
+        func: Callable to retry (no arguments)
+        max_retries: Maximum number of retry attempts (default 3)
+        base_delay: Base delay in seconds for exponential backoff (default 1.0)
+
+    Returns:
+        The return value of func on success
+
+    Raises:
+        The last exception if all retries are exhausted
+    """
+    last_exception = None
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except requests.exceptions.HTTPError as e:
+            last_exception = e
+            if e.response is not None and e.response.status_code == 429:
+                retry_after = e.response.headers.get("Retry-After")
+                if retry_after:
+                    try:
+                        delay = float(retry_after)
+                    except (ValueError, TypeError):
+                        delay = base_delay * (2 ** attempt)
+                else:
+                    delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    f"Rate limited (429), retrying in {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{max_retries + 1})"
+                )
+                time.sleep(delay)
+            else:
+                raise
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            last_exception = e
+            delay = base_delay * (2 ** attempt)
+            logger.warning(
+                f"Request failed ({type(e).__name__}), retrying in {delay:.1f}s "
+                f"(attempt {attempt + 1}/{max_retries + 1})"
+            )
+            time.sleep(delay)
+
+    logger.error(f"All {max_retries + 1} attempts failed, giving up")
+    if last_exception is not None:
+        raise last_exception
+    raise RuntimeError("All retries exhausted with no captured exception")
+
+
 class OllamaEmbeddingService:
     """
     Service to generate embeddings using LiteLLM's OpenAI-compatible embedding API.
@@ -28,6 +86,7 @@ class OllamaEmbeddingService:
         self.model = getattr(settings, 'LITELLM_EMBEDDING_MODEL', 'nomic-embed-text-v2')
         self.api_key = getattr(settings, 'LITELLM_API_KEY', '')
         self.timeout = 30  # seconds
+        self.batch_size = getattr(settings, 'EMBEDDING_BATCH_SIZE', 100)
 
     def _headers(self) -> dict:
         """Build request headers, including auth if api_key is set."""
@@ -49,7 +108,7 @@ class OllamaEmbeddingService:
         if not text or not text.strip():
             return None
 
-        try:
+        def _do_request():
             response = requests.post(
                 f"{self.litellm_url}/v1/embeddings",
                 json={
@@ -59,26 +118,89 @@ class OllamaEmbeddingService:
                 headers=self._headers(),
                 timeout=self.timeout
             )
+            if response.status_code == 429:
+                error = requests.exceptions.HTTPError(response=response)
+                raise error
+            response.raise_for_status()
+            return response
 
-            if response.status_code == 200:
-                result = response.json()
-                # OpenAI-compatible returns {"data": [{"embedding": [...], "index": 0}]}
-                data = result.get('data', [])
-                if data and len(data) > 0:
-                    return data[0].get('embedding')
-                else:
-                    logger.warning(f"Empty embedding returned for text: {text[:100]}...")
-                    return None
+        try:
+            response = retry_with_backoff(_do_request)
+            result = response.json()
+            # OpenAI-compatible returns {"data": [{"embedding": [...], "index": 0}]}
+            data = result.get('data', [])
+            if data and len(data) > 0:
+                return data[0].get('embedding')
             else:
-                logger.error(f"LiteLLM embedding API error: {response.status_code} - {response.text}")
+                logger.warning(f"Empty embedding returned for text: {text[:100]}...")
                 return None
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logger.error(f"Error calling LiteLLM embedding API: {e}")
             return None
+
+    def generate_embeddings_batch(self, texts: list[str]) -> list[list[float] | None]:
+        """
+        Generate embedding vectors for multiple texts in a single API call.
+
+        Args:
+            texts: List of texts to embed
+
+        Returns:
+            List of embedding vectors aligned with input indices.
+            None at index i if that text failed or was empty/whitespace.
+        """
+        if not texts:
+            return []
+
+        # Track which indices have valid text
+        valid_indices = []
+        valid_texts = []
+        for i, text in enumerate(texts):
+            if text and text.strip():
+                valid_indices.append(i)
+                valid_texts.append(text)
+
+        if not valid_texts:
+            return [None] * len(texts)
+
+        def _do_request():
+            response = requests.post(
+                f"{self.litellm_url}/v1/embeddings",
+                json={
+                    "model": self.model,
+                    "input": valid_texts
+                },
+                headers=self._headers(),
+                timeout=self.timeout
+            )
+            if response.status_code == 429:
+                error = requests.exceptions.HTTPError(response=response)
+                raise error
+            response.raise_for_status()
+            return response
+
+        try:
+            response = retry_with_backoff(_do_request)
+            result = response.json()
+
+            # Initialize result list with None for all inputs
+            embeddings: list[list[float] | None] = [None] * len(texts)
+
+            # Parse response — data items have "embedding" and "index" fields
+            data = result.get('data', [])
+            for item in data:
+                idx = item.get('index')
+                embedding = item.get('embedding')
+                if idx is not None and embedding is not None and idx < len(valid_indices):
+                    # Map back to original index
+                    embeddings[valid_indices[idx]] = embedding
+
+            return embeddings
+
         except Exception as e:
-            logger.error(f"Unexpected error during embedding generation: {e}")
-            return None
+            logger.error(f"Error calling LiteLLM batch embedding API: {e}")
+            return [None] * len(texts)
 
     def health_check(self) -> bool:
         """

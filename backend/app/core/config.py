@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     ENRICHMENT_LLM_MODEL: str = Field(default="gemma-4-12b", env="ENRICHMENT_LLM_MODEL")
     ENRICHMENT_BATCH_SIZE: int = Field(default=50, env="ENRICHMENT_BATCH_SIZE")
 
+    # Batch processing settings
+    EMBEDDING_BATCH_SIZE: int = Field(default=100, env="EMBEDDING_BATCH_SIZE")
+    TRANSLATION_CONCURRENCY: int = Field(default=3, env="TRANSLATION_CONCURRENCY")
+    TRANSLATION_DELAY: float = Field(default=0.1, env="TRANSLATION_DELAY")
+
     model_config = {"env_file": ".env"}
 
 settings = Settings()

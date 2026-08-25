@@ -15,6 +15,7 @@ def trigger_bulk_embedding_generation_endpoint():
     """
     Endpoint to trigger bulk embedding generation for all foundations.
     Generates embeddings for foundations with translated purposes but no embeddings.
+    Uses batch embedding API for efficiency.
     """
     try:
         logger.info("Admin triggered bulk embedding generation")
@@ -28,6 +29,7 @@ def trigger_bulk_embedding_generation_endpoint():
 
         # Run in background thread
         def run_bulk_embeddings():
+            from app.core.config import settings
             from app.db import models
             from app.db.database import get_db
             from app.foundation.task_manager import get_task
@@ -51,23 +53,31 @@ def trigger_bulk_embedding_generation_endpoint():
 
                 completed = 0
                 failed = 0
+                batch_size = settings.EMBEDDING_BATCH_SIZE
 
-                for foundation in foundations:
+                # Process in batches
+                for batch_start in range(0, total, batch_size):
+                    batch_foundations = foundations[batch_start:batch_start + batch_size]
+                    batch_texts = [f.translated_purpose for f in batch_foundations]
+
                     try:
-                        embedding = ollama_embedding_service.generate_embedding(
-                            foundation.translated_purpose
-                        )
+                        embeddings = ollama_embedding_service.generate_embeddings_batch(batch_texts)
 
-                        if embedding:
-                            foundation.purpose_embedding = embedding
-                            db.commit()
-                            completed += 1
-                        else:
-                            failed += 1
-                            logger.warning(f"Failed to generate embedding for foundation {foundation.id}")
+                        for foundation, embedding in zip(batch_foundations, embeddings, strict=False):
+                            if embedding is not None:
+                                foundation.purpose_embedding = embedding
+                                completed += 1
+                            else:
+                                failed += 1
+                                logger.warning(f"Failed to generate embedding for foundation {foundation.id}")
+
+                        # Commit once per batch
+                        db.commit()
+
                     except Exception as e:
-                        failed += 1
-                        logger.error(f"Error generating embedding for foundation {foundation.id}: {e}")
+                        failed += len(batch_foundations)
+                        logger.error(f"Error in embedding batch starting at index {batch_start}: {e}")
+                        db.rollback()
 
                     if task:
                         task.update_progress(completed, failed, 0, total)
@@ -79,6 +89,8 @@ def trigger_bulk_embedding_generation_endpoint():
                         "failed": failed,
                         "total": total
                     })
+
+                logger.info(f"Bulk embedding generation completed: {completed} completed, {failed} failed")
 
                 logger.info(f"Bulk embedding generation completed: {completed} completed, {failed} failed")
 
