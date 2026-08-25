@@ -109,6 +109,13 @@ export interface Grant {
   phone?: string;
   signature?: string;
   roles?: { type?: string; name?: string; number?: string; address?: string; phone?: string; main_responsible?: string }[];
+  // Enrichment fields (mapped from backend snake_case)
+  applicationDeadline?: string;
+  applicationStart?: string;
+  applicationMethod?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  whoCanApply?: string;
 }
 
 // ── API Response Wrappers ──────────────────────────────────────────────

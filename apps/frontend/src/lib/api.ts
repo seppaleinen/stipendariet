@@ -104,6 +104,13 @@ export function mapGrantFromBackend(grant: BackendGrant): Grant {
     phone: (grant.phone as string) || undefined,
     signature: (grant.signature as string) || undefined,
     roles: Array.isArray(grant.roles) ? grant.roles : undefined,
+    applicationDeadline:
+      (grant.application_deadline as string) || undefined,
+    applicationStart: (grant.application_start as string) || undefined,
+    applicationMethod: (grant.application_method as string) || undefined,
+    contactEmail: (grant.contact_email as string) || undefined,
+    contactPhone: (grant.contact_phone as string) || undefined,
+    whoCanApply: (grant.who_can_apply as string) || undefined,
   };
 }
 

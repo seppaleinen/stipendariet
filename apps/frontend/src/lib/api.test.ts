@@ -113,6 +113,45 @@ describe("mapGrantFromBackend", () => {
     expect(grant.roles).toEqual(["student", "parent"]);
   });
 
+  it("maps enrichment fields", () => {
+    const backend: Record<string, unknown> = {
+      id: "123",
+      name: "Test",
+      website_url: "https://stiftelse.se",
+      application_deadline: "2026-03-31",
+      application_start: "2026-01-15",
+      application_method: "Ansök via e-post",
+      contact_email: "info@stiftelse.se",
+      contact_phone: "08-987654",
+      who_can_apply: "Studerande med fullständiga betyg",
+    };
+
+    const grant = mapGrantFromBackend(backend);
+
+    expect(grant.websiteUrl).toBe("https://stiftelse.se");
+    expect(grant.applicationDeadline).toBe("2026-03-31");
+    expect(grant.applicationStart).toBe("2026-01-15");
+    expect(grant.applicationMethod).toBe("Ansök via e-post");
+    expect(grant.contactEmail).toBe("info@stiftelse.se");
+    expect(grant.contactPhone).toBe("08-987654");
+    expect(grant.whoCanApply).toBe("Studerande med fullständiga betyg");
+  });
+
+  it("leaves enrichment fields undefined when missing", () => {
+    const backend: Record<string, unknown> = {
+      id: "123",
+      name: "Test",
+    };
+
+    const grant = mapGrantFromBackend(backend);
+    expect(grant.applicationDeadline).toBeUndefined();
+    expect(grant.applicationStart).toBeUndefined();
+    expect(grant.applicationMethod).toBeUndefined();
+    expect(grant.contactEmail).toBeUndefined();
+    expect(grant.contactPhone).toBeUndefined();
+    expect(grant.whoCanApply).toBeUndefined();
+  });
+
   it("handles numeric id", () => {
     const backend: Record<string, unknown> = {
       id: 456,

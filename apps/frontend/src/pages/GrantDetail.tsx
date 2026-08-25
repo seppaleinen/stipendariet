@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Bookmark, FileText, Phone, MapPin, Users } from "lucide-react";
+import { ArrowLeft, ExternalLink, Bookmark, FileText, Phone, MapPin, Users, Mail, CalendarDays } from "lucide-react";
 import { Button } from "@stipendariet/ui";
 import { Badge } from "@stipendariet/ui";
 import {
@@ -212,8 +212,32 @@ export default function GrantDetail() {
             </div>
           </div>
 
+          {/* Application Period/Method (deadline shown in key info above) */}
+          {(grant.applicationStart || grant.applicationMethod) && (
+            <div>
+              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" />
+                Ansökningsinformation
+              </h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                {grant.applicationStart && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Ansökan öppnar</div>
+                    <div className="font-medium">{grant.applicationStart}</div>
+                  </div>
+                )}
+                {grant.applicationMethod && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Ansökningsmetod</div>
+                    <div className="font-medium whitespace-pre-line">{grant.applicationMethod}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Contact Information */}
-          {(fullAddress || grant.phone) && (
+          {(fullAddress || grant.phone || grant.contactEmail || grant.contactPhone) && (
             <div>
               <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
@@ -226,12 +250,24 @@ export default function GrantDetail() {
                     <div className="font-medium whitespace-pre-line">{fullAddress}</div>
                   </div>
                 )}
-                {grant.phone && (
+                {(grant.phone || grant.contactPhone) && (
                   <div>
                     <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
                       <Phone className="h-4 w-4" /> Telefon
                     </div>
-                    <div className="font-medium">{grant.phone}</div>
+                    <div className="font-medium">{grant.phone || grant.contactPhone}</div>
+                  </div>
+                )}
+                {grant.contactEmail && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                      <Mail className="h-4 w-4" /> E-post
+                    </div>
+                    <div className="font-medium">
+                      <a href={`mailto:${grant.contactEmail}`} className="hover:underline">
+                        {grant.contactEmail}
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>
@@ -243,6 +279,25 @@ export default function GrantDetail() {
             <div>
               <h3 className="text-xl font-semibold mb-3">Firmateckning</h3>
               <p className="text-muted-foreground">{grant.signature}</p>
+            </div>
+          )}
+
+          {/* Eligibility criteria */}
+          {grant.whoCanApply && (
+            <div>
+              <h3 className="text-xl font-semibold mb-3">Vem kan söka</h3>
+              <div className="text-muted-foreground leading-relaxed space-y-4">
+                {formatFoundationText(grant.whoCanApply).map((paragraph, pIndex) => (
+                  <p key={pIndex}>
+                    {formatParagraph(paragraph).map((line, lIndex) => (
+                      <span key={lIndex}>
+                        {line}
+                        {lIndex < formatParagraph(paragraph).length - 1 && <br />}
+                      </span>
+                    ))}
+                  </p>
+                ))}
+              </div>
             </div>
           )}
 

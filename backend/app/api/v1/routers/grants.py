@@ -84,6 +84,13 @@ def get_grant(grant_id: str, db: Session = Depends(get_db)):
             "phone": foundation.phone,
             "signature": foundation.signature,
             "roles": foundation.roles or [],
+            "website_url": foundation.website_url,
+            "application_deadline": foundation.application_deadline,
+            "application_start": foundation.application_start,
+            "application_method": foundation.application_method,
+            "contact_email": foundation.contact_email,
+            "contact_phone": foundation.contact_phone,
+            "who_can_apply": foundation.who_can_apply,
             "deadline": None,
         }
     # Legacy numeric id -> try foundations then grants
@@ -110,6 +117,13 @@ def get_grant(grant_id: str, db: Session = Depends(get_db)):
             "phone": foundation.phone,
             "signature": foundation.signature,
             "roles": foundation.roles or [],
+            "website_url": foundation.website_url,
+            "application_deadline": foundation.application_deadline,
+            "application_start": foundation.application_start,
+            "application_method": foundation.application_method,
+            "contact_email": foundation.contact_email,
+            "contact_phone": foundation.contact_phone,
+            "who_can_apply": foundation.who_can_apply,
             "deadline": None,
         }
 

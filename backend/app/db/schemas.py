@@ -113,6 +113,20 @@ class FoundationBase(BaseModel):
     category: str | None = None
     raw_data: dict | None = None
 
+    # Enrichment job control
+    enrichment_status: str | None = None
+    enrichment_last_run: datetime | None = None
+
+    # Enriched data (extracted by LLM from scraped website)
+    website_url: str | None = None
+    application_deadline: str | None = None
+    application_start: str | None = None
+    application_method: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    who_can_apply: str | None = None
+    enrichment_notes: str | None = None
+
 
 class Foundation(FoundationBase):
     id: int
