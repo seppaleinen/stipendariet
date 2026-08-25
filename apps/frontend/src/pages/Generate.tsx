@@ -86,6 +86,20 @@ export default function Generate() {
     }
   };
 
+  const exportToFile = () => {
+    if (generatedContent) {
+      const blob = new Blob([generatedContent], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ansökan-${foundation?.title || "utkast"}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -213,7 +227,7 @@ export default function Generate() {
                     <Copy className="h-4 w-4" />
                     Kopiera Text
                   </Button>
-                  <Button variant="outline" className="gap-2">
+                  <Button variant="outline" className="gap-2" onClick={exportToFile}>
                     <Download className="h-4 w-4" />
                     Exportera
                   </Button>

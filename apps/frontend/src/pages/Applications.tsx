@@ -182,11 +182,11 @@ export default function Applications() {
                       )}
 
                       <div className="flex gap-2 mt-4">
-                        <Button variant="outline" size="sm">
-                          Redigera
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/generate/${app.id}`}>Redigera</Link>
                         </Button>
-                        <Button variant="ghost" size="sm">
-                          Visa Detaljer
+                        <Button asChild variant="ghost" size="sm">
+                          <Link to={`/grants/${app.grantId}`}>Visa Detaljer</Link>
                         </Button>
                       </div>
                     </CardContent>

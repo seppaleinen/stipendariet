@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { Input } from '@stipendariet/ui';
@@ -20,6 +20,7 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [loginError, setLoginError] = useState<string | null>(null);
   const redirectTo =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
   const {
@@ -35,10 +36,10 @@ const LoginPage: React.FC = () => {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
+    setLoginError(null);
     const success = await login(data.email, data.password);
     if (!success) {
-      // Handle login error
-      alert('Invalid credentials. Please try again.');
+      setLoginError('Inloggningen misslyckades. Kontrollera dina uppgifter och försök igen.');
       return;
     }
     navigate(redirectTo, { replace: true });
@@ -75,6 +76,9 @@ const LoginPage: React.FC = () => {
               />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
+              )}
+              {loginError && (
+                <p className="text-sm text-destructive">{loginError}</p>
               )}
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>

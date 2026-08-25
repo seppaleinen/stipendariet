@@ -13,6 +13,7 @@ import { getGrant, getSavedGrants, saveGrant, removeSavedGrant } from "@/lib/api
 import { formatFoundationText, formatParagraph } from "@/lib/utils";
 import { Grant } from "@/types/grants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { SITE_URL } from "@/lib/page-metadata";
 
 export default function GrantDetail() {
@@ -23,6 +24,7 @@ export default function GrantDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (id) {
@@ -53,7 +55,7 @@ export default function GrantDetail() {
   const toggleSave = async () => {
     if (!grant || saving) return;
     if (!isAuthenticated) {
-      alert("Logga in för att spara stipendier.");
+      toast({ title: "Inloggning krävs", description: "Logga in för att spara stipendier.", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -279,7 +281,7 @@ export default function GrantDetail() {
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <Button asChild className="flex-1 gap-2">
-              <Link to="/generate">
+              <Link to={`/generate/${id}`}>
                 <FileText className="h-4 w-4" />
                 Starta Ansökan
               </Link>

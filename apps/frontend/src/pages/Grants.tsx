@@ -28,6 +28,7 @@ import {
 import { Grant } from "@/types/grants";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { SITE_URL } from "@/lib/page-metadata";
 
 const ITEMS_PER_PAGE = 50;
@@ -45,6 +46,7 @@ export default function Grants() {
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<string[]>(["all"]);
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   // Debounce search
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -122,7 +124,7 @@ export default function Grants() {
   const toggleSave = async (grantId: string, shouldSave: boolean) => {
     if (savingIds.has(grantId)) return;
     if (!isAuthenticated) {
-      alert("Logga in för att spara stipendier.");
+      toast({ title: "Inloggning krävs", description: "Logga in för att spara stipendier.", variant: "destructive" });
       return;
     }
 
