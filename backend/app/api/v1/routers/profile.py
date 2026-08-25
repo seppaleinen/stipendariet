@@ -131,6 +131,7 @@ def create_profile(
         health_details=profile_data.health_details,
         occupations=profile_data.occupations,
         support_purposes=profile_data.support_purposes,
+        self_description=profile_data.self_description,
         legacy_data=profile_data.legacy_data,
     )
     db.add(db_profile)
@@ -195,6 +196,7 @@ def update_profile(
     profile.health_details = profile_data.health_details
     profile.occupations = profile_data.occupations
     profile.support_purposes = profile_data.support_purposes
+    profile.self_description = profile_data.self_description
     if profile_data.legacy_data is not None:
         profile.legacy_data = profile_data.legacy_data
 
@@ -281,6 +283,7 @@ def upsert_family_profile(
         db_profile.health_details = profile_data.health_details
         db_profile.occupations = profile_data.occupations
         db_profile.support_purposes = profile_data.support_purposes
+        db_profile.self_description = profile_data.self_description
         if profile_data.legacy_data is not None:
             db_profile.legacy_data = profile_data.legacy_data
 
@@ -300,6 +303,7 @@ def upsert_family_profile(
             health_details=profile_data.health_details,
             occupations=profile_data.occupations,
             support_purposes=profile_data.support_purposes,
+            self_description=profile_data.self_description,
             legacy_data=profile_data.legacy_data,
         )
         db.add(db_profile)

@@ -377,6 +377,53 @@ class TestProfileRouter:
         finally:
             self._clear_auth()
 
+    def test_create_profile_rejects_over_long_self_description(self):
+        """Self-description over 2000 chars is rejected by validation"""
+        self._set_auth()
+        try:
+            response = client.post("/api/profile/", json={
+                "name": "My Profile",
+                "self_description": "a" * 2001,
+            })
+            assert response.status_code == 422
+            assert response.json()["detail"]
+        finally:
+            self._clear_auth()
+
+    def test_create_profile_accepts_self_description(self):
+        """Self-description within the cap is accepted on create"""
+        self._set_auth()
+        try:
+            with patch("app.api.v1.routers.profile.models.Profile") as mock_profile_cls:
+                mock_instance = MagicMock()
+                mock_instance.id = 1
+                mock_instance.name = "My Profile"
+                mock_instance.is_default = True
+                # Response serialization reads aliased attr names (e.g. countyCode),
+                # while the endpoint writes snake_case — provide both spellings.
+                mock_instance.county_code = None
+                mock_instance.municipality_code = None
+                mock_instance.health_details = None
+                mock_instance.self_description = "Min egen beskrivning"
+                mock_instance.legacy_data = None
+                mock_instance.countyCode = None
+                mock_instance.municipalityCode = None
+                mock_instance.healthDetails = None
+                mock_instance.selfDescription = "Min egen beskrivning"
+                mock_instance.legacyData = None
+                mock_profile_cls.return_value = mock_instance
+
+                response = client.post("/api/profile/", json={
+                    "name": "My Profile",
+                    "self_description": "Min egen beskrivning",
+                })
+                assert response.status_code == 201
+                # Field threaded through to the DB model constructor
+                _, kwargs = mock_profile_cls.call_args
+                assert kwargs["self_description"] == "Min egen beskrivning"
+        finally:
+            self._clear_auth()
+
 
 # =============================================================================
 # Foundations Router Tests
@@ -494,6 +541,108 @@ class TestFoundationsRouter:
                 "limit": 10
             })
             assert response.status_code in [200, 401, 500, 503]
+
+    # --- matching-by-profile: Self-description (free text) source flag ---
+
+    def _set_user_auth_and_db(self, mock_profile):
+        """Override auth payload and DB session for /matching-by-profile tests."""
+        from app.db.database import get_db
+
+        app.dependency_overrides[get_current_user_payload] = lambda: {
+            "sub": "12345678-1234-5678-1234-567890123456"
+        }
+
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_profile
+        mock_db.execute.return_value.fetchall.return_value = []
+
+        def _yield_db():
+            yield mock_db
+
+        app.dependency_overrides[get_db] = _yield_db
+        return mock_db
+
+    def _clear_user_auth_and_db(self):
+        from app.db.database import get_db
+
+        app.dependency_overrides.pop(get_current_user_payload, None)
+        app.dependency_overrides.pop(get_db, None)
+
+    def test_matching_by_profile_use_description_empty_rejected(self):
+        """Self-description mode with an empty self-description is rejected with 400"""
+        mock_profile = MagicMock()
+        mock_profile.self_description = "   "
+
+        self._set_user_auth_and_db(mock_profile)
+        try:
+            response = client.post("/api/foundations/matching-by-profile", json={
+                "profile_id": 1,
+                "use_description": True,
+            })
+            assert response.status_code == 400
+            assert "Self-description is empty" in response.json()["detail"]
+        finally:
+            self._clear_user_auth_and_db()
+
+    def test_matching_by_profile_use_description_embeds_raw_description(self):
+        """Self-description mode embeds the raw self-description and skips text generation"""
+        mock_profile = MagicMock()
+        mock_profile.self_description = "Jag är ensamstående förälder och söker stöd."
+        mock_profile.county_code = "180"
+        mock_profile.municipality_code = None
+
+        mock_db = self._set_user_auth_and_db(mock_profile)
+        try:
+            with patch("app.api.v1.routers.foundations.ollama_embedding_service") as mock_service, \
+                 patch("app.api.v1.routers.foundations.generate_profile_text") as mock_generate_text:
+                mock_service.generate_embedding.return_value = [0.1, 0.2, 0.3]
+                response = client.post("/api/foundations/matching-by-profile", json={
+                    "profile_id": 1,
+                    "use_description": True,
+                })
+
+                assert response.status_code == 200
+                assert response.json() == []
+                # Raw description embedded — never the generated profile text
+                mock_service.generate_embedding.assert_called_once_with(
+                    "Jag är ensamstående förälder och söker stöd."
+                )
+                mock_generate_text.assert_not_called()
+
+                # Geographic filter still applies SQL-side in this mode
+                execute_params = mock_db.execute.call_args[0][1]
+                assert execute_params["county_code"] == "180"
+        finally:
+            self._clear_user_auth_and_db()
+
+    def test_matching_by_profile_default_uses_generated_text(self):
+        """Default mode (flag absent) generates text from structured selections as before"""
+        mock_profile = MagicMock()
+        mock_profile.self_description = "Should be ignored in structured mode"
+        mock_profile.county_code = None
+        mock_profile.municipality_code = None
+        mock_profile.life_situations = ["student"]
+        mock_profile.health_conditions = []
+        mock_profile.health_details = None
+        mock_profile.occupations = []
+        mock_profile.support_purposes = []
+
+        self._set_user_auth_and_db(mock_profile)
+        try:
+            with patch("app.api.v1.routers.foundations.ollama_embedding_service") as mock_service, \
+                 patch("app.api.v1.routers.foundations.generate_profile_text") as mock_generate_text:
+                mock_generate_text.return_value = "Generated profile text"
+                mock_service.generate_embedding.return_value = [0.1, 0.2, 0.3]
+
+                response = client.post("/api/foundations/matching-by-profile", json={
+                    "profile_id": 1,
+                })
+
+                assert response.status_code == 200
+                mock_generate_text.assert_called_once()
+                mock_service.generate_embedding.assert_called_once_with("Generated profile text")
+        finally:
+            self._clear_user_auth_and_db()
 
 
 # =============================================================================

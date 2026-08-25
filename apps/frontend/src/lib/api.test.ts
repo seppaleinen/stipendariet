@@ -305,6 +305,38 @@ describe("mapBackendProfileToFrontend", () => {
     expect(profile.supportPurposes).toEqual([]);
     expect(profile.occupations).toEqual([]);
   });
+
+  it("maps self_description snake_case to selfDescription", () => {
+    const backend = {
+      id: 4,
+      name: "With Description",
+      self_description: "Jag är student och söker stöd.",
+    };
+
+    const profile = mapBackendProfileToFrontend(backend);
+    expect(profile.selfDescription).toBe("Jag är student och söker stöd.");
+  });
+
+  it("maps selfDescription camelCase as fallback source", () => {
+    const backend = {
+      id: 5,
+      name: "Camel Description",
+      selfDescription: "Beskrivning på egna ord.",
+    };
+
+    const profile = mapBackendProfileToFrontend(backend);
+    expect(profile.selfDescription).toBe("Beskrivning på egna ord.");
+  });
+
+  it("leaves selfDescription undefined when missing", () => {
+    const backend = {
+      id: 6,
+      name: "No Description",
+    };
+
+    const profile = mapBackendProfileToFrontend(backend);
+    expect(profile.selfDescription).toBeUndefined();
+  });
 });
 
 describe("mapFrontendProfileToBackend", () => {
@@ -350,5 +382,30 @@ describe("mapFrontendProfileToBackend", () => {
     expect(backend.healthConditions).toEqual([]);
     expect(backend.supportPurposes).toEqual([]);
     expect(backend.occupations).toEqual([]);
+  });
+
+  it("maps selfDescription to backend payload", () => {
+    const frontend = {
+      id: 2,
+      name: "With Self-description",
+      selfDescription: "Ensamma föräldern söker stöd.",
+    };
+
+    const backend = mapFrontendProfileToBackend(frontend);
+    expect(backend.selfDescription).toBe("Ensamma föräldern söker stöd.");
+  });
+
+  it("round-trips selfDescription through both mappers", () => {
+    const backendInput = {
+      id: 3,
+      name: "Round Trip",
+      self_description: "Text som ska bevaras.",
+    };
+
+    const frontend = mapBackendProfileToFrontend(backendInput);
+    expect(frontend.selfDescription).toBe("Text som ska bevaras.");
+
+    const backendOutput = mapFrontendProfileToBackend(frontend);
+    expect(backendOutput.selfDescription).toBe("Text som ska bevaras.");
   });
 });

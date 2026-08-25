@@ -33,6 +33,8 @@ type BackendProfile = {
   occupations?: Profile["occupations"];
   supportPurposes?: Profile["supportPurposes"];
   support_purposes?: Profile["supportPurposes"];
+  selfDescription?: Profile["selfDescription"];
+  self_description?: Profile["selfDescription"];
   legacyData?: Profile["legacyData"];
   legacy_data?: Profile["legacyData"];
 };
@@ -223,6 +225,7 @@ export function mapBackendProfileToFrontend(backendProfile: BackendProfile): Pro
     healthDetails: backendProfile.healthDetails || backendProfile.health_details,
     occupations: backendProfile.occupations || [],
     supportPurposes: backendProfile.supportPurposes || backendProfile.support_purposes || [],
+    selfDescription: backendProfile.selfDescription || backendProfile.self_description,
     legacyData: backendProfile.legacyData || backendProfile.legacy_data,
   };
 }
@@ -238,6 +241,7 @@ export function mapFrontendProfileToBackend(profile: Profile): BackendProfile {
     healthDetails: profile.healthDetails,
     occupations: profile.occupations || [],
     supportPurposes: profile.supportPurposes || [],
+    selfDescription: profile.selfDescription,
     legacyData: profile.legacyData,
   };
 }
@@ -314,11 +318,13 @@ export async function findMatchingFoundationsByProfile(
   profileId?: number,
   useGeoFilter: boolean = true,
   threshold: number = 0.25,
-  limit: number = 100
+  limit: number = 100,
+  useDescription: boolean = false
 ): Promise<MatchedFoundation[]> {
   const { data } = await api.post('/foundations/matching-by-profile', {
     profile_id: profileId,
     use_geographic_filter: useGeoFilter,
+    use_description: useDescription,
     threshold,
     limit,
   });

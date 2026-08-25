@@ -64,6 +64,8 @@ export interface Profile {
   healthDetails?: string;
   occupations?: Occupation[];
   supportPurposes?: SupportPurpose[];
+  /** Self-description: the user's situation in their own words (alternative matching text source) */
+  selfDescription?: string | null;
   legacyData?: Record<string, unknown>;
 }
 

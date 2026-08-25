@@ -82,6 +82,10 @@ class Profile(BaseModel):
     # Options: education, financial_aid, health_care, projects, research, travel, equipment
     support_purposes: list[str] | None = Field(default=None, alias="supportPurposes")
 
+    # Section 6: Self-description (the user's situation in their own words,
+    # used as an alternative matching text source instead of the structured selections)
+    self_description: str | None = Field(default=None, max_length=2000, alias="selfDescription")
+
     # Legacy data from old profile format
     legacy_data: dict[str, Any] | None = Field(default=None, alias="legacyData")
 

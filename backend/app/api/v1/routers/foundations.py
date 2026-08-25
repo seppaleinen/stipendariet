@@ -28,6 +28,7 @@ class MatchingRequest(BaseModel):
 class ProfileMatchingRequest(BaseModel):
     profile_id: int | None = None  # Specific profile to match against
     use_geographic_filter: bool = True  # If True, hard filter by county/municipality
+    use_description: bool = False  # If True, embed the profile's self-description instead of its structured selections
     threshold: float | None = SIMILARITY_THRESHOLD
     limit: int | None = 20
 
@@ -425,25 +426,35 @@ def find_matching_by_profile(
         if profile is None:
             raise HTTPException(status_code=404, detail="Profile not found. Please set up your profile first.")
 
-        # Convert DB model to schema for text generation
-        profile_schema = schemas.Profile(
-            county_code=profile.county_code,
-            municipality_code=profile.municipality_code,
-            life_situations=profile.life_situations or [],
-            health_conditions=profile.health_conditions or [],
-            health_details=profile.health_details,
-            occupations=profile.occupations or [],
-            support_purposes=profile.support_purposes or [],
-        )
-
-        # Generate Swedish text from profile selections
-        profile_text = generate_profile_text(profile_schema, include_geography=not request.use_geographic_filter)
-
-        if not profile_text.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="Profile is empty. Please fill in at least some information in your profile."
+        # Derive the Matching text from exactly one source — never blended:
+        # either the Self-description (raw free text) or the Structured selections.
+        if request.use_description:
+            profile_text = (profile.self_description or "").strip()
+            if not profile_text:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Self-description is empty. Please write a description of your situation in your profile first."
+                )
+        else:
+            # Convert DB model to schema for text generation
+            profile_schema = schemas.Profile(
+                county_code=profile.county_code,
+                municipality_code=profile.municipality_code,
+                life_situations=profile.life_situations or [],
+                health_conditions=profile.health_conditions or [],
+                health_details=profile.health_details,
+                occupations=profile.occupations or [],
+                support_purposes=profile.support_purposes or [],
             )
+
+            # Generate Swedish text from profile selections
+            profile_text = generate_profile_text(profile_schema, include_geography=not request.use_geographic_filter)
+
+            if not profile_text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Profile is empty. Please fill in at least some information in your profile."
+                )
 
         # Generate embedding for profile text
         profile_embedding = ollama_embedding_service.generate_embedding(profile_text)

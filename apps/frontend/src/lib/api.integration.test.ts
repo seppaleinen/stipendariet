@@ -609,6 +609,7 @@ describe("API Functions Integration Tests", () => {
           body: JSON.stringify({
             profile_id: 1,
             use_geographic_filter: true,
+            use_description: false,
             threshold: 0.25,
             limit: 20,
           }),

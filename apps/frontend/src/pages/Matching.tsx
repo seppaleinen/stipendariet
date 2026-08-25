@@ -13,45 +13,55 @@ import {
 } from "@stipendariet/ui";
 import { Switch } from "@stipendariet/ui";
 import { Label } from "@stipendariet/ui";
+import { ToggleGroup, ToggleGroupItem } from "@stipendariet/ui";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { findMatchingFoundationsByProfile, MatchedFoundation } from "@/lib/api";
 import { cleanTextForPreview } from "@/lib/utils";
 import { useProfile } from "@/contexts/ProfileContext";
+import { findCountyByCode, findMunicipalityByCode } from "@/data/swedish-regions";
 import { SITE_URL } from "@/lib/page-metadata";
 
 const MIN_SIMILARITY_THRESHOLD = 0.25; // 25% minimum match
+
+/** Which source of Matching text drives the search (ephemeral UI state) */
+type MatchSource = "structured" | "self-description";
 
 export default function Matching() {
     const [results, setResults] = useState<MatchedFoundation[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [useGeoFilter, setUseGeoFilter] = useState(true);
-    // Explicitly track if a search has been initiated for the CURRENT active profile
-    // We can use a simple boolean, but safer to maybe track "lastSearchedProfileId"
-    const [lastSearchedProfileId, setLastSearchedProfileId] = useState<number | null>(null);
+    const [matchSource, setMatchSource] = useState<MatchSource>("structured");
+    // Explicitly track if a search has been initiated for the CURRENT profile + source
+    // combination, so switching the source (or profile) triggers a fresh search.
+    const [lastSearchedKey, setLastSearchedKey] = useState<string | null>(null);
     
     const { isAuthenticated } = useAuth();
     const { activeProfile, isLoading: isProfileLoading } = useProfile();
 
-    const hasProfileData = !!(activeProfile && (
+    // Source-aware data check: exactly one Matching text source drives the search
+    const hasStructuredData = !!(activeProfile && (
         (activeProfile.lifeSituations && activeProfile.lifeSituations.length > 0) ||
         (activeProfile.healthConditions && activeProfile.healthConditions.length > 0) ||
         (activeProfile.occupations && activeProfile.occupations.length > 0) ||
         (activeProfile.supportPurposes && activeProfile.supportPurposes.length > 0) ||
         activeProfile.healthDetails
     ));
+    const hasSelfDescription = !!(activeProfile?.selfDescription && activeProfile.selfDescription.trim().length > 0);
+    const hasProfileData = matchSource === "structured" ? hasStructuredData : hasSelfDescription;
 
-    // Auto-search if profile changes and has data
+    // Auto-search if the active profile or match source changes and the selected source has data
     useEffect(() => {
-        if (isAuthenticated && activeProfile && hasProfileData && lastSearchedProfileId !== activeProfile.id) {
+        const currentSearchKey = activeProfile?.id != null ? `${activeProfile.id}-${matchSource}` : null;
+        if (isAuthenticated && activeProfile && hasProfileData && lastSearchedKey !== currentSearchKey) {
             findMatches();
         } else if (!activeProfile) {
             setResults([]);
-            setLastSearchedProfileId(null);
+            setLastSearchedKey(null);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- guarded auto-search: deliberately keyed on profile id only; adding lastSearchedProfileId/findMatches would churn without changing behavior
-    }, [isAuthenticated, activeProfile?.id, hasProfileData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- guarded auto-search: deliberately keyed on profile id + source only; adding lastSearchedKey/findMatches would churn without changing behavior
+    }, [isAuthenticated, activeProfile?.id, hasProfileData, matchSource]);
 
     const findMatches = async () => {
         if (!activeProfile?.id) return;
@@ -64,19 +74,40 @@ export default function Matching() {
                 activeProfile.id,
                 useGeoFilter,
                 MIN_SIMILARITY_THRESHOLD,
-                100 // limit
+                100, // limit
+                matchSource === "self-description"
             );
             
             // Sort by similarity score descending
             data.sort((a, b) => b.similarity_score - a.similarity_score);
             setResults(data);
-            setLastSearchedProfileId(activeProfile.id);
+            setLastSearchedKey(`${activeProfile.id}-${matchSource}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Kunde inte hitta matchningar");
         } finally {
             setLoading(false);
         }
     };
+
+    // Segmented control for choosing which Matching text source to search with
+    // (ephemeral component state — deliberately NOT persisted on the Profile)
+    const sourceToggle = activeProfile ? (
+        <ToggleGroup
+            type="single"
+            size="sm"
+            variant="outline"
+            value={matchSource}
+            onValueChange={(value) => {
+                if (value === "structured" || value === "self-description") {
+                    setMatchSource(value);
+                }
+            }}
+            aria-label="Välj sökgrund"
+        >
+            <ToggleGroupItem value="structured">Använd mina svar</ToggleGroupItem>
+            <ToggleGroupItem value="self-description">Använd min egen beskrivning</ToggleGroupItem>
+        </ToggleGroup>
+    ) : null;
 
     // Show loading state while checking auth/profile
     if (isAuthenticated && isProfileLoading) {
@@ -114,15 +145,29 @@ export default function Matching() {
         );
     }
 
-    // Show profile setup prompt if no profile or no data
+    // Show profile setup prompt if no profile or if the selected source is empty.
+    // No silent fallback: the empty SELECTED source blocks with a source-specific message.
     if (!activeProfile || !hasProfileData) {
+        const emptyFreeText = matchSource === "self-description";
         return (
             <div className="max-w-2xl mx-auto text-center py-12 space-y-6">
                 <Settings2 className="h-16 w-16 mx-auto text-muted-foreground" aria-hidden="true" />
-                <h1 className="text-3xl font-bold">Fyll i profilen för {activeProfile?.name || "att börja"}</h1>
-                <p className="text-muted-foreground text-lg">
-                    För att hitta matchande stiftelser behöver du fylla i information om situationen för {activeProfile?.name || "den valda profilen"}.
-                </p>
+                {emptyFreeText ? (
+                    <>
+                        <h1 className="text-3xl font-bold">Skriv en egen beskrivning för att börja</h1>
+                        <p className="text-muted-foreground text-lg">
+                            Du har valt att söka med din egen beskrivning, men profilen saknar den ännu. Skriv ner situationen för {activeProfile?.name || "den valda profilen"} på profilsidan.
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <h1 className="text-3xl font-bold">Fyll i profilen för {activeProfile?.name || "att börja"}</h1>
+                        <p className="text-muted-foreground text-lg">
+                            För att hitta matchande stiftelser behöver du fylla i information om situationen för {activeProfile?.name || "den valda profilen"}.
+                        </p>
+                    </>
+                )}
+                {sourceToggle}
                 <div className="flex gap-4 justify-center">
                     <Button asChild>
                         <Link to="/profile-setup">Gå till profilsidan</Link>
@@ -138,7 +183,14 @@ export default function Matching() {
         );
     }
 
-    const hasSearched = lastSearchedProfileId === activeProfile.id;
+    const hasSearched = lastSearchedKey === `${activeProfile.id}-${matchSource}`;
+
+    const geoCounty = activeProfile.countyCode ? findCountyByCode(activeProfile.countyCode) : undefined;
+    const geoMunicipality =
+        activeProfile.countyCode && activeProfile.municipalityCode
+            ? findMunicipalityByCode(activeProfile.countyCode, activeProfile.municipalityCode)
+            : undefined;
+    const showGeoChip = useGeoFilter && !!geoCounty;
 
     return (
         <>
@@ -175,6 +227,7 @@ export default function Matching() {
 
             {/* Controls */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                {sourceToggle}
                 <div className="flex items-center space-x-2">
                     <Switch
                         id="geo-filter"
@@ -201,6 +254,17 @@ export default function Matching() {
                     )}
                 </Button>
             </div>
+
+            {/* Active geographic filter chip — applies in both matching modes */}
+            {showGeoChip && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+                    <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>
+                        Filtrera på: {geoCounty?.name}
+                        {geoMunicipality ? ` · ${geoMunicipality.name}` : ""}
+                    </span>
+                </div>
+            )}
 
             {/* Error */}
             {error && (

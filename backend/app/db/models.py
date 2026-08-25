@@ -75,6 +75,9 @@ class Profile(Base):
     # Options: education, financial_aid, health_care, projects, research, travel, equipment
     support_purposes = Column(JSON)
 
+    # Section 6: Self-description (the user's situation in their own words)
+    self_description = Column(Text)  # Alternative matching text source
+
     # Legacy fields preserved for backward compatibility (migrated from old schema)
     legacy_data = Column(JSON)
 

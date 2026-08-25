@@ -55,6 +55,9 @@ const profileSetupSchema = z.object({
 
   // Section 5: Support Purpose
   supportPurposes: z.array(z.string()).optional(),
+
+  // Self-description: the user's situation in their own words
+  selfDescription: z.string().max(2000, "Max 2000 tecken").optional(),
 });
 
 type ProfileSetupForm = z.infer<typeof profileSetupSchema>;
@@ -84,10 +87,12 @@ export default function ProfileSetup() {
       healthDetails: "",
       occupations: [],
       supportPurposes: [],
+      selfDescription: "",
     },
   });
 
   const selectedCountyCode = form.watch("countyCode");
+  const selfDescriptionValue = form.watch("selfDescription") || "";
 
   // Get municipalities for selected county
   const municipalities = useMemo(() => {
@@ -118,6 +123,7 @@ export default function ProfileSetup() {
         healthDetails: activeProfile.healthDetails || "",
         occupations: activeProfile.occupations || [],
         supportPurposes: activeProfile.supportPurposes || [],
+        selfDescription: activeProfile.selfDescription || "",
       });
     }
   }, [activeProfile, form]);
@@ -144,6 +150,7 @@ export default function ProfileSetup() {
         healthDetails: data.healthDetails || undefined,
         occupations: data.occupations || [],
         supportPurposes: data.supportPurposes || [],
+        selfDescription: data.selfDescription || undefined,
       };
 
       await updateProfile(activeProfile.id, profileData);
@@ -238,6 +245,38 @@ export default function ProfileSetup() {
                      </div>
                  </div>
              </CardContent>
+        </Card>
+
+        {/* Self-description (free text in the user's own words) */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Beskriv din situation med egna ord (valfritt)
+            </CardTitle>
+            <CardDescription>
+              Din egen text kan användas istället för svaren nedan när du söker matchande stiftelser.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="space-y-2">
+              <Label htmlFor="selfDescription">Egen beskrivning</Label>
+              <Textarea
+                id="selfDescription"
+                placeholder="Beskriv din situation, dina behov och vad du söker stöd för..."
+                {...form.register("selfDescription")}
+                rows={5}
+                maxLength={2000}
+              />
+              <div className="flex justify-end">
+                <span className="text-xs text-muted-foreground">{selfDescriptionValue.length}/2000</span>
+              </div>
+              <p className="text-sm text-muted-foreground">För bästa resultat, skriv på svenska</p>
+              <p className="text-xs text-muted-foreground">
+                Obs: din län/kommun filtrerar alltid resultatet, även när du söker med egen text.
+              </p>
+            </div>
+          </CardContent>
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -422,6 +461,7 @@ export default function ProfileSetup() {
                     {...form.register("healthDetails")}
                     rows={3}
                   />
+                  <p className="text-sm text-muted-foreground">För bästa resultat, skriv på svenska</p>
                 </div>
               </CardContent>
             </Card>
