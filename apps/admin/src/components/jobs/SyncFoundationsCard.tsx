@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { backendApi } from '@/lib/api';
-import { JobProgressState } from '@/types/jobs';
+import { JobProgressState, FoundationStats } from '@/types/jobs';
 import { formatTimeRemaining } from '@/lib/utils';
 
 interface SyncFoundationsCardProps {
   activeJobId?: string;
   onComplete?: () => void;
+  /** Shared foundation stats owned by the page; shows total foundations when present. */
+  stats?: FoundationStats | null;
 }
 
-export const SyncFoundationsCard: React.FC<SyncFoundationsCardProps> = ({ activeJobId, onComplete }) => {
+export const SyncFoundationsCard: React.FC<SyncFoundationsCardProps> = ({ activeJobId, onComplete, stats }) => {
   const [syncState, setSyncState] = useState<JobProgressState>({ loading: false });
 
   const pollStatus = async (taskId: string) => {
@@ -70,6 +72,12 @@ export const SyncFoundationsCard: React.FC<SyncFoundationsCardProps> = ({ active
         <CardTitle>Synka Stiftelser</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {stats && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Stiftelser i databas</span>
+            <span>{stats.total_foundations}</span>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
           Hämtar och synkroniserar stiftelsedata från externt API.
         </p>

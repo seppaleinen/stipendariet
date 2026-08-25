@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { SyncFoundationsCard } from './SyncFoundationsCard';
 import { backendApi } from '@/lib/api';
+import { FoundationStats } from '@/types/jobs';
 
 // Mock the backendApi module
 vi.mock('@/lib/api', () => ({
@@ -11,11 +12,32 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
+const STATS: FoundationStats = {
+  total_foundations: 42,
+  translated: 10,
+  untranslated: 32,
+  embedded: 5,
+  not_embedded: 37,
+  translation_percentage: 23.8,
+  embedding_percentage: 11.9,
+};
+
 describe('SyncFoundationsCard', () => {
   it('renders correctly in initial state', () => {
     render(<SyncFoundationsCard />);
     expect(screen.getByText('Synka Stiftelser')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Starta Sync/i })).toBeInTheDocument();
+  });
+
+  it('shows total foundations stat line when stats are provided', () => {
+    render(<SyncFoundationsCard stats={STATS} />);
+    expect(screen.getByText('Stiftelser i databas')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
+  });
+
+  it('hides stat line while stats are not loaded', () => {
+    render(<SyncFoundationsCard />);
+    expect(screen.queryByText('Stiftelser i databas')).not.toBeInTheDocument();
   });
 
   it('triggers sync and handles successful completion through polling', async () => {

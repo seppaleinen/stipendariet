@@ -4,6 +4,7 @@ import { TranslationBulkCard, EmbeddingsCard, TranslationTestCard } from '@/comp
 import { EnrichmentBulkCard, EnrichmentTestCard } from '@/components/jobs/EnrichmentJobsCard';
 import { SystemActionsCard } from '@/components/jobs/SystemActionsCard';
 import { useActiveJobs } from '@/hooks/useActiveJobs';
+import { useFoundationStats } from '@/hooks/useFoundationStats';
 
 const TABS = ['Berikning', 'Sync & Översättning', 'Systemåtgärder'] as const;
 type Tab = typeof TABS[number];
@@ -11,6 +12,19 @@ type Tab = typeof TABS[number];
 const JobsPage: React.FC = () => {
   const { activeJobs, refresh } = useActiveJobs();
   const [activeTab, setActiveTab] = useState<Tab>('Berikning');
+
+  // Single shared foundation-stats fetcher/poller for all cards on this page.
+  // Polls every ~10s only while a relevant background job is running.
+  const hasActiveStatsJob = Boolean(
+    activeJobs.sync_foundations || activeJobs.bulk_translation || activeJobs.bulk_embeddings
+  );
+  const { stats, reloadStats } = useFoundationStats({ poll: hasActiveStatsJob });
+
+  // Refresh both active-job summary and stats when any tracked job completes.
+  const handleJobComplete = () => {
+    refresh();
+    reloadStats();
+  };
 
   return (
     <div className="space-y-6">
@@ -52,15 +66,20 @@ const JobsPage: React.FC = () => {
           <div className="space-y-6">
             <SyncFoundationsCard
               activeJobId={activeJobs.sync_foundations?.task_id}
-              onComplete={refresh}
+              onComplete={handleJobComplete}
+              stats={stats}
             />
             <TranslationBulkCard
               activeJobId={activeJobs.bulk_translation?.task_id}
-              onComplete={refresh}
+              onComplete={handleJobComplete}
+              stats={stats}
             />
           </div>
           <div className="space-y-6">
-            <EmbeddingsCard />
+            <EmbeddingsCard
+              activeJobId={activeJobs.bulk_embeddings?.task_id}
+              stats={stats}
+            />
             <TranslationTestCard />
           </div>
         </div>

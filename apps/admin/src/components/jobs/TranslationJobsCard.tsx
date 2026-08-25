@@ -6,34 +6,16 @@ import { backendApi } from '@/lib/api';
 import { JobProgressState, ActionState, FoundationStats } from '@/types/jobs';
 import { formatTimeRemaining } from '@/lib/utils';
 
-// --- Shared stats hook ---
-
-const useFoundationStats = () => {
-  const [stats, setStats] = useState<FoundationStats | null>(null);
-
-  const load = async () => {
-    try {
-      const response = await backendApi.get('/admin/foundation-stats');
-      setStats(response.data);
-    } catch (e) {
-      console.error('Failed to load foundation stats', e);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  return { stats, reloadStats: load };
-};
-
 // --- Bulk translation with progress ---
 
 interface TranslationBulkCardProps {
   activeJobId?: string;
   onComplete?: () => void;
+  /** Shared foundation stats owned by the page; refreshed while this job runs. */
+  stats?: FoundationStats | null;
 }
 
-export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ activeJobId, onComplete }) => {
-  const { stats, reloadStats } = useFoundationStats();
+export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ activeJobId, onComplete, stats }) => {
   const [state, setState] = useState<JobProgressState>({ loading: false });
   const [forceRetranslate, setForceRetranslate] = useState(false);
 
@@ -49,7 +31,6 @@ export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ active
             ? `Färdig! ${data.completed} översatta.`
             : `Fel: ${data.error}`,
         });
-        reloadStats();
         if (onComplete) onComplete();
       } else {
         setState({
@@ -127,8 +108,14 @@ export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ active
 
 // --- Embeddings generation ---
 
-export const EmbeddingsCard: React.FC = () => {
-  const { stats } = useFoundationStats();
+interface EmbeddingsCardProps {
+  /** Task id of a running bulk_embeddings job, if any (from /admin/active-jobs). */
+  activeJobId?: string;
+  /** Shared foundation stats owned by the page; refreshed while this job runs. */
+  stats?: FoundationStats | null;
+}
+
+export const EmbeddingsCard: React.FC<EmbeddingsCardProps> = ({ activeJobId, stats }) => {
   const [state, setState] = useState<ActionState>({ loading: false });
 
   const trigger = async () => {
@@ -156,8 +143,8 @@ export const EmbeddingsCard: React.FC = () => {
             </div>
           </div>
         )}
-        <Button onClick={trigger} disabled={state.loading}>
-          {state.loading ? 'Startar...' : 'Starta'}
+        <Button onClick={trigger} disabled={state.loading || Boolean(activeJobId)}>
+          {state.loading ? 'Startar...' : activeJobId ? 'Körs...' : 'Starta'}
         </Button>
         {state.message && <p className="text-sm text-green-600">{state.message}</p>}
         {state.error && <p className="text-sm text-destructive">{state.error}</p>}
