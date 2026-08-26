@@ -4,7 +4,7 @@
  * Run: node scripts/generate-sitemap.js
  */
 
-import { writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
 const SITE_URL = "https://stipendieassistenten.labb.site";
@@ -23,7 +23,9 @@ const publicRoutes = [
 // /auth, /applications, /generate, /profile-setup, /family-setup
 
 function generateSitemap() {
-  const now = new Date().toISOString().slice(0, 10);
+  // No <lastmod>: dates stamped at build time are fabricated (SEO-meaningless —
+  // Google ignores inaccurate lastmod) and made every build dirty the working
+  // tree with date churn (issue #18). lastmod is optional per sitemap 0.9 spec.
 
   const publicRouteEntries = publicRoutes
     .filter((r) => !r.includes(":")) // Exclude dynamic routes from static sitemap
@@ -32,7 +34,6 @@ function generateSitemap() {
       return `
     <url>
       <loc>${url}</loc>
-      <lastmod>${now}</lastmod>
       <changefreq>${route === "/" ? "daily" : "weekly"}</changefreq>
       <priority>${route === "/" ? "1.0" : "0.8"}</priority>
     </url>`;
@@ -43,8 +44,23 @@ function generateSitemap() {
 ${publicRouteEntries}
 </urlset>`;
 
-  writeFileSync(join(PUBLIC_DIR, "sitemap.xml"), sitemap);
-  console.log(`✅ Sitemap generated at ${join(PUBLIC_DIR, "sitemap.xml")}`);
+  const sitemapPath = join(PUBLIC_DIR, "sitemap.xml");
+
+  let existing;
+  try {
+    existing = readFileSync(sitemapPath, "utf8");
+  } catch {
+    // File doesn't exist yet — proceed to write it.
+  }
+
+  if (existing === sitemap) {
+    console.log(`✅ Sitemap unchanged, skipping write: ${sitemapPath}`);
+    console.log(`   Public routes indexed: ${publicRoutes.filter((r) => !r.includes(":")).length}`);
+    return;
+  }
+
+  writeFileSync(sitemapPath, sitemap);
+  console.log(`✅ Sitemap generated at ${sitemapPath}`);
   console.log(`   Public routes indexed: ${publicRoutes.filter((r) => !r.includes(":")).length}`);
 }
 
