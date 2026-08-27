@@ -42,9 +42,15 @@ export default function GrantDetail() {
 
   const loadGrant = async (grantId: string) => {
     setLoading(true);
-    const data = await getGrant(grantId);
-    setGrant(data || null);
-    setLoading(false);
+    try {
+      const data = await getGrant(grantId);
+      setGrant(data || null);
+    } catch (error) {
+      console.error("Failed to load grant", error);
+      setGrant(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchSaved = async (grantId: string) => {
@@ -73,16 +79,6 @@ export default function GrantDetail() {
       setSaving(false);
     }
   };
-
-  // Get the best description to display
-  const descriptionText = grant.translatedPurpose || grant.purpose || grant.description;
-
-  // Build full address
-  const fullAddress = [
-    grant.coAddress,
-    grant.address,
-    [grant.postnr, grant.postort].filter(Boolean).join(" "),
-  ].filter(Boolean).join("\n");
 
   if (loading) {
     return (
@@ -117,6 +113,16 @@ export default function GrantDetail() {
       </>
     );
   }
+
+  // Get the best description to display
+  const descriptionText = grant.translatedPurpose || grant.purpose || grant.description;
+
+  // Build full address
+  const fullAddress = [
+    grant.coAddress,
+    grant.address,
+    [grant.postnr, grant.postort].filter(Boolean).join(" "),
+  ].filter(Boolean).join("\n");
 
    return (
      <>
