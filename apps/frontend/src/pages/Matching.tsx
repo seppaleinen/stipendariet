@@ -13,6 +13,7 @@ import {
 } from "@stipendariet/ui";
 import { Switch } from "@stipendariet/ui";
 import { Label } from "@stipendariet/ui";
+import { Textarea } from "@stipendariet/ui";
 import { ToggleGroup, ToggleGroupItem } from "@stipendariet/ui";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,7 +39,19 @@ export default function Matching() {
     const [lastSearchedKey, setLastSearchedKey] = useState<string | null>(null);
     
     const { isAuthenticated } = useAuth();
-    const { activeProfile, isLoading: isProfileLoading } = useProfile();
+    const { activeProfile, isLoading: isProfileLoading, updateProfile } = useProfile();
+
+    // Inline self-description editor state, seeded from the saved profile.
+    // The matching endpoint only reads the description from the saved profile, so
+    // edits are persisted to the profile (updateProfile) before matching runs.
+    const [selfDescriptionDraft, setSelfDescriptionDraft] = useState<string>(activeProfile?.selfDescription ?? "");
+
+    // Re-seed the inline editor when switching to another profile (identity change only —
+    // saves/refreshes of the same profile must not clobber what the user is typing).
+    useEffect(() => {
+        setSelfDescriptionDraft(activeProfile?.selfDescription ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reseed only on profile identity change; drafts are deliberately preserved across same-profile refreshes
+    }, [activeProfile?.id]);
 
     // Source-aware data check: exactly one Matching text source drives the search
     const hasStructuredData = !!(activeProfile && (
@@ -55,21 +68,46 @@ export default function Matching() {
     useEffect(() => {
         const currentSearchKey = activeProfile?.id != null ? `${activeProfile.id}-${matchSource}` : null;
         if (isAuthenticated && activeProfile && hasProfileData && lastSearchedKey !== currentSearchKey) {
-            findMatches();
+            // Never auto-search the self-description source with an empty draft: the inline
+            // editor is the input, and an empty description would 400 on the backend.
+            if (matchSource === "structured" || selfDescriptionDraft.trim().length > 0) {
+                findMatches();
+            }
         } else if (!activeProfile) {
             setResults([]);
             setLastSearchedKey(null);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- guarded auto-search: deliberately keyed on profile id + source only; adding lastSearchedKey/findMatches would churn without changing behavior
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- guarded auto-search: deliberately keyed on profile id + source only; the draft is read at trigger time and must not re-fire the search on every keystroke
     }, [isAuthenticated, activeProfile?.id, hasProfileData, matchSource]);
 
     const findMatches = async () => {
         if (!activeProfile?.id) return;
-        
+
+        // Self-description mode needs non-empty text before persisting/matching.
+        // The search button is also disabled while the draft is empty (defensive guard).
+        if (matchSource === "self-description" && selfDescriptionDraft.trim().length === 0) {
+            return;
+        }
+
         setLoading(true);
         setError(null);
-        
+
+        // The matching endpoint reads the description from the saved profile, so an
+        // edited draft must be persisted BEFORE calling it.
+        let saveAttempted = false;
+
         try {
+            if (
+                matchSource === "self-description" &&
+                selfDescriptionDraft !== (activeProfile.selfDescription ?? "")
+            ) {
+                saveAttempted = true;
+                await updateProfile(activeProfile.id, {
+                    ...activeProfile,
+                    selfDescription: selfDescriptionDraft,
+                });
+            }
+
             const data = await findMatchingFoundationsByProfile(
                 activeProfile.id,
                 useGeoFilter,
@@ -77,13 +115,19 @@ export default function Matching() {
                 100, // limit
                 matchSource === "self-description"
             );
-            
+
             // Sort by similarity score descending
             data.sort((a, b) => b.similarity_score - a.similarity_score);
             setResults(data);
             setLastSearchedKey(`${activeProfile.id}-${matchSource}`);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Kunde inte hitta matchningar");
+            setError(
+                saveAttempted
+                    ? "Kunde inte spara din beskrivning. Kontrollera anslutningen och försök igen."
+                    : err instanceof Error
+                        ? err.message
+                        : "Kunde inte hitta matchningar"
+            );
         } finally {
             setLoading(false);
         }
@@ -145,28 +189,41 @@ export default function Matching() {
         );
     }
 
-    // Show profile setup prompt if no profile or if the selected source is empty.
-    // No silent fallback: the empty SELECTED source blocks with a source-specific message.
-    if (!activeProfile || !hasProfileData) {
-        const emptyFreeText = matchSource === "self-description";
+    // No profile at all → prompt to set one up
+    if (!activeProfile) {
         return (
             <div className="max-w-2xl mx-auto text-center py-12 space-y-6">
                 <Settings2 className="h-16 w-16 mx-auto text-muted-foreground" aria-hidden="true" />
-                {emptyFreeText ? (
-                    <>
-                        <h1 className="text-3xl font-bold">Skriv en egen beskrivning för att börja</h1>
-                        <p className="text-muted-foreground text-lg">
-                            Du har valt att söka med din egen beskrivning, men profilen saknar den ännu. Skriv ner situationen för {activeProfile?.name || "den valda profilen"} på profilsidan.
-                        </p>
-                    </>
-                ) : (
-                    <>
-                        <h1 className="text-3xl font-bold">Fyll i profilen för {activeProfile?.name || "att börja"}</h1>
-                        <p className="text-muted-foreground text-lg">
-                            För att hitta matchande stiftelser behöver du fylla i information om situationen för {activeProfile?.name || "den valda profilen"}.
-                        </p>
-                    </>
-                )}
+                <h1 className="text-3xl font-bold">Fyll i profilen för att börja</h1>
+                <p className="text-muted-foreground text-lg">
+                    För att hitta matchande stiftelser behöver du fylla i information om din situation.
+                </p>
+                {sourceToggle}
+                <div className="flex gap-4 justify-center">
+                    <Button asChild>
+                        <Link to="/profile-setup">Gå till profilsidan</Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link to="/grants">
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Tillbaka till stipendier
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
+    // Structured source selected but empty → prompt to fill the profile on the profile page.
+    // (Self-description has no blocking state: the inline editor in the controls is the input.)
+    if (matchSource === "structured" && !hasStructuredData) {
+        return (
+            <div className="max-w-2xl mx-auto text-center py-12 space-y-6">
+                <Settings2 className="h-16 w-16 mx-auto text-muted-foreground" aria-hidden="true" />
+                <h1 className="text-3xl font-bold">Fyll i profilen för {activeProfile.name}</h1>
+                <p className="text-muted-foreground text-lg">
+                    För att hitta matchande stiftelser behöver du fylla i information om situationen för {activeProfile.name}.
+                </p>
                 {sourceToggle}
                 <div className="flex gap-4 justify-center">
                     <Button asChild>
@@ -184,6 +241,7 @@ export default function Matching() {
     }
 
     const hasSearched = lastSearchedKey === `${activeProfile.id}-${matchSource}`;
+    const canSearch = matchSource !== "self-description" || selfDescriptionDraft.trim().length > 0;
 
     const geoCounty = activeProfile.countyCode ? findCountyByCode(activeProfile.countyCode) : undefined;
     const geoMunicipality =
@@ -226,8 +284,11 @@ export default function Matching() {
             </div>
 
             {/* Controls */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                {sourceToggle}
+            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-center gap-4 p-4 bg-muted/50 rounded-lg">
+                {/* Centered source toggle — the focal point of the controls */}
+                <div className="flex justify-center w-full sm:w-auto">
+                    {sourceToggle}
+                </div>
                 <div className="flex items-center space-x-2">
                     <Switch
                         id="geo-filter"
@@ -239,8 +300,7 @@ export default function Matching() {
                         Filtrera på geografiskt område
                     </Label>
                 </div>
-                <div className="flex-1" />
-                <Button onClick={findMatches} disabled={loading} className="gap-2">
+                <Button onClick={findMatches} disabled={loading || !canSearch} className="gap-2">
                     {loading ? (
                         <>
                             <RefreshCw className="h-4 w-4 animate-spin" />
@@ -253,6 +313,26 @@ export default function Matching() {
                         </>
                     )}
                 </Button>
+
+                {/* Inline self-description editor — the input for self-description matching.
+                    Edits are persisted to the profile inside findMatches before matching runs. */}
+                {matchSource === "self-description" && (
+                    <div className="w-full space-y-2">
+                        <Label htmlFor="matching-self-description">Egen beskrivning</Label>
+                        <Textarea
+                            id="matching-self-description"
+                            value={selfDescriptionDraft}
+                            onChange={(e) => setSelfDescriptionDraft(e.target.value)}
+                            placeholder="Beskriv din situation, dina behov och vad du söker stöd för..."
+                            rows={4}
+                            maxLength={2000}
+                        />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>För bästa resultat, skriv på svenska</span>
+                            <span>{selfDescriptionDraft.length}/2000</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Active geographic filter chip — applies in both matching modes */}
