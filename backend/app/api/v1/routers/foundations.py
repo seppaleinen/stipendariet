@@ -469,19 +469,56 @@ def find_matching_by_profile(
         embedding_str = "[" + ",".join(str(x) for x in profile_embedding) + "]"
 
         # Build geographic filter clause
+        # parsed_service_area takes precedence over official codes when present
         geo_filter = ""
         geo_params = {}
 
         if request.use_geographic_filter and profile.county_code:
-            # Filter foundations that match user's county or are for "Hela Sverige" (nationwide)
-            geo_filter = "AND (county_code = :county_code OR county_code IS NULL OR county_code = '')"
             geo_params["county_code"] = profile.county_code
 
             if profile.municipality_code:
-                # Also filter by municipality if specified
-                geo_filter = "AND (municipality_code = :municipality_code OR municipality_code IS NULL OR municipality_code = '' OR county_code = :county_code)"
+                # Municipality filter: parsed_service_area first, then official codes
+                geo_filter = """AND (
+                    -- Foundation has parsed_service_area → check it (takes precedence)
+                    (
+                        parsed_service_area IS NOT NULL
+                        AND (
+                            parsed_service_area->>'municipality_code' = :municipality_code
+                            OR parsed_service_area->>'county_code' = :county_code
+                        )
+                    )
+                    OR
+                    -- Foundation has NO parsed_service_area → use official codes
+                    (
+                        parsed_service_area IS NULL
+                        AND (
+                            municipality_code = :municipality_code
+                            OR municipality_code IS NULL
+                            OR municipality_code = ''
+                            OR county_code = :county_code
+                        )
+                    )
+                )"""
                 geo_params["municipality_code"] = profile.municipality_code
-                geo_params["county_code"] = profile.county_code
+            else:
+                # County-only filter: parsed_service_area first, then official codes
+                geo_filter = """AND (
+                    -- Foundation has parsed_service_area → check it (takes precedence)
+                    (
+                        parsed_service_area IS NOT NULL
+                        AND parsed_service_area->>'county_code' = :county_code
+                    )
+                    OR
+                    -- Foundation has NO parsed_service_area → use official codes
+                    (
+                        parsed_service_area IS NULL
+                        AND (
+                            county_code = :county_code
+                            OR county_code IS NULL
+                            OR county_code = ''
+                        )
+                    )
+                )"""
 
         # Query using pgvector cosine distance operator (<=>)
         query_text = f"""
@@ -498,6 +535,7 @@ def find_matching_by_profile(
                 postort,
                 county_code,
                 municipality_code,
+                parsed_service_area,
                 phone,
                 co_address,
                 type,
@@ -556,6 +594,7 @@ def find_matching_by_profile(
                 postort=row.postort,
                 county_code=row.county_code,
                 municipality_code=row.municipality_code,
+                parsed_service_area=parse_json_field(row.parsed_service_area, None),
                 phone=row.phone,
                 co_address=row.co_address,
                 type=row.type,

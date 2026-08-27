@@ -14,6 +14,13 @@ _Avoid_: Member, account
 An organization that grants money for specific purposes.
 _Avoid_: Stipend (that is the money itself), grant-maker, fund
 
+**Registered address**:
+Where a Foundation is domiciled according to the source dataset. Administrative fact only — says nothing about who may benefit.
+
+**Service area**:
+The geography whose residents a Foundation may benefit — its eligibility footprint, at county, municipality, or finer level. Derived from the dataset codes or from mentions in the Foundation's own name and purpose; the two may disagree, and Service area wins because it governs eligibility.
+_Avoid_: Location (ambiguous between Registered address and Service area)
+
 ### The user's description
 
 **Profile**:
@@ -35,13 +42,14 @@ The single text derived from a Profile — either its Structured selections or i
 A Foundation paired with a similarity score indicating how well its purpose aligns with the Matching text.
 
 **Geographic filter**:
-A hard constraint limiting Matches to Foundations that serve the Profile's county or municipality, or serve the whole country. Applied independently of which source produced the Matching text.
+A hard constraint limiting Matches to Foundations whose **Service area** covers the Profile's county or municipality, or covers the whole country. Applied independently of which source produced the Matching text.
 
 ## Relationships
 
 - A **User** owns one or more **Profiles**
 - A **Profile** contains **Structured selections** and optionally a **Self-description**
 - A search produces **Matches** from exactly one source of **Matching text**: either the Structured selections or the Self-description
+- A **Foundation** has a **Registered address** and a **Service area** — distinct concepts that may disagree; eligibility follows the Service area
 - The **Geographic filter** constrains Matches regardless of Matching-text source
 - The **Self-description** drives Finding only — it never feeds application generation, which consumes Structured selections only
 

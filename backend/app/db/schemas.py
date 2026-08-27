@@ -104,6 +104,7 @@ class FoundationBase(BaseModel):
     postort: str | None = None
     county_code: str | None = None  # LANKOD from external API
     municipality_code: str | None = None  # KOMMUNKOD from external API
+    parsed_service_area: dict | None = None  # LLM-extracted location from name/purpose text
     phone: str | None = None  # TELEFON from external API
     co_address: str | None = None  # COADRESS from external API
     type: int | None = None  # TYP from external API

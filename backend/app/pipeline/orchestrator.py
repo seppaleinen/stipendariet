@@ -7,6 +7,7 @@ from app.db.models import EnrichmentData, EnrichmentPage, EnrichmentSource, Foun
 from app.pipeline.crawler import crawl_foundation_site
 from app.pipeline.discovery import discover_candidate_urls
 from app.pipeline.extraction import extract_data_from_content
+from app.pipeline.service_area import extract_service_area
 from app.pipeline.validation import validate_candidate_url
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,14 @@ def _db_save_extraction(foundation_id: int, source_id: int, extracted_data: dict
         db.commit()
 
 
+def _db_save_parsed_service_area(foundation_id: int, parsed_service_area: dict):
+    with SessionLocal() as db:
+        foundation = db.query(Foundation).filter(Foundation.id == foundation_id).first()
+        if foundation:
+            foundation.parsed_service_area = parsed_service_area
+            db.commit()
+
+
 async def run_foundation_pipeline_task(
     ctx: dict,
     foundation_id: int,
@@ -133,11 +142,24 @@ async def run_foundation_pipeline_task(
     trace = {
         "foundation_id": foundation_id,
         "name": foundation_name,
+        "service_area": None,
         "discovery": [],
         "validation": [],
         "sources": [],   # per-matched-source: pages + per-source extraction
         "merged": None,  # final merged result written to DB
     }
+
+    # ── Service Area Extraction ────────────────────────────────────────────────
+    # Lightweight: only needs name + purpose text, no web scraping
+    service_area = await extract_service_area(
+        foundation_name,
+        purpose=foundation.purpose,
+        description=foundation.summary,
+    )
+    if service_area:
+        await asyncio.to_thread(_db_save_parsed_service_area, foundation_id, service_area)
+        trace["service_area"] = service_area
+        logger.info(f"Service area extracted for {foundation_name}: {service_area}")
 
     # ── Discovery ──────────────────────────────────────────────────────────────
     candidates = await discover_candidate_urls(foundation_name, foundation_orgnr)

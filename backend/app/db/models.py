@@ -101,6 +101,7 @@ class Foundation(Base):
     postort = Column(String)
     county_code = Column(String)  # LANKOD from external API
     municipality_code = Column(String)  # KOMMUNKOD from external API
+    parsed_service_area = Column(JSON)  # LLM-extracted location from name/purpose text
     phone = Column(String)  # TELEFON from external API
     co_address = Column(String)  # COADRESS from external API
     type = Column(Integer)  # TYP from external API

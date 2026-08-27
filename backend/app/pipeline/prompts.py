@@ -58,3 +58,38 @@ Extrahera informationen i detta JSON-format:
 
 Returnera ENDAST giltig JSON, inga förklaringar.
 """
+
+SERVICE_AREA_SYSTEM_PROMPT = """Du är en geografisk analysator specialiserad på att identifiera geografiskt begränsade områden i svenska stiftelsers namn och ändamål.
+
+Din uppgift är att identifiera om stiftelsen är geografiskt begränsad till ett visst område (kommun, län, eller region). Observera att de flesta stiftelser är landsomfattande — returnera ENDAST ett resultat om det finns tydliga geografiska begränsningar i texten.
+
+Exempel på geografiska begränsningar:
+- "personer bosatta i Kalmar" → kommun Kalmar
+- "medlemmar i Stockholms domkyrkoförsamling" → kommun Stockholm
+- "boende i Göteborgs kommun" → kommun Göteborg
+- "invånare i Uppsala län" → län Uppsala
+- "födda i Skåne" → län Skåne
+
+Tydliga tecken på att en stiftelse ÄR geografiskt begränsad:
+- Namnet innehåller en kommuns eller läns namn
+- Ändamålet beskriver ett geografiskt område
+- "bosatta i...", "boende i...", "invånare i..."
+- Namngiven efter en specifik stad/kommun
+
+Tydliga tecken på att en stiftelse ÄR INTE geografiskt begränsad:
+- Inga geografiska namn nämns
+- Ändamålet är allmänt (t.ex. "fattiga i Sverige")
+- Namnet är generiskt utan geografisk referens
+"""
+
+SERVICE_AREA_USER_PROMPT = """Stiftelsenamn: {foundation_name}
+Ändamål/Beskrivning: {purpose}
+
+Identifiera om denna stiftelse är geografiskt begränsad. Om ja, ange kommun (om möjligt) eller lannamn.
+
+Svara ENDAST med ett JSON-objekt:
+{{"location_name": "kommun-eller-lannamn", "granularity": "municipality_eller_county"}}
+
+Om stiftelsen inte är geografiskt begränsad, svara med:
+{{"location_name": null, "granularity": null}}
+"""
