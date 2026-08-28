@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  List, 
+import {
+  LayoutDashboard,
+  List,
   User,
   Menu,
   X,
   PlayCircle,
   BarChart2,
+  Languages,
 } from 'lucide-react';
 import { Button } from '@stipendariet/ui';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,6 +27,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/queue', label: 'Queue', icon: List },
     { path: '/jobs', label: 'Jobs', icon: PlayCircle },
     { path: '/enrichment-results', label: 'Berikningsresultat', icon: BarChart2 },
+    { path: '/translations', label: 'Översättningar', icon: Languages },
   ];
 
   const isActive = (path: string) => location.pathname === path;

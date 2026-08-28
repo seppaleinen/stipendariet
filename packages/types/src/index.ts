@@ -157,6 +157,36 @@ export interface MatchedFoundation {
   similarity_score: number;
 }
 
+// ── Translation judging (admin) ────────────────────────────────────────
+
+/** A foundation row for the admin translation-judging page: original purpose
+ *  + translated purpose side by side, with parsed service-area metadata. */
+export interface FoundationTranslationListItem {
+  id: number;
+  foundation_id: number;
+  name: string;
+  orgnr: string | null;
+  purpose: string | null;
+  translated_purpose: string | null;
+  summary: string | null;
+  address: string | null;
+  postnr: string | null;
+  postort: string | null;
+  county_code: string | null;
+  municipality_code: string | null;
+  parsed_service_area: ParsedServiceArea | null;
+  category: string | null;
+  last_updated: string | null;
+}
+
+/** Paginated response for the admin foundation-translation list endpoint. */
+export interface PaginatedFoundationsTranslationResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  items: FoundationTranslationListItem[];
+}
+
 // ── Swedish Geography ──────────────────────────────────────────────────
 
 export interface Municipality {

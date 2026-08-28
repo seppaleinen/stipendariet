@@ -25,6 +25,7 @@ from app.api.admin.enrichment import (
     reset_enrichment_status_endpoint,
     trigger_enrichment_endpoint,
 )
+from app.api.admin.foundations import list_foundations_for_translation_endpoint
 from app.api.admin.sync import (
     get_sync_status_endpoint,
     trigger_foundation_sync_endpoint,
@@ -159,3 +160,14 @@ def get_enrichment_defaults():
 @router.get("/enrich/trace/{foundation_id}")
 def get_enrichment_trace(foundation_id: int):
     return get_enrichment_trace_endpoint(foundation_id)
+
+# --- Foundations (translation judging) Routes ---
+@router.get("/foundations/translations")
+def list_foundations_for_translation(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    status: str = Query("all"),
+):
+    return list_foundations_for_translation_endpoint(
+        page=page, page_size=page_size, status_filter=status
+    )

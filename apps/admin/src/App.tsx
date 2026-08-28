@@ -10,6 +10,7 @@ import QueuePage from '@/pages/QueuePage';
 import ReviewPage from '@/pages/ReviewPage';
 import JobsPage from '@/pages/JobsPage';
 import EnrichmentResultsPage from '@/pages/EnrichmentResultsPage';
+import TranslationsPage from '@/pages/TranslationsPage';
 
 const App: React.FC = () => {
   return (
@@ -64,6 +65,16 @@ const App: React.FC = () => {
                 <ProtectedRoute>
                   <AdminLayout>
                     <EnrichmentResultsPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/translations"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <TranslationsPage />
                   </AdminLayout>
                 </ProtectedRoute>
               }

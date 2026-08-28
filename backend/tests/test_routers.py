@@ -16,6 +16,28 @@ from app.main import app
 client = TestClient(app, raise_server_exceptions=False)
 
 
+def _foundation_mock(db_id, name, orgnr, purpose, translated_purpose, postort):
+    """Build a MagicMock of a Foundation row for list-endpoint tests."""
+    m = MagicMock()
+    m.id = db_id
+    m.foundation_id = db_id * 100
+    m.name = name
+    m.orgnr = orgnr
+    m.purpose = purpose
+    m.translated_purpose = translated_purpose
+    m.summary = "summary"
+    m.address = "Gata 1"
+    m.postnr = "12345"
+    m.postort = postort
+    m.county_code = "01"
+    m.municipality_code = "0180"
+    m.parsed_service_area = None
+    m.category = None
+    m.last_updated = "2024-01-01"
+    return m
+
+
+
 # =============================================================================
 # Auth Router Tests
 # =============================================================================
@@ -899,6 +921,53 @@ class TestAdminRouter:
         """Grant sync requires admin auth"""
         response = client.post("/api/admin/trigger-grant-sync")
         assert response.status_code == 401
+
+    def test_foundations_translations_requires_admin(self):
+        """Foundations translation list requires admin auth"""
+        response = client.get("/api/admin/foundations/translations")
+        assert response.status_code == 401
+
+    def test_foundations_translations_list_success(self):
+        """Authenticated admin gets a paginated foundation list for translation judging"""
+        app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
+        try:
+            mock_db = MagicMock()
+            mock_query = mock_db.query.return_value
+
+            # Endpoint (status="all") calls query.count() for the total, then
+            # query.order_by().offset().limit().all() for the page rows.
+            mock_query.count.return_value = 2
+            mock_query.order_by.return_value.offset.return_value.limit.return_value.all.return_value = [
+                _foundation_mock(1, "Fond A", "123456-7890", "purpose1", "translation1", "Postort A"),
+                _foundation_mock(2, "Fond B", "222222-2222", "purpose2", None, "Postort B"),
+            ]
+
+            with patch("app.db.database.get_db") as mock_get_db:
+                mock_get_db.return_value.__next__.return_value = mock_db
+                response = client.get("/api/admin/foundations/translations")
+                assert response.status_code == 200
+                data = response.json()
+                assert data["total"] == 2
+                assert data["page"] == 1
+                assert data["page_size"] == 50
+                assert len(data["items"]) == 2
+                # Translated foundation carries both purpose and translated_purpose
+                assert data["items"][0]["purpose"] == "purpose1"
+                assert data["items"][0]["translated_purpose"] == "translation1"
+                # Missing translation is None
+                assert data["items"][1]["translated_purpose"] is None
+                assert data["items"][1]["parsed_service_area"] is None
+        finally:
+            app.dependency_overrides.pop(get_admin_user, None)
+
+    def test_foundations_translations_invalid_status(self):
+        """Invalid status filter returns 400"""
+        app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
+        try:
+            response = client.get("/api/admin/foundations/translations", params={"status": "bogus"})
+            assert response.status_code == 400
+        finally:
+            app.dependency_overrides.pop(get_admin_user, None)
 
 
 # =============================================================================
