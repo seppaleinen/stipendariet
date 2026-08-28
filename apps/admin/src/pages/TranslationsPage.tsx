@@ -17,7 +17,7 @@ import {
   RefreshCw,
   XCircle,
 } from 'lucide-react';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import type {
   FoundationTranslationListItem,
   PaginatedFoundationsTranslationResponse,
@@ -161,10 +161,10 @@ const TranslationsPage: React.FC = () => {
         page_size: DEFAULT_PAGE_SIZE,
         status: statusFilter,
       };
-      const response = await backendApi.get<PaginatedFoundationsTranslationResponse>(
+      const response = await request(api.get<PaginatedFoundationsTranslationResponse>(
         '/admin/foundations/translations',
-        { params },
-      );
+        params,
+      ));
       setItems(response.data.items ?? []);
       setTotal(response.data.total ?? 0);
     } catch (e) {

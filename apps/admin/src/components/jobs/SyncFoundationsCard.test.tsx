@@ -1,15 +1,19 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { SyncFoundationsCard } from './SyncFoundationsCard';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { FoundationStats } from '@/types/jobs';
 
-// Mock the backendApi module
+// Mock the api module
 vi.mock('@/lib/api', () => ({
-  backendApi: {
+  api: {
     get: vi.fn(),
     post: vi.fn(),
   },
+  request: vi.fn(async (promise) => {
+    const result = await promise;
+    return { data: result.data };
+  }),
 }));
 
 const STATS: FoundationStats = {
@@ -42,11 +46,11 @@ describe('SyncFoundationsCard', () => {
 
   it('triggers sync and handles successful completion through polling', async () => {
     // 1. Mock trigger response
-    (backendApi.post as any).mockResolvedValue({ data: { task_id: 'task-123' } });
+    (api.post as any).mockResolvedValue({ data: { task_id: 'task-123' } });
     
     // 2. Mock status polling
     // First call: in progress
-    (backendApi.get as any).mockResolvedValueOnce({
+    (api.get as any).mockResolvedValueOnce({
       data: {
         status: 'running',
         progress: 50,
@@ -56,7 +60,7 @@ describe('SyncFoundationsCard', () => {
       }
     });
     // Second call: completed
-    (backendApi.get as any).mockResolvedValueOnce({
+    (api.get as any).mockResolvedValueOnce({
       data: {
         status: 'completed',
         progress: 100,
@@ -81,7 +85,7 @@ describe('SyncFoundationsCard', () => {
   });
 
   it('handles error during sync trigger', async () => {
-    (backendApi.post as any).mockRejectedValue(new Error('API Error'));
+    (api.post as any).mockRejectedValue(new Error('API Error'));
 
     render(<SyncFoundationsCard />);
     const startButton = screen.getByRole('button', { name: /Starta Sync/i });
@@ -93,8 +97,8 @@ describe('SyncFoundationsCard', () => {
   });
 
   it('handles error during polling', async () => {
-    (backendApi.post as any).mockResolvedValue({ data: { task_id: 'task-123' } });
-    (backendApi.get as any).mockRejectedValue(new Error('Polling failed'));
+    (api.post as any).mockResolvedValue({ data: { task_id: 'task-123' } });
+    (api.get as any).mockRejectedValue(new Error('Polling failed'));
 
     render(<SyncFoundationsCard />);
     const startButton = screen.getByRole('button', { name: /Starta Sync/i });

@@ -40,7 +40,7 @@ Requires Docker. Use these commands to manage local services (Postgres, Redis, B
 
 ### API & Data Flow
 - **Frontend** $\rightarrow$ **Backend**: Uses `@stipendariet/api-client` for communication.
-- **Admin** $\rightarrow$ **Backend**: Currently uses a custom wrapper around `axios` (ref: `apps/admin/src/lib/api.ts`). **Goal: Migrate Admin to use `@stipendariet/api-client`.**
+- **Admin** $\rightarrow$ **Backend**: Uses `@stipendariet/api-client` via `apps/admin/src/lib/api.ts` (a thin per-app wrapper that adds a 401 redirect to `/login`).
 - **Authentication**: Handled via `getAuthToken()` in the client context.
 
 ### Deployment (Kubernetes)

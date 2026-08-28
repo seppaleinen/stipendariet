@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { JobProgressState, FoundationStats } from '@/types/jobs';
 import { formatTimeRemaining } from '@/lib/utils';
 
@@ -17,7 +17,7 @@ export const SyncFoundationsCard: React.FC<SyncFoundationsCardProps> = ({ active
 
   const pollStatus = async (taskId: string) => {
     try {
-      const statusResponse = await backendApi.get(`/admin/sync-status/${taskId}`);
+      const statusResponse = await request(api.get(`/admin/sync-status/${taskId}`));
       const statusData = statusResponse.data;
 
       if (statusData.status === 'completed' || statusData.status === 'failed') {
@@ -59,7 +59,7 @@ export const SyncFoundationsCard: React.FC<SyncFoundationsCardProps> = ({ active
   const triggerFoundationSync = async () => {
     setSyncState({ loading: true, error: undefined });
     try {
-      const response = await backendApi.post('/admin/trigger-foundation-sync');
+      const response = await request(api.post('/admin/trigger-foundation-sync'));
       pollStatus(response.data.task_id);
     } catch (error) {
       setSyncState({ loading: false, error: error instanceof Error ? error.message : 'Okänt fel' });

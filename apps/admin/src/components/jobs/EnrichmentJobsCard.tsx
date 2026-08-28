@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { Input } from '@stipendariet/ui';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { EnrichmentStatus, FoundationSearchResult, EnrichmentDefaults } from '@/types/jobs';
 
 // --- Bulk enrichment status + trigger ---
@@ -14,7 +14,7 @@ export const EnrichmentBulkCard: React.FC = () => {
 
   const loadStatus = async () => {
     try {
-      const response = await backendApi.get('/admin/enrich/status');
+      const response = await request(api.get('/admin/enrich/status'));
       setStatus(response.data);
     } catch (e) {
       console.error('Failed to load enrichment status', e);
@@ -26,7 +26,7 @@ export const EnrichmentBulkCard: React.FC = () => {
   const triggerEnrichment = async () => {
     setLoading(true);
     try {
-      const response = await backendApi.post('/admin/enrich/start');
+      const response = await request(api.post('/admin/enrich/start'));
       setMessage(`Startad! ${response.data.enqueued} i kö.`);
       setTimeout(loadStatus, 2000);
     } catch {
@@ -93,7 +93,7 @@ export const EnrichmentTestCard: React.FC = () => {
   });
 
   useEffect(() => {
-    backendApi.get('/admin/enrich/defaults')
+    request(api.get('/admin/enrich/defaults'))
       .then((r: { data: EnrichmentDefaults }) => setPrompts(r.data))
       .catch((e: unknown) => console.error('Failed to load enrichment defaults', e));
   }, []);
@@ -103,7 +103,7 @@ export const EnrichmentTestCard: React.FC = () => {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await backendApi.get(`/admin/foundations/search?q=${encodeURIComponent(searchQuery)}`);
+        const response = await request(api.get(`/admin/foundations/search?q=${encodeURIComponent(searchQuery)}`));
         setSearchResults(response.data);
       } catch (e) {
         console.error('Search failed', e);
@@ -126,13 +126,13 @@ export const EnrichmentTestCard: React.FC = () => {
     setSingleResult(null);
     setMessage('');
     try {
-      const response = await backendApi.post(`/admin/enrich/foundation/${foundationId}`, {
+      const response = await request(api.post(`/admin/enrich/foundation/${foundationId}`, {
         force_search: forceSearch,
         validation_sys_prompt: prompts.validation_system_prompt,
         validation_usr_prompt: prompts.validation_user_prompt,
         extraction_sys_prompt: prompts.extraction_system_prompt,
         extraction_usr_prompt: prompts.extraction_user_prompt,
-      });
+      }));
       if (response.data.status === 'enqueued') {
         setMessage(`Jobb köat (ID: ${response.data.job_id.substring(0, 8)}...). Kolla status i Berikning-kortet.`);
       } else {

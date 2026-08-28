@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { Input } from '@stipendariet/ui';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { JobProgressState, ActionState, FoundationStats } from '@/types/jobs';
 import { formatTimeRemaining } from '@/lib/utils';
 
@@ -21,7 +21,7 @@ export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ active
 
   const pollStatus = async (taskId: string) => {
     try {
-      const response = await backendApi.get(`/admin/bulk-translation-status/${taskId}`);
+      const response = await request(api.get(`/admin/bulk-translation-status/${taskId}`));
       const data = response.data;
       if (data.status === 'completed' || data.status === 'failed') {
         setState({
@@ -58,9 +58,9 @@ export const TranslationBulkCard: React.FC<TranslationBulkCardProps> = ({ active
   const trigger = async () => {
     setState({ loading: true });
     try {
-      const response = await backendApi.post(
+      const response = await request(api.post(
         `/admin/trigger-bulk-purpose-translation${forceRetranslate ? '?force=true' : ''}`
-      );
+      ));
       pollStatus(response.data.task_id);
     } catch (e) {
       setState({ loading: false, error: e instanceof Error ? e.message : String(e) });
@@ -121,7 +121,7 @@ export const EmbeddingsCard: React.FC<EmbeddingsCardProps> = ({ activeJobId, sta
   const trigger = async () => {
     setState({ loading: true });
     try {
-      await backendApi.post('/admin/trigger-bulk-embedding-generation');
+      await request(api.post('/admin/trigger-bulk-embedding-generation'));
       setState({ loading: false, message: 'Startad!' });
     } catch {
       setState({ loading: false, error: 'Kunde inte starta' });
@@ -162,7 +162,7 @@ export const TranslationTestCard: React.FC = () => {
   const [state, setState] = useState<ActionState>({ loading: false });
 
   useEffect(() => {
-    backendApi.get('/admin/translation-defaults')
+    request(api.get('/admin/translation-defaults'))
       .then((r: { data: { model?: string; prompt_template?: string } }) => {
         setTestModel(r.data.model || '');
         setTestPrompt(r.data.prompt_template || '');
@@ -177,9 +177,9 @@ export const TranslationTestCard: React.FC = () => {
       const params = new URLSearchParams();
       if (testModel) params.append('model', testModel);
       if (testPrompt) params.append('prompt', testPrompt);
-      const response = await backendApi.post(
+      const response = await request(api.post(
         `/admin/translate-foundation/${foundationId}?${params.toString()}`
-      );
+      ));
       setState({ loading: false, message: JSON.stringify(response.data, null, 2) });
     } catch (e) {
       setState({ loading: false, error: e instanceof Error ? e.message : String(e) });

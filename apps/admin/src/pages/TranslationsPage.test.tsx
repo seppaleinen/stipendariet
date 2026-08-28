@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TranslationsPage from './TranslationsPage';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import type { PaginatedFoundationsTranslationResponse } from '@stipendariet/types';
 
 vi.mock('@/lib/api', () => ({
-  backendApi: {
+  api: {
     get: vi.fn(),
     post: vi.fn(),
   },
+  request: vi.fn(async (promise) => {
+    const result = await promise;
+    return { data: result.data };
+  }),
 }));
 
 const RESPONSE: PaginatedFoundationsTranslationResponse = {
@@ -67,7 +71,7 @@ const renderPage = () =>
 
 describe('TranslationsPage', () => {
   beforeEach(() => {
-    (backendApi.get as any).mockResolvedValue({ data: RESPONSE });
+    (api.get as any).mockResolvedValue({ data: RESPONSE });
   });
 
   afterEach(() => {
@@ -82,10 +86,8 @@ describe('TranslationsPage', () => {
       expect(screen.getByText('Fond B')).toBeInTheDocument();
     });
 
-    expect(backendApi.get).toHaveBeenCalledTimes(1);
-    expect(backendApi.get).toHaveBeenCalledWith('/admin/foundations/translations', {
-      params: { page: 1, page_size: 50, status: 'all' },
-    });
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledWith('/admin/foundations/translations', { page: 1, page_size: 50, status: 'all' });
   });
 
   it('shows translation status for each foundation', async () => {

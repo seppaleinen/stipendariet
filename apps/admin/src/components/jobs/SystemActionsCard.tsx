@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { ActionState } from '@/types/jobs';
 
 export const SystemActionsCard: React.FC = () => {
@@ -12,7 +12,7 @@ export const SystemActionsCard: React.FC = () => {
 
     setState((prev) => ({ ...prev, [key]: { loading: true } }));
     try {
-      const response = await backendApi.post(endpoint);
+      const response = await request(api.post(endpoint));
       setState((prev) => ({ 
         ...prev, 
         [key]: { loading: false, message: JSON.stringify(response.data, null, 2) } 

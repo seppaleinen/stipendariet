@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { ApiError } from '@stipendariet/api-client';
 import {
   CheckCircle,
@@ -155,7 +155,7 @@ const TracePanel: React.FC<{ foundationId: number; onClose: () => void }> = ({ f
 
   useEffect(() => {
     setLoading(true);
-    backendApi.get<{ trace: Trace }>(`/admin/enrich/trace/${foundationId}`)
+    request(api.get<{ trace: Trace }>(`/admin/enrich/trace/${foundationId}`))
       .then(r => setTrace(r.data.trace))
       .catch((e: unknown) => setError(e instanceof ApiError ? ((e.body as Record<string, unknown>)?.detail as string) ?? e.message : (e as Error).message))
       .finally(() => setLoading(false));
@@ -491,7 +491,7 @@ const EnrichmentResultsPage: React.FC = () => {
     try {
       const params: Record<string, string | number> = { limit };
       if (statusFilter !== 'ALL') params.status = statusFilter;
-      const response = await backendApi.get('/admin/enrich/details', { params });
+      const response = await request(api.get('/admin/enrich/details', params));
       setResults(response.data.foundations ?? []);
     } catch (e) {
       console.error('Failed to load enrichment results', e);
@@ -502,7 +502,7 @@ const EnrichmentResultsPage: React.FC = () => {
 
   const fetchSummary = async () => {
     try {
-      const response = await backendApi.get('/admin/enrich/status');
+      const response = await request(api.get('/admin/enrich/status'));
       setSummary(response.data.counts ?? {});
     } catch (e) {
       console.error('Failed to load summary', e);

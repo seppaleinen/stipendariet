@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { ActiveJobsSummary } from '@/types/jobs';
 
 export const useActiveJobs = () => {
@@ -8,7 +8,7 @@ export const useActiveJobs = () => {
 
   const fetchActiveJobs = async () => {
     try {
-      const response = await backendApi.get('/admin/active-jobs');
+      const response = await request(api.get('/admin/active-jobs'));
       setActiveJobs(response.data);
     } catch (error) {
       console.error('Failed to fetch active jobs:', error);

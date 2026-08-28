@@ -1,14 +1,18 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFoundationStats, FOUNDATION_STATS_POLL_INTERVAL_MS } from './useFoundationStats';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { FoundationStats } from '@/types/jobs';
 
 vi.mock('@/lib/api', () => ({
-  backendApi: {
+  api: {
     get: vi.fn(),
     post: vi.fn(),
   },
+  request: vi.fn(async (promise) => {
+    const result = await promise;
+    return { data: result.data };
+  }),
 }));
 
 const STATS: FoundationStats = {
@@ -24,7 +28,7 @@ const STATS: FoundationStats = {
 describe('useFoundationStats', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    (backendApi.get as any).mockResolvedValue({ data: STATS });
+    (api.get as any).mockResolvedValue({ data: STATS });
   });
 
   afterEach(() => {
@@ -40,8 +44,8 @@ describe('useFoundationStats', () => {
     await waitFor(() => {
       expect(result.current.stats).toEqual(STATS);
     });
-    expect(backendApi.get).toHaveBeenCalledTimes(1);
-    expect(backendApi.get).toHaveBeenCalledWith('/admin/foundation-stats');
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledWith('/admin/foundation-stats');
   });
 
   it('does not poll when idle (poll defaults to false)', async () => {
@@ -50,7 +54,7 @@ describe('useFoundationStats', () => {
     await vi.advanceTimersByTimeAsync(0);
     await vi.advanceTimersByTimeAsync(FOUNDATION_STATS_POLL_INTERVAL_MS * 3);
 
-    expect(backendApi.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledTimes(1);
   });
 
   it('polls every ~10s only while poll is true', async () => {
@@ -61,29 +65,29 @@ describe('useFoundationStats', () => {
 
     // Idle: single mount fetch.
     await vi.advanceTimersByTimeAsync(0);
-    expect(backendApi.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledTimes(1);
 
     // Job becomes active -> interval starts.
     rerender({ poll: true });
     await vi.advanceTimersByTimeAsync(FOUNDATION_STATS_POLL_INTERVAL_MS);
-    expect(backendApi.get).toHaveBeenCalledTimes(2);
+    expect(api.get).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(FOUNDATION_STATS_POLL_INTERVAL_MS);
-    expect(backendApi.get).toHaveBeenCalledTimes(3);
+    expect(api.get).toHaveBeenCalledTimes(3);
 
     // Job finishes -> interval is cleared.
     rerender({ poll: false });
     await vi.advanceTimersByTimeAsync(FOUNDATION_STATS_POLL_INTERVAL_MS * 3);
-    expect(backendApi.get).toHaveBeenCalledTimes(3);
+    expect(api.get).toHaveBeenCalledTimes(3);
   });
 
   it('exposes reloadStats for manual refresh after a triggered action', async () => {
     const { result } = renderHook(() => useFoundationStats());
 
     await vi.advanceTimersByTimeAsync(0);
-    expect(backendApi.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledTimes(1);
 
     result.current.reloadStats();
     await vi.advanceTimersByTimeAsync(0);
-    expect(backendApi.get).toHaveBeenCalledTimes(2);
+    expect(api.get).toHaveBeenCalledTimes(2);
   });
 });

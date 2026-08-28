@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 import { FoundationStats } from '@/types/jobs';
 
 /** Poll interval used while a relevant background job is running. */
@@ -21,7 +21,7 @@ export const useFoundationStats = ({ poll = false }: UseFoundationStatsOptions =
 
   const loadStats = useCallback(async () => {
     try {
-      const response = await backendApi.get('/admin/foundation-stats');
+      const response = await request(api.get('/admin/foundation-stats'));
       setStats(response.data);
     } catch (e) {
       console.error('Failed to load foundation stats', e);

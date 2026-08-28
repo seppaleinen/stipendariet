@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { backendApi } from '@/lib/api';
+import { api, request } from '@/lib/api';
 
 interface User {
   id: string;
@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await backendApi.post('/auth/login', { email, password });
+      const response = await request(api.post('/auth/login', { email, password }));
       const { access_token, user: userData } = response.data;
 
       localStorage.setItem('adminToken', access_token);
