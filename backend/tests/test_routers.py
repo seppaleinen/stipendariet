@@ -743,13 +743,59 @@ class TestSearchRouter:
     def test_search_foundations(self):
         """Search foundations by query"""
         response = client.get("/api/search/foundations", params={"query": "test", "limit": 10})
-        assert response.status_code in [200, 500]
+        assert response.status_code == 200
 
     def test_search_profiles_empty(self):
         """Search profiles returns empty (stub)"""
         response = client.get("/api/search/profiles", params={"query": "test", "limit": 10})
         assert response.status_code == 200
         assert response.json() == []
+
+
+class TestSearchFoundationsNullTags:
+    """Regression for issue #20: search must not 500 when a foundation has tags=NULL."""
+
+    def test_search_foundations_handles_null_tags(self):
+        """A foundation with tags=NULL must not crash the search endpoint."""
+        from app.db.database import get_db as real_get_db
+
+        null_tags_foundation = MagicMock()
+        null_tags_foundation.foundation_id = 800
+        null_tags_foundation.name = "Foundation With No Tags"
+        null_tags_foundation.orgnr = "999999-9999"
+        null_tags_foundation.purpose = "Syfte"
+        null_tags_foundation.summary = "summary"
+        null_tags_foundation.address = None
+        null_tags_foundation.postnr = None
+        null_tags_foundation.postort = None
+        null_tags_foundation.target_groups = None
+        null_tags_foundation.funding_areas = None
+        null_tags_foundation.tags = None  # the regression case
+        null_tags_foundation.category = None
+
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.limit.return_value.all.return_value = [
+            null_tags_foundation
+        ]
+
+        def _gen():
+            yield mock_db
+
+        app.dependency_overrides[real_get_db] = _gen
+        try:
+            with patch("app.api.v1.routers.search.or_", return_value=MagicMock()):
+                response = client.get(
+                    "/api/search/foundations",
+                    params={"query": "test", "limit": 10},
+                )
+            assert response.status_code == 200
+            data = response.json()
+            assert isinstance(data, list)
+            assert len(data) == 1
+            assert data[0]["id"] == "foundation-800"
+            assert data[0]["tags"] is None
+        finally:
+            app.dependency_overrides.pop(real_get_db, None)
 
 
 # =============================================================================

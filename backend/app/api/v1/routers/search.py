@@ -24,7 +24,7 @@ def search_foundations(
                     models.Foundation.purpose.ilike(f"%{query}%"),
                     models.Foundation.translated_purpose.ilike(f"%{query}%"),
                     models.Foundation.summary.ilike(f"%{query}%"),
-                    models.Foundation.tags.any(query),  # if tags is an array
+                    models.Foundation.tags.contains([query]),
                 )
             )
             .limit(limit)

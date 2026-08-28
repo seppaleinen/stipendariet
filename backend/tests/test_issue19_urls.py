@@ -211,7 +211,7 @@ class TestSearchCanonicalIds:
         from app.db import models as db_models
 
         tags_mock = MagicMock()
-        tags_mock.any.return_value = MagicMock()
+        tags_mock.contains.return_value = MagicMock()
         with patch("app.api.v1.routers.search.or_", return_value=MagicMock()), \
              patch.object(db_models.Foundation, "tags", tags_mock):
             try:
