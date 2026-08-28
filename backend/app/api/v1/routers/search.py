@@ -35,7 +35,7 @@ def search_foundations(
         for foundation in foundations:
             results.append(
                 {
-                    "id": foundation.id,
+                    "id": f"foundation-{foundation.foundation_id}",
                     "foundation_id": foundation.foundation_id,
                     "name": foundation.name,
                     "orgnr": foundation.orgnr,

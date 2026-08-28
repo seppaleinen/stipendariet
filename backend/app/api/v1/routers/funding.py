@@ -48,7 +48,7 @@ def get_all_funding(db: Session = Depends(get_db)):
     for foundation in foundations:
         funding_list.append(
             {
-                "id": f"foundation-{foundation.id}",  # Using the db id with prefix
+                "id": f"foundation-{foundation.foundation_id}",  # canonical external id (issue #19)
                 "name": foundation.name,
                 "provider": f"Stiftelse ({foundation.orgnr if foundation.orgnr else 'Org.nr saknas'})",
                 "summary": (
@@ -101,15 +101,19 @@ def get_funding_by_id(funding_id: str, db: Session = Depends(get_db)):
         }
 
     elif funding_id.startswith("foundation-"):
-        # Extract the numeric part and get the foundation
-        # The id after 'foundation-' is the database id, not the foundation_id from external API
-        foundation_db_id = int(funding_id.replace("foundation-", ""))
-        foundation = crud.get_foundation_by_db_id(db, foundation_db_id)
+        # Extract the canonical part and get the foundation.
+        # The id after 'foundation-' is foundation_id (the external id from the
+        # API), NOT the database surrogate id (issue #19).
+        try:
+            foundation_id = int(funding_id.replace("foundation-", ""))
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Foundation not found")
+        foundation = crud.get_foundation(db, foundation_id)
         if not foundation:
             raise HTTPException(status_code=404, detail="Foundation not found")
 
         return {
-            "id": f"foundation-{foundation.id}",
+            "id": f"foundation-{foundation.foundation_id}",
             "name": foundation.name,
             "provider": f"Stiftelse ({foundation.orgnr if foundation.orgnr else 'Org.nr saknas'})",
             "summary": (
@@ -131,7 +135,8 @@ def get_funding_by_id(funding_id: str, db: Session = Depends(get_db)):
         }
 
     else:
-        # Handle legacy numeric IDs
+        # Legacy numeric (DB) id fallback is intentionally removed for
+        # foundations (issue #19). A bare numeric id can only be a legacy grant.
         try:
             grant_id = int(funding_id)
             grant = crud.get_grant(db, grant_id)

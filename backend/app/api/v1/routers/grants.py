@@ -39,7 +39,7 @@ def list_grants(
 
     def serialize(f):
         return {
-            "id": f"foundation-{f.id}",
+            "id": f"foundation-{f.foundation_id}",
             "name": f.name,
             "organization": f"Stiftelse ({f.orgnr or 'Org.nr saknas'})",
             "summary": f.summary or (f.purpose[:200] + "...") if f.purpose and len(f.purpose) > 200 else f.purpose,
@@ -58,18 +58,18 @@ def list_grants(
 
 @router.get("/{grant_id}")
 def get_grant(grant_id: str, db: Session = Depends(get_db)):
-    """Grant detail; supports foundation-{id} where id is DB id."""
+    """Grant detail; supports foundation-{foundation_id} where foundation_id is the external id."""
     if grant_id.startswith("foundation-"):
-        db_id = grant_id.replace("foundation-", "")
+        raw = grant_id.replace("foundation-", "")
         try:
-            db_id_int = int(db_id)
+            foundation_id = int(raw)
         except ValueError:
             raise HTTPException(status_code=404, detail="Grant not found")
-        foundation = crud.get_foundation_by_db_id(db, db_id_int)
+        foundation = crud.get_foundation(db, foundation_id)
         if not foundation:
             raise HTTPException(status_code=404, detail="Grant not found")
         return {
-            "id": f"foundation-{foundation.id}",
+            "id": f"foundation-{foundation.foundation_id}",
             "name": foundation.name,
             "organization": f"Stiftelse ({foundation.orgnr or 'Org.nr saknas'})",
             "orgnr": foundation.orgnr,
@@ -94,40 +94,14 @@ def get_grant(grant_id: str, db: Session = Depends(get_db)):
             "who_can_apply": foundation.who_can_apply,
             "deadline": None,
         }
-    # Legacy numeric id -> try foundations then grants
+
+    # Legacy numeric (DB) id fallback is intentionally removed (issue #19):
+    # grant detail is resolved canonically via foundation_id for foundations.
+    # A numeric id can only be a legacy grant row.
     try:
         db_id_int = int(grant_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Grant not found")
-
-    foundation = crud.get_foundation_by_db_id(db, db_id_int)
-    if foundation:
-        return {
-            "id": f"foundation-{foundation.id}",
-            "name": foundation.name,
-            "organization": f"Stiftelse ({foundation.orgnr or 'Org.nr saknas'})",
-            "orgnr": foundation.orgnr,
-            "purpose": foundation.purpose,
-            "translated_purpose": foundation.translated_purpose,
-            "summary": foundation.summary,
-            "category": foundation.category,
-            "address": foundation.address,
-            "postnr": foundation.postnr,
-            "postort": foundation.postort,
-            "co_address": foundation.co_address,
-            "phone": foundation.phone,
-            "signature": foundation.signature,
-            "roles": foundation.roles or [],
-            "parsed_service_area": foundation.parsed_service_area,
-            "website_url": foundation.website_url,
-            "application_deadline": foundation.application_deadline,
-            "application_start": foundation.application_start,
-            "application_method": foundation.application_method,
-            "contact_email": foundation.contact_email,
-            "contact_phone": foundation.contact_phone,
-            "who_can_apply": foundation.who_can_apply,
-            "deadline": None,
-        }
 
     grant = crud.get_grant(db, db_id_int)
     if grant:

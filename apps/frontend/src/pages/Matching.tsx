@@ -376,7 +376,7 @@ export default function Matching() {
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {results.map((match) => (
                             <Card
-                                key={match.foundation.id}
+                                key={match.foundation.foundation_id}
                                 className="flex flex-col hover:shadow-lg transition-shadow border-primary/20"
                             >
                                 <CardHeader>
@@ -420,7 +420,7 @@ export default function Matching() {
 
                                 <CardFooter>
                                     <Button asChild className="w-full">
-                                        <Link to={`/grants/foundation-${match.foundation.id}`}>Läs mer</Link>
+                                        <Link to={`/grants/foundation-${match.foundation.foundation_id}`}>Läs mer</Link>
                                     </Button>
                                 </CardFooter>
                             </Card>
