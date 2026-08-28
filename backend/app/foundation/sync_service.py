@@ -1,8 +1,12 @@
 import json
 import logging
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
+
+from sqlalchemy import bindparam, text
+from sqlalchemy.orm import Session
 
 from app.crud import crud
 from app.db import models
@@ -184,6 +188,107 @@ def extract_and_refine_foundation_data(
     return refined_data
 
 
+# Regex patterns for parsing saved_grants.grant_id values, mirroring the
+# issue #19 migration (abc123def456_rewrite_saved_grant_foundation_ids.py).
+_FOUNDATION_GRANT_ID_RE = re.compile(r"^foundation-(\d+)$")
+_GRANT_GRANT_ID_RE = re.compile(r"^grant-(\d+)$")
+
+
+def _cleanup_orphan_saved_grants(db: Session) -> tuple[int, int]:
+    """Delete SavedGrant rows whose grant_id no longer resolves to a live row.
+
+    An "orphan" is one of:
+      * `foundation-N` where no Foundation row has `foundation_id = N`
+      * `grant-N`       where no Grant row has `id = N`
+
+    Rows whose grant_id does not match either pattern are LEFT ALONE — they
+    represent valid saved grants in some other format we don't manage here.
+
+    Returns a (foundation_orphans_deleted, grant_orphans_deleted) tuple.
+    Safe to call when there are zero orphans (no-op).
+    """
+    foundation_orphans = 0
+    grant_orphans = 0
+
+    # --- foundation-{N} orphans ----------------------------------------------
+    # Build the set of currently-live foundation_ids (a small int list in
+    # practice). Matched in Python so we don't depend on Postgres-specific
+    # regex-on-text behaviour.
+    live_foundation_ids = {
+        fid for (fid,) in db.execute(
+            text("SELECT foundation_id FROM foundations")
+        ).fetchall()
+    }
+
+    foundation_candidate_rows = db.execute(
+        text("SELECT id, grant_id FROM saved_grants")
+    ).fetchall()
+
+    foundation_orphan_ids = []
+    for saved_id, grant_id in foundation_candidate_rows:
+        if not isinstance(grant_id, str):
+            continue
+        m = _FOUNDATION_GRANT_ID_RE.match(grant_id)
+        if not m:
+            continue
+        foundation_id = int(m.group(1))
+        if foundation_id not in live_foundation_ids:
+            foundation_orphan_ids.append(saved_id)
+
+    if foundation_orphan_ids:
+        foundation_orphans = len(foundation_orphan_ids)
+        # Bind the list as a tuple of ints; SQLAlchemy expands it into
+        # `IN (...)` parameters.
+        db.execute(
+            text("DELETE FROM saved_grants WHERE id IN :ids").bindparams(
+                bindparam("ids", expanding=True)
+            ),
+            {"ids": foundation_orphan_ids},
+        )
+
+    # --- grant-{N} orphans ---------------------------------------------------
+    # Re-read: the previous DELETE hasn't been committed yet so the second
+    # SELECT still sees foundation-prefix rows that survived (live ones).
+    # Grant-prefix rows are unaffected.
+    live_grant_ids = {
+        gid for (gid,) in db.execute(
+            text("SELECT id FROM grants")
+        ).fetchall()
+    }
+
+    grant_candidate_rows = db.execute(
+        text("SELECT id, grant_id FROM saved_grants")
+    ).fetchall()
+
+    grant_orphan_ids = []
+    for saved_id, grant_id in grant_candidate_rows:
+        if not isinstance(grant_id, str):
+            continue
+        m = _GRANT_GRANT_ID_RE.match(grant_id)
+        if not m:
+            continue
+        grant_id_int = int(m.group(1))
+        if grant_id_int not in live_grant_ids:
+            grant_orphan_ids.append(saved_id)
+
+    if grant_orphan_ids:
+        grant_orphans = len(grant_orphan_ids)
+        db.execute(
+            text("DELETE FROM saved_grants WHERE id IN :ids").bindparams(
+                bindparam("ids", expanding=True)
+            ),
+            {"ids": grant_orphan_ids},
+        )
+
+    db.commit()
+
+    logger.info(
+        f"Cleaned up orphan SavedGrant rows: {foundation_orphans} foundation orphans, "
+        f"{grant_orphans} grant orphans"
+    )
+    return foundation_orphans, grant_orphans
+
+
 def sync_foundations(task_id: str = None):
     """
     Main function to sync foundations from the external API to the database.
@@ -303,6 +408,17 @@ def sync_foundations(task_id: str = None):
                 _update_task(persisted_total, process_failed, 0, total)
 
             logger.info(f"Sync complete: {created_total} new, {updated_total} updated (total: {total})")
+
+            # Garbage-collect orphan SavedGrant rows now that the foundations
+            # table reflects the current API state. A failure here is logged
+            # but does NOT fail the sync — the cleanup is defence-in-depth
+            # and will run again on the next sync.
+            try:
+                _cleanup_orphan_saved_grants(db)
+            except Exception as cleanup_err:
+                logger.error(
+                    f"Orphan SavedGrant cleanup failed (sync still succeeded): {cleanup_err}"
+                )
 
             result = {
                 "status": "completed",

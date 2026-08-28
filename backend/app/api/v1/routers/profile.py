@@ -1,3 +1,5 @@
+import logging
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,6 +9,12 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user_payload
 from app.db import models, schemas
 from app.db.database import get_db
+
+logger = logging.getLogger(__name__)
+
+# Mirrors the patterns used in sync_service._cleanup_orphan_saved_grants.
+_FOUNDATION_GRANT_ID_RE = re.compile(r"^foundation-(\d+)$")
+_GRANT_GRANT_ID_RE = re.compile(r"^grant-(\d+)$")
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -33,11 +41,70 @@ def get_saved_grants(
     payload: dict = Depends(get_current_user_payload),
     db: Session = Depends(get_db),
 ):
-    """Get authenticated user's saved grant IDs."""
+    """Get authenticated user's saved grant IDs.
+
+    Defence-in-depth: rows whose `grant_id` no longer resolves to a live
+    Foundation or Grant are filtered out at read time. The sync-time cleanup
+    in `sync_service._cleanup_orphan_saved_grants` is the primary defence;
+    this filter just prevents any orphan rows from leaking into the API
+    response if a cleanup has not yet run (or failed).
+    """
     user_id = get_user_id_from_payload(payload)
 
     saved = db.query(models.SavedGrant).filter(models.SavedGrant.user_id == user_id).all()
-    return {"saved_grants": [s.grant_id for s in saved]}
+    grant_ids = [s.grant_id for s in saved]
+
+    if not grant_ids:
+        return {"saved_grants": []}
+
+    # Partition grant_ids by prefix; we only need to look up IDs we recognise.
+    foundation_ids: set[int] = set()
+    grant_ids_int: set[int] = set()
+    unrecognised: list[str] = []  # left untouched — not orphan by definition
+    for gid in grant_ids:
+        if not isinstance(gid, str):
+            unrecognised.append(gid)
+            continue
+        m = _FOUNDATION_GRANT_ID_RE.match(gid)
+        if m:
+            foundation_ids.add(int(m.group(1)))
+            continue
+        m = _GRANT_GRANT_ID_RE.match(gid)
+        if m:
+            grant_ids_int.add(int(m.group(1)))
+            continue
+        unrecognised.append(gid)
+
+    live_foundation_ids: set[int] = set()
+    live_grant_ids: set[int] = set()
+
+    if foundation_ids:
+        live_foundation_ids = {
+            fid for (fid,) in db.query(models.Foundation.foundation_id)
+            .filter(models.Foundation.foundation_id.in_(foundation_ids))
+            .all()
+        }
+
+    if grant_ids_int:
+        live_grant_ids = {
+            gid for (gid,) in db.query(models.Grant.id)
+            .filter(models.Grant.id.in_(grant_ids_int))
+            .all()
+        }
+
+    def _is_live(gid: str) -> bool:
+        if gid in unrecognised:
+            return True
+        m = _FOUNDATION_GRANT_ID_RE.match(gid)
+        if m:
+            return int(m.group(1)) in live_foundation_ids
+        m = _GRANT_GRANT_ID_RE.match(gid)
+        if m:
+            return int(m.group(1)) in live_grant_ids
+        return True  # unreachable (partitioned above) but keep safe default
+
+    filtered = [gid for gid in grant_ids if _is_live(gid)]
+    return {"saved_grants": filtered}
 
 
 @router.post("/saved-grants", status_code=status.HTTP_201_CREATED)
