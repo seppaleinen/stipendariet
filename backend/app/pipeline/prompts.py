@@ -69,6 +69,9 @@ Exempel på geografiska begränsningar:
 - "boende i Göteborgs kommun" → kommun Göteborg
 - "invånare i Uppsala län" → län Uppsala
 - "födda i Skåne" → län Skåne
+- "endast boende på Norr Mälarstrand i Stockholm" → kommun Stockholm, detalj: endast boende på Norr Mälarstrand
+
+Om texten anger en finare geografisk nivå än kommun (t.ex. gata, stadsdel, församling eller annat avgränsat område), bevara den beskrivningen i fältet service_area_detail. Om ingen finare detalj nämns, sätt service_area_detail till null.
 
 Tydliga tecken på att en stiftelse ÄR geografiskt begränsad:
 - Namnet innehåller en kommuns eller läns namn
@@ -85,11 +88,11 @@ Tydliga tecken på att en stiftelse ÄR INTE geografiskt begränsad:
 SERVICE_AREA_USER_PROMPT = """Stiftelsenamn: {foundation_name}
 Ändamål/Beskrivning: {purpose}
 
-Identifiera om denna stiftelse är geografiskt begränsad. Om ja, ange kommun (om möjligt) eller lannamn.
+Identifiera om denna stiftelse är geografiskt begränsad. Om ja, ange kommun (om möjligt) eller län. Om texten anger en finare detalj (gata, stadsdel, församling eller annat avgränsat område), ange den i service_area_detail.
 
 Svara ENDAST med ett JSON-objekt:
-{{"location_name": "kommun-eller-lannamn", "granularity": "municipality_eller_county"}}
+{{"location_name": "kommun-eller-lannamn", "granularity": "municipality_eller_county", "service_area_detail": "finare detalj eller null"}}
 
 Om stiftelsen inte är geografiskt begränsad, svara med:
-{{"location_name": null, "granularity": null}}
+{{"location_name": null, "granularity": null, "service_area_detail": null}}
 """

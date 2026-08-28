@@ -130,6 +130,20 @@ export interface GrantsResponse {
   has_more: boolean;
 }
 
+/** LLM-extracted eligibility footprint (Service area) of a Foundation,
+ *  derived from its name and purpose text. Stored as JSON on the backend
+ *  and mapped to camelCase on the frontend. */
+export interface ParsedServiceArea {
+  municipality_code: string;
+  county_code: string;
+  municipality_name: string;
+  county_name: string;
+  source_text: string;
+  confidence: string;
+  /** Street / neighborhood level detail when the Service area is finer than a municipality */
+  service_area_detail?: string;
+}
+
 export interface MatchedFoundation {
   foundation: {
     id: number;
@@ -138,6 +152,7 @@ export interface MatchedFoundation {
     summary: string | null;
     translated_purpose: string | null;
     category: string | null;
+    parsedServiceArea?: ParsedServiceArea;
   };
   similarity_score: number;
 }

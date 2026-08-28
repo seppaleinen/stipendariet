@@ -1,10 +1,10 @@
 import { Grant, Application } from "@/types/grants";
 import { createApiClient } from "@stipendariet/api-client";
 import { getAuthToken } from "@/contexts/AuthContext";
-import type { MatchedFoundation, Profile, GrantsResponse } from "@stipendariet/types";
+import type { MatchedFoundation, ParsedServiceArea, Profile, GrantsResponse } from "@stipendariet/types";
 
 // Re-export shared types used by components
-export type { MatchedFoundation, Profile, GrantsResponse } from "@stipendariet/types";
+export type { MatchedFoundation, ParsedServiceArea, Profile, GrantsResponse } from "@stipendariet/types";
 
 const api = createApiClient({
   baseUrl: import.meta.env.VITE_API_URL || "/api",
@@ -311,7 +311,7 @@ export async function findMatchingFoundations(
   _profileId?: number
 ): Promise<MatchedFoundation[]> {
   const { data } = await api.post('/foundations/matching', { needs, threshold, limit });
-  return data;
+  return mapMatchedFoundations(data);
 }
 
 export async function findMatchingFoundationsByProfile(
@@ -328,5 +328,27 @@ export async function findMatchingFoundationsByProfile(
     threshold,
     limit,
   });
-  return data;
+  return mapMatchedFoundations(data);
+}
+
+// Matched foundations are consumed with a snake_case foundation object (the raw
+// backend shape) except `parsed_service_area`, which the frontend model exposes
+// as camelCase `parsedServiceArea`. See packages/types MatchedFoundation.
+type BackendMatchedFoundation = MatchedFoundation & {
+  foundation: MatchedFoundation["foundation"] & {
+    parsed_service_area?: ParsedServiceArea;
+  };
+};
+
+export function mapMatchedFoundations(data: BackendMatchedFoundation[]): MatchedFoundation[] {
+  return (data ?? []).map((match) => {
+    const { parsed_service_area, ...rest } = match.foundation;
+    return {
+      ...match,
+      foundation: {
+        ...rest,
+        ...(parsed_service_area ? { parsedServiceArea: parsed_service_area } : {}),
+      },
+    };
+  });
 }

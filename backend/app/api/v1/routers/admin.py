@@ -16,6 +16,7 @@ from app.api.admin.embeddings import (
 )
 from app.api.admin.enrichment import (
     EnrichmentTestRequest,
+    backfill_service_area_endpoint,
     enrich_single_foundation_endpoint,
     get_enrichment_defaults_endpoint,
     get_enrichment_details_endpoint,
@@ -115,6 +116,13 @@ def generate_single_embedding(foundation_id: int):
 @router.post("/enrich/start")
 async def trigger_enrichment(batch_size: int = Query(None)):
     return await trigger_enrichment_endpoint(batch_size=batch_size)
+
+@router.post("/enrich/backfill-service-area")
+async def backfill_service_area(
+    limit: int = Query(20, ge=1, le=200, description="Max foundations to process in one run"),
+    delay_seconds: float = Query(0.5, ge=0, description="Sleep between LLM calls (rate-limit safety)"),
+):
+    return await backfill_service_area_endpoint(limit=limit, delay_seconds=delay_seconds)
 
 @router.get("/enrich/status")
 def get_enrichment_status():

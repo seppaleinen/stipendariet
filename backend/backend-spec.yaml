@@ -147,6 +147,54 @@ paths:
                 properties:
                   emailText: { type: string }
 
+  /api/foundations/matching:
+    post:
+      summary: Find foundations matching a free-text needs description
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                needs: { type: string }
+                threshold: { type: number, format: float }
+                limit: { type: integer }
+      responses:
+        "200":
+          description: Foundations ranked by similarity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchedFoundation"
+
+  /api/foundations/matching-by-profile:
+    post:
+      summary: Find foundations matching a saved profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile_id: { type: integer }
+                use_geographic_filter: { type: boolean }
+                use_description: { type: boolean }
+                threshold: { type: number, format: float }
+                limit: { type: integer }
+      responses:
+        "200":
+          description: Foundations ranked by similarity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchedFoundation"
+
 components:
   schemas:
     Grant:
@@ -206,3 +254,65 @@ components:
         background: { type: string }
         achievements: { type: string }
         goals: { type: string }
+
+    ParsedServiceArea:
+      type: object
+      description: >
+        The eligibility footprint (Service area) of a Foundation, extracted from
+        its name and purpose text. Distinct from the Registered address; Service
+        area governs who may benefit.
+      properties:
+        municipality_code: { type: string }
+        county_code: { type: string }
+        municipality_name: { type: string }
+        county_name: { type: string }
+        source_text: { type: string }
+        confidence: { type: string }
+        service_area_detail: { type: string }
+
+    Foundation:
+      type: object
+      properties:
+        id: { type: integer }
+        foundation_id: { type: integer }
+        name: { type: string }
+        orgnr: { type: string }
+        purpose: { type: string }
+        translated_purpose: { type: string }
+        summary: { type: string }
+        address: { type: string }
+        postnr: { type: string }
+        postort: { type: string }
+        county_code: { type: string }
+        municipality_code: { type: string }
+        parsed_service_area:
+          $ref: "#/components/schemas/ParsedServiceArea"
+        phone: { type: string }
+        co_address: { type: string }
+        type: { type: integer }
+        signature: { type: string }
+        roles:
+          type: array
+          items: { type: object }
+        business_entities:
+          type: array
+          items: { type: object }
+        last_updated: { type: string }
+        target_groups:
+          type: array
+          items: { type: object }
+        funding_areas:
+          type: array
+          items: { type: object }
+        tags:
+          type: array
+          items: { type: string }
+        category: { type: string }
+        raw_data: { type: object }
+
+    MatchedFoundation:
+      type: object
+      properties:
+        foundation:
+          $ref: "#/components/schemas/Foundation"
+        similarity_score: { type: number, format: float }

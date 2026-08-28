@@ -4,6 +4,7 @@ import {
   mapApplicationFromBackend,
   mapBackendProfileToFrontend,
   mapFrontendProfileToBackend,
+  mapMatchedFoundations,
 } from "@/lib/api";
 
 describe("mapGrantFromBackend", () => {
@@ -407,5 +408,71 @@ describe("mapFrontendProfileToBackend", () => {
 
     const backendOutput = mapFrontendProfileToBackend(frontend);
     expect(backendOutput.selfDescription).toBe("Text som ska bevaras.");
+  });
+});
+
+describe("mapMatchedFoundations", () => {
+  it("maps parsed_service_area to parsedServiceArea on the foundation", () => {
+    const backend = [
+      {
+        foundation: {
+          id: 1,
+          foundation_id: 100,
+          name: "Kalmar Stiftelse",
+          summary: "Stöd i sydöstra Sverige.",
+          translated_purpose: "Stöd för studier i Kalmar.",
+          category: "Education",
+          parsed_service_area: {
+            municipality_code: "0880",
+            county_code: "08",
+            municipality_name: "Kalmar",
+            county_name: "Kalmar län",
+            source_text: "Kalmar",
+            confidence: "high",
+            service_area_detail: "Området runt Kalmar stad",
+          },
+        },
+        similarity_score: 0.87,
+      },
+    ];
+
+    const mapped = mapMatchedFoundations(backend);
+
+    expect(mapped[0].foundation.parsedServiceArea).toEqual({
+      municipality_code: "0880",
+      county_code: "08",
+      municipality_name: "Kalmar",
+      county_name: "Kalmar län",
+      source_text: "Kalmar",
+      confidence: "high",
+      service_area_detail: "Området runt Kalmar stad",
+    });
+    // snake_case key is removed; other foundation fields are preserved
+    expect((mapped[0].foundation as Record<string, unknown>).parsed_service_area).toBeUndefined();
+    expect(mapped[0].foundation.name).toBe("Kalmar Stiftelse");
+    expect(mapped[0].foundation.category).toBe("Education");
+    expect(mapped[0].similarity_score).toBe(0.87);
+  });
+
+  it("leaves parsedServiceArea undefined when parsed_service_area is absent", () => {
+    const backend = [
+      {
+        foundation: {
+          id: 2,
+          foundation_id: 200,
+          name: "Stiftelse utan service area",
+          summary: null,
+          translated_purpose: "Allmännyttigt ändamål.",
+          category: null,
+        },
+        similarity_score: 0.5,
+      },
+    ];
+
+    const mapped = mapMatchedFoundations(backend);
+
+    expect(mapped[0].foundation.parsedServiceArea).toBeUndefined();
+    expect(mapped[0].foundation.name).toBe("Stiftelse utan service area");
+    expect(mapped[0].similarity_score).toBe(0.5);
   });
 });

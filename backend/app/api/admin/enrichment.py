@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import HTTPException, status
@@ -336,6 +337,83 @@ def get_enrichment_details_endpoint(limit: int = 20, status_filter: str = None):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get enrichment details: {str(e)}"
         )
+
+
+async def backfill_service_area_endpoint(
+    limit: int = 20,
+    delay_seconds: float = 0.5,
+) -> dict:
+    """
+    Extract-only backfill of parsed_service_area for foundations where it is NULL.
+
+    Runs ONLY the service-area extraction stage (no web discovery, no scraping,
+    no full pipeline). Rate-limit safe: processes at most `limit` foundations
+    with a small sleep between LLM calls. Idempotent: re-running only picks up
+    remaining NULL rows.
+
+    Args:
+        limit: Max number of foundations to process in one run.
+        delay_seconds: Sleep between LLM calls to stay rate-limit safe.
+    """
+    from app.db import models
+    from app.db.database import get_db
+    from app.pipeline.orchestrator import _db_save_parsed_service_area
+    from app.pipeline.service_area import extract_service_area
+
+    logger.info(f"Admin triggered service area backfill (limit={limit}, delay={delay_seconds}s)")
+
+    db = next(get_db())
+    try:
+        # Only foundations that have never been parsed (NULL column) are candidates.
+        foundations = (
+            db.query(models.Foundation)
+            .filter(models.Foundation.parsed_service_area.is_(None))
+            .order_by(models.Foundation.id)
+            .limit(limit)
+            .all()
+        )
+    finally:
+        db.close()
+
+    if not foundations:
+        return {
+            "status": "no_work",
+            "message": "No foundations with NULL parsed_service_area found",
+            "processed": 0,
+            "failed": 0,
+            "failures": [],
+        }
+
+    processed = 0
+    failures = []
+    for foundation in foundations:
+        try:
+            service_area = await extract_service_area(
+                foundation.name,
+                purpose=foundation.purpose,
+                description=foundation.summary,
+            )
+        except Exception as e:
+            logger.error(f"Service area backfill failed for foundation {foundation.id}: {e}")
+            failures.append({"id": foundation.id, "name": foundation.name, "error": str(e)})
+            continue
+
+        # Overwrite semantics: the selected row is NULL by definition, but the
+        # shared save helper also unconditionally overwrites on re-enrich.
+        if service_area:
+            await asyncio.to_thread(_db_save_parsed_service_area, foundation.id, service_area)
+        processed += 1
+
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
+
+    return {
+        "status": "success",
+        "message": f"Service area backfill processed {processed} foundations",
+        "processed": processed,
+        "failed": len(failures),
+        "failures": failures,
+    }
 
 
 def get_enrichment_defaults_endpoint():

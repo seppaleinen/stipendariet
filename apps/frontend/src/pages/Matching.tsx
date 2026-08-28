@@ -395,6 +395,24 @@ export default function Matching() {
                                 </CardHeader>
 
                                 <CardContent className="flex-1">
+                                    {match.foundation.parsedServiceArea && (
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+                                            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                            <span className="line-clamp-2">
+                                                Serviceområde:{" "}
+                                                <span className="font-medium">
+                                                    {match.foundation.parsedServiceArea.municipality_name ||
+                                                        match.foundation.parsedServiceArea.county_name}
+                                                </span>
+                                                {match.foundation.parsedServiceArea.source_text ? (
+                                                    <> · {match.foundation.parsedServiceArea.source_text}</>
+                                                ) : null}
+                                                {match.foundation.parsedServiceArea.service_area_detail ? (
+                                                    <> · {match.foundation.parsedServiceArea.service_area_detail}</>
+                                                ) : null}
+                                            </span>
+                                        </div>
+                                    )}
                                     <CardDescription className="line-clamp-4">
                                         {cleanTextForPreview(match.foundation.translated_purpose || match.foundation.summary) || "Ingen beskrivning"}
                                     </CardDescription>

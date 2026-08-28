@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class LLMServiceAreaResult(BaseModel):
     location_name: str | None = None
     granularity: str | None = None  # "municipality" or "county"
+    service_area_detail: str | None = None  # fine-grained free text (street/neighborhood/area)
 
 
 class ParsedServiceArea(BaseModel):
@@ -30,6 +31,7 @@ class ParsedServiceArea(BaseModel):
     county_name: str | None = None
     source_text: str | None = None
     confidence: str | None = None  # "high", "medium", "low"
+    service_area_detail: str | None = None  # fine-grained eligibility detail, preserved and displayed
 
 
 def _map_location_to_codes(
@@ -169,6 +171,7 @@ async def extract_service_area(
             **codes,
             source_text=llm_result.location_name,
             confidence="high" if llm_result.granularity == "municipality" else "medium",
+            service_area_detail=llm_result.service_area_detail,
         )
 
         logger.info(

@@ -178,3 +178,47 @@ class TestExtractServiceArea:
 
         assert result is not None
         assert result["municipality_code"] == "0880"
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_extracts_service_area_detail(self, mock_chat):
+        """Street-level detail (gata/stadsdel/område) is preserved alongside the codes."""
+        mock_chat.return_value = (
+            '{"location_name": "Stockholm", "granularity": "municipality", '
+            '"service_area_detail": "endast boende på Norr Mälarstrand"}'
+        )
+
+        result = await extract_service_area(
+            "Stiftelsen Norr Mälarstrand",
+            purpose="Stöd till boende på Norr Mälarstrand i Stockholm",
+        )
+
+        assert result is not None
+        assert result["municipality_code"] == "0180"
+        assert result["service_area_detail"] == "endast boende på Norr Mälarstrand"
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_no_detail_when_not_mentioned(self, mock_chat):
+        """When the LLM returns null detail, the stored JSON has the key as None."""
+        mock_chat.return_value = (
+            '{"location_name": "Kalmar", "granularity": "municipality", "service_area_detail": null}'
+        )
+
+        result = await extract_service_area("Stiftelsen Kalmar", purpose="För Kalmar")
+
+        assert result is not None
+        assert result["municipality_code"] == "0880"
+        assert result.get("service_area_detail") is None
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_detail_defaults_none_when_llm_omits_key(self, mock_chat):
+        """Backward compatibility: an LLM response without the new key still parses."""
+        mock_chat.return_value = '{"location_name": "Kalmar", "granularity": "municipality"}'
+
+        result = await extract_service_area("Stiftelsen Kalmar", purpose="För Kalmar")
+
+        assert result is not None
+        assert result["municipality_code"] == "0880"
+        assert result.get("service_area_detail") is None
