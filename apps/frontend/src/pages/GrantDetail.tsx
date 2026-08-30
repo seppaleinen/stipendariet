@@ -15,19 +15,29 @@ import { Grant } from "@/types/grants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SITE_URL } from "@/lib/page-metadata";
+import { useSSRData } from "@/contexts/SSRDataContext";
 
 export default function GrantDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [grant, setGrant] = useState<Grant | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSaved, setIsSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
 
+  // Read pre-fetched grant data from the SSR pipeline.
+  // The lazy initialiser makes this synchronous — the grant is available on first render
+  // without waiting for useEffect.
+  const ssrData = useSSRData();
+  const [grant, setGrant] = useState<Grant | null>(() => {
+    const g = ssrData.grant as Grant | undefined;
+    return g ?? null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => ssrData.grant == null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // If the SSR pipeline provided the grant, we're done. Otherwise fetch from the API.
   useEffect(() => {
-    if (id) {
+    if (id && !ssrData.grant) {
       loadGrant(id);
     }
   }, [id]);

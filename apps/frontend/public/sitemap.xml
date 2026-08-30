@@ -16,4 +16,19 @@
       <changefreq>weekly</changefreq>
       <priority>0.8</priority>
     </url>
+    <url>
+      <loc>https://stipendieassistenten.labb.site/grants/foundation-1015181</loc>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+    </url>
+    <url>
+      <loc>https://stipendieassistenten.labb.site/grants/foundation-1021363</loc>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+    </url>
+    <url>
+      <loc>https://stipendieassistenten.labb.site/grants/foundation-1028756</loc>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+    </url>
 </urlset>

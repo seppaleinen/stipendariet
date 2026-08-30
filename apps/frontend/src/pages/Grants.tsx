@@ -31,18 +31,31 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
 import FAQSchema from "@/components/FAQSchema";
+import { useSSRData } from "@/contexts/SSRDataContext";
 
 const ITEMS_PER_PAGE = 50;
 
+interface GrantsApiResponse {
+  grants: Grant[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+}
+
 export default function Grants() {
-  const [grants, setGrants] = useState<Grant[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Read pre-fetched grants from SSR. Lazy initialisers make this synchronous.
+  const ssrData = useSSRData();
+  const ssrGrants = (ssrData.grants as GrantsApiResponse | undefined) ?? null;
+
+  const [grants, setGrants] = useState<Grant[]>(() => ssrGrants?.grants ?? []);
+  const [totalCount, setTotalCount] = useState<number>(() => ssrGrants?.total ?? 0);
+  const [loading, setLoading] = useState<boolean>(() => ssrGrants == null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState<boolean>(() => ssrGrants?.has_more ?? true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [skip, setSkip] = useState(0);
+  const [skip, setSkip] = useState<number>(() => ssrGrants?.skip ?? 0);
   const [savedGrantIds, setSavedGrantIds] = useState<Set<string>>(new Set());
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<string[]>(["all"]);
@@ -56,10 +69,19 @@ export default function Grants() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Load grants when filters change
+  // If SSR provided an initial grants list, the categories can be extracted from it.
+  // Otherwise, fetch on first effect.
   useEffect(() => {
+    if (ssrGrants?.grants.length) {
+      const uniqueCategories = Array.from(
+        new Set(ssrGrants.grants.map((g) => g.category).filter(Boolean))
+      );
+      setCategories(["all", ...uniqueCategories]);
+      return;
+    }
+    // SSR did not provide grants — fetch the first page
     loadGrants(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omit loadGrants: it closes over skip; adding it would refetch on every pagination update
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitted: loadGrants closes over `skip`
   }, [debouncedSearch, categoryFilter]);
 
   useEffect(() => {

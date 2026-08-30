@@ -20,4 +20,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // NOTE: `build.ssr` is intentionally NOT set here — it would force the entire
+  // client build into SSR mode. The SSR bundle is built separately by
+  // scripts/prerender.js via Vite's programmatic API:
+  //   createViteServer({ build: { ssr: true, rollupOptions: { input: "src/entry-server.tsx" } } })
 }));
