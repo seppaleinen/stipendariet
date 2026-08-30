@@ -9,12 +9,13 @@ import {
   CardTitle,
 } from "@stipendariet/ui";
 import { Search, FileText, Sparkles, ArrowRight, User } from "lucide-react";
-import { SITE_URL } from "@/lib/page-metadata";
+import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
+import FAQSchema from "@/components/FAQSchema";
 
 export default function Home() {
   return (
     <>
-      <Helmet>
+<Helmet>
         <title>StipendieAssistenten - Hitta och ansök om stipendier</title>
         <meta name="description" content="Din guide till att hitta och ansöka om stipendier och bidrag för din familj. Sök bland hundratals stipendier med kraftfulla filter." />
         <link rel="canonical" href={SITE_URL} />
@@ -22,9 +23,14 @@ export default function Home() {
         <meta property="og:description" content="Din guide till att hitta och ansöka om stipendier och bidrag för din familj." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={SITE_URL} />
+        <meta property="og:image" content={DEFAULT_OG_IMAGE} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="StipendieAssistenten - Hitta och ansök om stipendier" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@StipendieAss" />
       </Helmet>
+      <FAQSchema />
       <div className="space-y-12">
       {/* Hero Section */}
       <section className="text-center space-y-4 py-12">

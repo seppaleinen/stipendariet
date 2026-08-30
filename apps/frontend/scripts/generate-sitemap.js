@@ -1,47 +1,61 @@
 #!/usr/bin/env node
 /**
- * Generate sitemap.xml for StipendieAssistenten SPA
- * Run: node scripts/generate-sitemap.js
+ * Generate sitemap.xml — includes static routes + all individual grant pages.
+ * Run: node scripts/generate-sitemap.js  (called automatically during `pnpm run build`)
  */
 
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
-const SITE_URL = "https://stipendieassistenten.labb.site";
+const SITE_URL = process.env.VITE_SITE_URL || "https://stipendieassistenten.labb.site";
+const API_BASE = process.env.VITE_API_URL || "https://stipendieassistenten.labb.site/api";
 const PUBLIC_DIR = join(import.meta.dirname, "..", "public");
 
 // Public routes that should be indexed
-const publicRoutes = [
-  "/",
-  "/grants",
-  "/matching",
-  "/grants/:id", // Grant detail pages (dynamic)
+const staticRoutes = [
+  { path: "/", changefreq: "daily", priority: "1.0" },
+  { path: "/grants", changefreq: "weekly", priority: "0.9" },
+  { path: "/matching", changefreq: "weekly", priority: "0.8" },
 ];
 
-// Protected routes that should be noindexed (handled by robots.txt)
-// These are NOT included in sitemap:
-// /auth, /applications, /generate, /profile-setup, /family-setup
+async function generateSitemap() {
+  let grantCount = 0;
 
-function generateSitemap() {
-  // No <lastmod>: dates stamped at build time are fabricated (SEO-meaningless —
-  // Google ignores inaccurate lastmod) and made every build dirty the working
-  // tree with date churn (issue #18). lastmod is optional per sitemap 0.9 spec.
-
-  const publicRouteEntries = publicRoutes
-    .filter((r) => !r.includes(":")) // Exclude dynamic routes from static sitemap
-    .map((route) => {
-      const url = `${SITE_URL}${route}`;
-      return `
+  // Fetch all published grant IDs from the backend at build time.
+  // Falls back gracefully if the API is unreachable (log warning, skip grant URLs).
+  let grantEntries = "";
+  try {
+    const res = await fetch(`${API_BASE}/grants?limit=1000&skip=0`);
+    if (res.ok) {
+      const { grants } = await res.json();
+      grantCount = grants.length;
+      grantEntries = grants
+        .map((grant) => `
     <url>
-      <loc>${url}</loc>
-      <changefreq>${route === "/" ? "daily" : "weekly"}</changefreq>
-      <priority>${route === "/" ? "1.0" : "0.8"}</priority>
-    </url>`;
-    }).join("");
+      <loc>${SITE_URL}/grants/${grant.id}</loc>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+    </url>`)
+        .join("");
+    }
+  } catch (err) {
+    console.warn("Could not fetch grants for sitemap:", err.message);
+  }
+
+  const staticEntries = staticRoutes
+    .map(
+      ({ path, changefreq, priority }) => `
+    <url>
+      <loc>${SITE_URL}${path}</loc>
+      <changefreq>${changefreq}</changefreq>
+      <priority>${priority}</priority>
+    </url>`
+    )
+    .join("");
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${publicRouteEntries}
+${staticEntries}${grantEntries}
 </urlset>`;
 
   const sitemapPath = join(PUBLIC_DIR, "sitemap.xml");
@@ -54,14 +68,20 @@ ${publicRouteEntries}
   }
 
   if (existing === sitemap) {
-    console.log(`✅ Sitemap unchanged, skipping write: ${sitemapPath}`);
-    console.log(`   Public routes indexed: ${publicRoutes.filter((r) => !r.includes(":")).length}`);
+    console.log(`Sitemap unchanged, skipping write: ${sitemapPath}`);
+    console.log(`   Static routes indexed: ${staticRoutes.length}`);
+    if (grantCount > 0) {
+      console.log(`   Grant pages indexed: ${grantCount}`);
+    }
     return;
   }
 
   writeFileSync(sitemapPath, sitemap);
-  console.log(`✅ Sitemap generated at ${sitemapPath}`);
-  console.log(`   Public routes indexed: ${publicRoutes.filter((r) => !r.includes(":")).length}`);
+  console.log(`Sitemap generated at ${sitemapPath}`);
+  console.log(`   Static routes indexed: ${staticRoutes.length}`);
+  if (grantCount > 0) {
+    console.log(`   Grant pages indexed: ${grantCount}`);
+  }
 }
 
-generateSitemap();
+generateSitemap().catch(console.error);

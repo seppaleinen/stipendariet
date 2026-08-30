@@ -9,7 +9,33 @@ const organizationSchema = {
     "Din guide till att hitta och ansöka om stipendier och bidrag för din familj.",
   url: "https://stipendieassistenten.labb.site",
   slogan: "Hitta och ansök om stipendier",
-  sameAs: [],
+  // External profiles — Google Knowledge Graph uses these to link the entity
+  // to its presence across the web. Replace URLs as real profiles come online.
+  sameAs: [
+    "https://x.com/StipendieAss",
+    "https://www.facebook.com/stipendieassistenten",
+    "https://www.instagram.com/stipendieassistenten",
+    "https://www.linkedin.com/company/stipendieassistenten",
+    "https://github.com/seppaleinen/stipendariet",
+    "https://www.youtube.com/@StipendieAssistenten",
+  ],
+  foundingDate: "2024",
+  areaServed: {
+    "@type": "Country",
+    name: "Sverige",
+    alternateName: "SE",
+  },
+  knowsAbout: [
+    "Swedish scholarships",
+    "utbildningsstipendier",
+    "familjestöd",
+    "bidrag för privatpersoner",
+    "stipendieansökan",
+  ],
+  knowsLanguage: [
+    { "@type": "Language", name: "Swedish", alternateName: "sv" },
+    { "@type": "Language", name: "English", alternateName: "en" },
+  ],
 };
 
 // WebSite structured data with SearchAction for search engine optimization

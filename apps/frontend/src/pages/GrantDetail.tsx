@@ -124,18 +124,60 @@ export default function GrantDetail() {
     [grant.postnr, grant.postort].filter(Boolean).join(" "),
   ].filter(Boolean).join("\n");
 
+  // ScholarshipProgram JSON-LD for rich results and AI ingestion (issue #23, AEO Flaw 2)
+  const scholarshipSchema = {
+    "@context": "https://schema.org",
+    "@type": "ScholarshipProgram",
+    name: grant.title,
+    description: descriptionText,
+    provider: {
+      "@type": "Organization",
+      name: grant.provider,
+      ...(grant.websiteUrl ? { url: grant.websiteUrl } : {}),
+    },
+    ...(grant.amount
+      ? {
+          aggregateRating: {
+            "@type": "QuantitativeValue",
+            value: grant.amount.replace(/[^0-9]/g, "") || undefined,
+            unitText: grant.amount,
+          },
+        }
+      : {}),
+    ...(grant.deadline ? { expirationDate: grant.deadline } : {}),
+    ...(grant.whoCanApply
+      ? {
+          step: grant.whoCanApply
+            .split("\n")
+            .filter((s) => s.trim().length > 0)
+            .slice(0, 3)
+            .map((text) => ({ "@type": "HowToStep", text })),
+        }
+      : {}),
+    url: `${SITE_URL}/grants/${id}`,
+  };
+
    return (
      <>
        <Helmet>
          <title>{`${grant.title} - ${grant.provider} | StipendieAssistenten`}</title>
          <meta name="description" content={grant.translatedPurpose || grant.purpose || grant.description || ""} />
          <link rel="canonical" href={`${SITE_URL}/grants/${id}`} />
+         <link rel="alternate" hrefLang="sv-SE" href={`${SITE_URL}/grants/${id}`} />
+         <link rel="alternate" hrefLang="x-default" href={`${SITE_URL}/grants/${id}`} />
          <meta property="og:title" content={grant.title} />
          <meta property="og:description" content={grant.translatedPurpose || grant.purpose || grant.description || ""} />
          <meta property="og:type" content="article" />
          <meta property="og:url" content={`${SITE_URL}/grants/${id}`} />
+         <meta property="og:image" content={`${SITE_URL}/og-image.png`} />
+         <meta property="og:image:width" content="1200" />
+         <meta property="og:image:height" content="630" />
+         <meta property="og:image:alt" content={`${grant.title} - ${grant.provider}`} />
          <meta name="twitter:card" content="summary_large_image" />
          <meta name="twitter:site" content="@StipendieAss" />
+         <script type="application/ld+json">
+           {JSON.stringify(scholarshipSchema)}
+         </script>
        </Helmet>
        <article className="max-w-4xl mx-auto space-y-6">
          <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)} aria-label="Gå tillbaka till föregående sida">
@@ -171,35 +213,56 @@ export default function GrantDetail() {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Key Information */}
-          <div className="grid md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-            {grant.orgnr && (
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Organisationsnummer</div>
-                <div className="font-medium">{grant.orgnr}</div>
-              </div>
-            )}
-            {grant.amount && (
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Belopp</div>
-                <div className="font-medium">{grant.amount}</div>
-              </div>
-            )}
-            {grant.deadline && (
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">
-                  Ansökningsdeadline
+          {/* Key Information — semantic <dl> for LLM/SEO ingestion (issue #23, GEO Flaw 2) */}
+          <section aria-labelledby="key-facts-heading">
+            <h2 id="key-facts-heading" className="sr-only">Nyckelfakta om stipendium</h2>
+            <dl className="grid md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              {grant.orgnr && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Organisationsnummer</dt>
+                  <dd className="font-medium" data-fresh="true">{grant.orgnr}</dd>
                 </div>
-                <div className="font-medium">{grant.deadline}</div>
+              )}
+              {grant.amount && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Belopp</dt>
+                  <dd className="font-medium" data-fresh="true">{grant.amount}</dd>
+                </div>
+              )}
+              {grant.deadline && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Ansökningsdeadline</dt>
+                  <dd
+                    className="font-medium"
+                    data-deadline={grant.deadline}
+                    data-datetime={grant.deadline}
+                  >
+                    {grant.deadline}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-sm text-muted-foreground">Typ</dt>
+                <dd className="font-medium">
+                  {grant.isRecurring ? "Återkommande" : "Engångsbelopp"}
+                </dd>
               </div>
-            )}
-            <div>
-              <div className="text-sm text-muted-foreground mb-1">Typ</div>
-              <div className="font-medium">
-                {grant.isRecurring ? "Återkommande" : "Engångsbelopp"}
-              </div>
-            </div>
-          </div>
+              {grant.applicationStart && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Ansökan öppnar</dt>
+                  <dd className="font-medium" data-datetime={grant.applicationStart}>
+                    {grant.applicationStart}
+                  </dd>
+                </div>
+              )}
+              {grant.category && (
+                <div>
+                  <dt className="text-sm text-muted-foreground">Kategori</dt>
+                  <dd className="font-medium">{grant.category}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
 
           {/* Description/Purpose */}
           <div>

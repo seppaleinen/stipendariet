@@ -61,6 +61,7 @@ export const PAGE_METADATA: Record<string, PageMetadata> = {
 
 // Dynamic metadata for grant detail pages (filled at runtime)
 export const getGrantMetadata = (grant: {
+  id: string;
   title: string;
   provider: string;
   category: string;
@@ -78,6 +79,6 @@ export const getGrantMetadata = (grant: {
     title: `${grant.title} - ${grant.provider} | StipendieAssistenten`,
     description: truncated,
     ogImage: DEFAULT_OG_IMAGE,
-    canonicalUrl: `${SITE_URL}/grants`,
+    canonicalUrl: `${SITE_URL}/grants/${grant.id ?? ""}`,
   };
 };

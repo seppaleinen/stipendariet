@@ -180,10 +180,16 @@ export default function Auth() {
         <title>Logga in - StipendieAssistenten</title>
         <meta name="description" content="Logga in för att spara stipendier och ansöka om bidrag." />
         <link rel="canonical" href={`${SITE_URL}/auth`} />
+        <link rel="alternate" hrefLang="sv-SE" href={`${SITE_URL}/auth`} />
+        <link rel="alternate" hrefLang="x-default" href={`${SITE_URL}/auth`} />
         <meta property="og:title" content="Logga in - StipendieAssistenten" />
         <meta property="og:description" content="Logga in för att spara stipendier och ansöka om bidrag." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${SITE_URL}/auth`} />
+        <meta property="og:image" content={`${SITE_URL}/og-image.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Logga in på StipendieAssistenten" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@StipendieAss" />
       </Helmet>

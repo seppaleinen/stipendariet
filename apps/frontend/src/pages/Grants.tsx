@@ -29,7 +29,8 @@ import { Grant } from "@/types/grants";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { SITE_URL } from "@/lib/page-metadata";
+import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
+import FAQSchema from "@/components/FAQSchema";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -175,13 +176,20 @@ export default function Grants() {
         <title>Stipendier och Bidrag - Sök bland hundratals stipendier | StipendieAssistenten</title>
         <meta name="description" content="Utforska och sök bland hundratals stipendier och bidrag. Filter och sortering för att hitta rätt stipendium för din familj." />
         <link rel="canonical" href={`${SITE_URL}/grants`} />
+        <link rel="alternate" hrefLang="sv-SE" href={`${SITE_URL}/grants`} />
+        <link rel="alternate" hrefLang="x-default" href={`${SITE_URL}/grants`} />
         <meta property="og:title" content="Stipendier och Bidrag | StipendieAssistenten" />
         <meta property="og:description" content="Utforska och sök bland hundratals stipendier och bidrag." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${SITE_URL}/grants`} />
+        <meta property="og:image" content={DEFAULT_OG_IMAGE} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Stipendier och Bidrag | StipendieAssistenten" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@StipendieAss" />
       </Helmet>
+      <FAQSchema />
       <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">

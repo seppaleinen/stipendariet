@@ -256,10 +256,16 @@ export default function Matching() {
                 <title>Matcha dina behov med rätt stipendier | StipendieAssistenten</title>
                 <meta name="description" content="Låt vår AI hjälpa dig hitta stipendier som matchar dina och din familjs behov. Personliga förslag baserat på din profil." />
                 <link rel="canonical" href={`${SITE_URL}/matching`} />
+                <link rel="alternate" hrefLang="sv-SE" href={`${SITE_URL}/matching`} />
+                <link rel="alternate" hrefLang="x-default" href={`${SITE_URL}/matching`} />
                 <meta property="og:title" content="Matcha dina behov med rätt stipendier | StipendieAssistenten" />
                 <meta property="og:description" content="Låt vår AI hjälpa dig hitta stipendier som matchar dina och din familjs behov." />
                 <meta property="og:type" content="website" />
                 <meta property="og:url" content={`${SITE_URL}/matching`} />
+                <meta property="og:image" content={`${SITE_URL}/og-image.png`} />
+                <meta property="og:image:width" content="1200" />
+                <meta property="og:image:height" content="630" />
+                <meta property="og:image:alt" content="Matcha stipendier med StipendieAssistenten" />
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:site" content="@StipendieAss" />
             </Helmet>

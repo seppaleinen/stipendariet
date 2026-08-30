@@ -84,14 +84,16 @@ describe("getGrantMetadata", () => {
     expect(metadata.description).toBe("A test description");
   });
 
-  it("includes ogImage and canonicalUrl", () => {
-    const metadata = getGrantMetadata(baseGrant);
+  it("includes ogImage and canonicalUrl that points to the specific grant page", () => {
+    const grantWithId = { ...baseGrant, id: "abc-123" };
+    const metadata = getGrantMetadata(grantWithId);
     expect(metadata.ogImage).toBe(DEFAULT_OG_IMAGE);
-    expect(metadata.canonicalUrl).toBe(`${SITE_URL}/grants`);
+    expect(metadata.canonicalUrl).toBe(`${SITE_URL}/grants/abc-123`);
   });
 
   it("handles grant without optional fields", () => {
     const minimalGrant = {
+      id: "min-1",
       title: "Minimal",
       provider: "Provider",
       category: "Other",
@@ -99,5 +101,6 @@ describe("getGrantMetadata", () => {
     const metadata = getGrantMetadata(minimalGrant);
     expect(metadata.description).toBe("");
     expect(metadata.title).toBe("Minimal - Provider | StipendieAssistenten");
+    expect(metadata.canonicalUrl).toBe(`${SITE_URL}/grants/min-1`);
   });
 });
