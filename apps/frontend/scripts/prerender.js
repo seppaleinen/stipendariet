@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Prerender script — generates static HTML files for public routes.
+ * Prerender script — generates static HTML files for static-shell routes
+ * (Home, /grants listing, /matching, /auth). Individual /grants/:id pages
+ * are rendered on-demand by scripts/ssr-server.js — see GitHub issue #2.
  *
  * Run automatically after `vite build` via `pnpm run build`.
  *   Full build:  vite build && node scripts/prerender.js && node scripts/generate-sitemap.js
@@ -17,6 +19,12 @@
  * Env vars (set in .env or CI pipeline):
  *   VITE_SITE_URL  — public site URL (default: https://stipendieassistenten.labb.site)
  *   VITE_API_URL   — backend API base (default: https://stipendieassistenten.labb.site/api)
+ *
+ * Note: Per-grant prerendering was removed in issue #2. Previously this script
+ * generated up to 500 static /grants/<id> files (~88 API pages + 500 detail
+ * fetches) — a ~10 min build step that left ~96% of grant detail URLs as SPA
+ * shells. Now only static-shell routes are built; the SSR fallback server
+ * (scripts/ssr-server.js) renders the rest on demand with 1h cache TTL.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
@@ -32,6 +40,9 @@ const SITE_URL = process.env.VITE_SITE_URL || "https://stipendieassistenten.labb
 const API_BASE = process.env.VITE_API_URL || "https://stipendieassistenten.labb.site/api";
 
 // ── Static routes to pre-render ──────────────────────────────────────────────
+// Individual /grants/:id pages are NOT in this list — they're served by
+// scripts/ssr-server.js on demand. Only "shell" routes that benefit from being
+// pre-rendered go here.
 
 const STATIC_ROUTES = [
   { url: "/", outDir: "" },
@@ -41,60 +52,6 @@ const STATIC_ROUTES = [
 ];
 
 // ── API helpers ─────────────────────────────────────────────────────────────
-
-/**
- * Fetch all grant IDs+metadata for sitemap & grant-detail prerendering.
- *
- * The backend enforces a per-page limit of 200 grants, so we paginate.
- * Note: building prerendered HTML for ~17k grants is expensive (~88 API pages
- * + 17k detail fetches). For initial deployment we cap at PRERENDER_GRANT_LIMIT
- * (default 500 — covers the most visible grants, similar to a sitemap tier).
- * Sitemap already includes all grants (separate script); prerender covers a
- * useful subset. Raise the cap once build budget allows.
- */
-async function fetchAllGrants() {
-  const PRERENDER_GRANT_LIMIT = parseInt(process.env.PRERENDER_GRANT_LIMIT || "500", 10);
-  const pageSize = 200; // backend enforces limit <= 200
-  const allGrants = [];
-  let skip = 0;
-  for (let page = 0; page < 100; page++) {
-    try {
-      const res = await fetch(`${API_BASE}/grants?limit=${pageSize}&skip=${skip}`);
-      if (!res.ok) {
-        if (allGrants.length > 0) break;
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      const grants = data.grants || [];
-      allGrants.push(...grants);
-      if (!data.has_more || grants.length < pageSize) break;
-      skip += grants.length;
-      if (allGrants.length >= PRERENDER_GRANT_LIMIT) {
-        allGrants.length = PRERENDER_GRANT_LIMIT;
-        break;
-      }
-    } catch (err) {
-      if (allGrants.length > 0) break;
-      console.warn("⚠  Could not fetch grants:", err.message);
-      return [];
-    }
-  }
-  if (allGrants.length >= PRERENDER_GRANT_LIMIT) {
-    console.log(`   Capped at PRERENDER_GRANT_LIMIT=${PRERENDER_GRANT_LIMIT} (set higher to prerender more)`);
-  }
-  return allGrants;
-}
-
-/** Fetch the full grant object for a single grant (used to seed QueryClient). */
-async function fetchGrant(id) {
-  try {
-    const res = await fetch(`${API_BASE}/grants/${id}`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
 
 /** Fetch the first page of grants for the /grants listing page. */
 async function fetchGrantsPage() {
@@ -235,49 +192,15 @@ async function renderStaticRoute(route) {
   console.log(`  ✓ ${route.url}  →  ${filePath}`);
 }
 
-async function renderGrantDetailPage(grant) {
-  const id = String(grant.id ?? "");
-  if (!id) return;
-
-  const outDir = `grants/${id}`;
-  const render = await getSsrRender();
-
-  // Fetch full grant data
-  const grantData = await fetchGrant(id);
-  if (!grantData) {
-    console.warn(`  ⚠  /grants/${id}: not found in API, skipping`);
-    return;
-  }
-
-  // Map raw backend grant (snake_case) to frontend Grant interface (camelCase).
-  // Mirrors mapGrantFromBackend() in src/lib/api.ts.
-  const mappedGrant = {
-    ...grantData,
-    foundationId: grantData.foundation_id,
-    scholarshipAmount: grantData.scholarship_amount,
-    applicationUrl: grantData.application_url,
-    applicationDeadline: grantData.application_deadline,
-    educationLevel: grantData.education_level,
-    residencyRequirement: grantData.residency_requirement,
-    requiredDocuments: grantData.required_documents,
-    createdAt: grantData.created_at,
-    updatedAt: grantData.updated_at,
-  };
-
-  const { html, head } = await render(`/grants/${id}`, { grant: mappedGrant });
-  const pageHtml = injectHtmlIntoTemplate(templateHtml, { html, head });
-  const filePath = writePageHtml(outDir, pageHtml, `/grants/${id}`);
-  console.log(`  ✓ /grants/${id}  →  ${filePath}`);
-}
-
 // ── Main ────────────────────────────────────────────────────────────────────
 
 let templateHtml = "";
 
 async function main() {
-  console.log("\n🔨  Prerendering public pages...\n");
+  console.log("\n🔨  Prerendering static-shell routes...\n");
   console.log(`   Site: ${SITE_URL}`);
-  console.log(`   API:  ${API_BASE}\n`);
+  console.log(`   API:  ${API_BASE}`);
+  console.log(`   Note: /grants/:id pages are rendered on-demand by ssr-server.js\n`);
 
   // Load the HTML template from the Vite build output (dist/index.html),
   // which contains the correct hashed asset links (CSS, JS modules).
@@ -335,28 +258,9 @@ async function main() {
     fail++;
   }
 
-  // ── 3. Individual grant detail pages ───────────────────────────────────
-  console.log("\n📄  Grant detail pages...\n");
-  const grants = await fetchAllGrants();
-  console.log(`   Found ${grants.length} grants to prerender`);
-
-  if (grants.length === 0) {
-    console.warn("⚠  No grants fetched — skipping individual grant pages.");
-    console.warn("   Check VITE_API_URL and ensure the backend is reachable at build time.\n");
-  } else {
-    for (const grant of grants) {
-      try {
-        await renderGrantDetailPage(grant);
-        ok++;
-      } catch (err) {
-        console.error(`  ✗ /grants/${grant.id}: ${err.message}`);
-        fail++;
-      }
-    }
-  }
-
   // ── Summary ────────────────────────────────────────────────────────────
-  console.log(`\n✅  Prerendering complete.  ${ok} OK, ${fail} failed.\n`);
+  console.log(`\n✅  Prerendering complete.  ${ok} OK, ${fail} failed.`);
+  console.log(`   /grants/:id pages are served on-demand by ssr-server.js (1h cache).\n`);
 }
 
 main().catch((err) => {
