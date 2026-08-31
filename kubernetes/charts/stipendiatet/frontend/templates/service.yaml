@@ -7,7 +7,12 @@ spec:
   ports:
     - name: web
       port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
+      targetPort: 8080
+    {{- if .Values.ssr.enabled }}
+    - name: ssr
+      port: {{ .Values.service.ssrPort }}
+      targetPort: {{ .Values.service.ssrPort }}
+    {{- end }}
   selector:
     name: {{ .Release.Name }}
   type: ClusterIP

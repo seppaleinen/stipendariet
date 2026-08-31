@@ -1,5 +1,6 @@
 service:
-  port: 8080
+  port: 80
+  ssrPort: 3001
 resources:
   requests:
     cpu: 10m
@@ -9,5 +10,25 @@ ingress:
 image:
   repository: ghcr.io/seppaleinen/stipendariet/frontend
   tag: latest
+  pullPolicy: IfNotPresent
 env:
   viteApiUrl: "/api"
+# Internal URL the SSR server uses to reach the backend — must be the Kubernetes
+# service DNS (e.g. http://backend:8000), not the public /api path, because
+# SSR runs server-side inside the cluster where the ingress is not in scope.
+ssrApiUrl: "http://backend:8000"
+
+# ── SSR Fallback Server ─────────────────────────────────────────────────────────
+# When enabled, a second container runs the Express SSR server (port 3001) in the
+# same pod. Nginx proxies /grants/<id> requests that have no static file on disk
+# to the SSR server for on-demand server-side rendering (Tech SEO fix).
+ssr:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  envs: []
