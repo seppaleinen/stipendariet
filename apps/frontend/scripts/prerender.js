@@ -3,7 +3,16 @@
  * Prerender script — generates static HTML files for public routes.
  *
  * Run automatically after `vite build` via `pnpm run build`.
- * Or standalone: node scripts/prerender.js
+ *   Full build:  vite build && node scripts/prerender.js && node scripts/generate-sitemap.js
+ *   Or standalone (NOT recommended): node scripts/prerender.js
+ *
+ * IMPORTANT: This script reads the HTML template from `dist/index.html` (the
+ * Vite build output), NOT the source `index.html`.  The build output contains
+ * the correct hashed asset links (<link rel="stylesheet" href="/assets/index-*.css">
+ * and <script type="module" src="/assets/index-*.js">).  If you run this script
+ * without a prior `vite build`, it falls back to the source template with a
+ * loud warning — the resulting pages will reference `/src/entry-client.tsx` and
+ * have no CSS, which is NOT suitable for deployment.
  *
  * Env vars (set in .env or CI pipeline):
  *   VITE_SITE_URL  — public site URL (default: https://stipendieassistenten.labb.site)
@@ -270,8 +279,22 @@ async function main() {
   console.log(`   Site: ${SITE_URL}`);
   console.log(`   API:  ${API_BASE}\n`);
 
-  // Load the HTML template once
-  templateHtml = readFileSync(join(ROOT, "index.html"), "utf8");
+  // Load the HTML template from the Vite build output (dist/index.html),
+  // which contains the correct hashed asset links (CSS, JS modules).
+  // Falling back to the source template will produce broken pages — warn loudly.
+  const builtTemplatePath = join(DIST, "index.html");
+  if (existsSync(builtTemplatePath)) {
+    templateHtml = readFileSync(builtTemplatePath, "utf8");
+    console.log(`   Template: ${builtTemplatePath}`);
+  } else {
+    console.warn(
+      "\n⚠️  WARNING: dist/index.html not found — no prior `vite build` detected.\n" +
+      "   Falling back to source index.html. The output will reference\n" +
+      "   /src/entry-client.tsx and contain NO CSS. Do NOT deploy these pages.\n" +
+      "   Run:  vite build && node scripts/prerender.js\n"
+    );
+    templateHtml = readFileSync(join(ROOT, "index.html"), "utf8");
+  }
 
   // ── 1. Static routes ────────────────────────────────────────────────────
   console.log("📄  Static routes...\n");
