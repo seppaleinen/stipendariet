@@ -30,7 +30,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
-import FAQSchema from "@/components/FAQSchema";
+import FAQSchema, { FAQSection } from "@/components/FAQSchema";
 import { useSSRData } from "@/contexts/SSRDataContext";
 
 const ITEMS_PER_PAGE = 50;
@@ -211,7 +211,7 @@ export default function Grants() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@StipendieAss" />
       </Helmet>
-      <FAQSchema />
+      <FAQSchema topic="search" />
       <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -355,6 +355,9 @@ export default function Grants() {
           )}
         </>
       )}
+
+      {/* FAQ Section */}
+      <FAQSection topic="search" />
       </div>
     </>
   );

@@ -1,58 +1,116 @@
 import { Helmet } from "react-helmet-async";
 
-const FAQ_SCHEMA = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: [
+// ─── Types & Content ─────────────────────────────────────────────────────────
+
+export type FAQTopic = "general" | "search" | "applying";
+
+interface FAQItem {
+  q: string;
+  a: string;
+}
+
+export const FAQ_CONTENT: Record<FAQTopic, FAQItem[]> = {
+  general: [
     {
-      "@type": "Question",
-      name: "Vad är StipendieAssistenten?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "StipendieAssistenten är en gratistjänst som hjälper svenska familjer att hitta och ansöka om stipendier och bidrag. Vi samlar hundratals stipendier i en sökmotor med kraftfulla filter.",
-      },
+      q: "Vad är StipendieAssistenten?",
+      a: "StipendieAssistenten är en gratistjänst som hjälper svenska familjer att hitta och ansöka om stipendier och bidrag. Vi samlar hundratals stipendier i en sökmotor med kraftfulla filter.",
     },
     {
-      "@type": "Question",
-      name: "Hur hittar jag rätt stipendium?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Skapa en profil och svara på frågor om din situation. Vår AI hjälper dig hitta stipendier som matchar dina behov baserat på familjesituation, hälsa, yrke och geografiskt område.",
-      },
+      q: "Är tjänsten gratis?",
+      a: "Ja, StipendieAssistenten är helt gratis att använda. Vi finansieras inte av stipendiesökande utan av separata avtal med stiftelser.",
     },
     {
-      "@type": "Question",
-      name: "Vem kan ansöka om stipendier?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "De flesta stipendier riktar sig till specifika grupper: studenter, familjer, personer med funktionsnedsättning, eller personer inom vissa yrken eller branscher. StipendieAssistenten filtrerar fram de stipendier du är kvalificerad för.",
-      },
+      q: "Vilka stiftelser finns i databasen?",
+      a: "Databasen innehåller stipendier från hundratals svenska stiftelser, kommuner, företag och organisationer. Vi uppdaterar kontinuerligt med nya stipendier och tar bort de som inte längre är aktuella.",
     },
     {
-      "@type": "Question",
-      name: "Hur ansöker jag om ett stipendium?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Klicka på ett stipendium för att se ansökningsdetaljer och deadline. Du kan använda vår AI-assisterade ansökningshjälp för att skriva en personlig och övertygande ansökan.",
-      },
+      q: "Hur fungerar det?",
+      a: "Skapa en profil och svara på frågor om din situation. Vår tjänst hjälper dig hitta stipendier som matchar dina behov baserat på familjesituation, hälsa, yrke och geografiskt område.",
+    },
+  ],
+  search: [
+    {
+      q: "Hur söker jag bland stipendier?",
+      a: "Använd sökfältet för att skriva nyckelord och filtrera efter kategori för att hitta stipendier som passar dig. Du kan också kombinera sökord med kategorier för snävare resultat.",
     },
     {
-      "@type": "Question",
-      name: "Är tjänsten gratis?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Ja, StipendieAssistenten är helt gratis att använda. Vi finansieras inte av stipendiesökande utan av separata avtal med stiftelser.",
-      },
+      q: "Vad betyder kategorierna?",
+      a: "Kategorierna grupperar stipendier efter typ och ändamål, till exempel utbildning, idrott, kultur eller familj. Varje stipendium kan tillhöra en eller flera kategorier.",
+    },
+    {
+      q: "Hur ofta uppdateras listan?",
+      a: "Vi uppdaterar stipendielistan kontinuerligt. Nya stipendier läggs till varje vecka och stängda stipendier tas bort så snart vi får information om det.",
+    },
+  ],
+  applying: [
+    {
+      q: "Hur ansöker jag?",
+      a: "Klicka på ett stipendium för att se ansökningsdetaljer och deadline. Följ instruktionerna från stiftelsen och skicka in din ansökan i god tid före deadline.",
+    },
+    {
+      q: "Vad ska ansökan innehålla?",
+      a: "Kraven varierar mellan olika stipendier. Vanligtvis behöver du skicka in en personlig ansökan, intyg på din situation och ibland rekommendationsbrev. Läs igenom kraven noggrant för varje stipendium.",
+    },
+    {
+      q: "Kan jag spara stipendier?",
+      a: "Ja, du kan spara stipendier till dina favoriter genom att klicka på bokmärkesikonen. Logga in för att se dina sparade stipendier och få påminnelser om deadlines.",
     },
   ],
 };
 
-export default function FAQSchema() {
+// ─── FAQSchema: JSON-LD only ─────────────────────────────────────────────────
+
+export default function FAQSchema({ topic = "general" }: { topic?: FAQTopic }) {
+  const faqs = FAQ_CONTENT[topic];
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
+      },
+    })),
+  };
+
   return (
     <Helmet>
       <script type="application/ld+json">
-        {JSON.stringify(FAQ_SCHEMA)}
+        {JSON.stringify(schema)}
       </script>
     </Helmet>
+  );
+}
+
+// ─── FAQSection: Visible markup ─────────────────────────────────────────────
+
+export function FAQSection({ topic = "general" }: { topic?: FAQTopic }) {
+  const faqs = FAQ_CONTENT[topic];
+
+  return (
+    <section aria-labelledby="faq-heading">
+      <h2 id="faq-heading" className="text-2xl font-bold mb-4">
+        Vanliga frågor
+      </h2>
+      <div className="grid md:grid-cols-2 gap-4">
+        {faqs.map((item, index) => (
+          <details
+            key={index}
+            className="rounded-lg border bg-card p-4"
+            name={`faq-${topic}`}
+          >
+            <summary className="cursor-pointer text-base font-medium list-none">
+              {item.q}
+            </summary>
+            <p className="mt-2 text-muted-foreground leading-relaxed">
+              {item.a}
+            </p>
+          </details>
+        ))}
+      </div>
+    </section>
   );
 }

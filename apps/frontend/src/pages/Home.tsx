@@ -10,7 +10,7 @@ import {
 } from "@stipendariet/ui";
 import { Search, FileText, Sparkles, ArrowRight, User } from "lucide-react";
 import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
-import FAQSchema from "@/components/FAQSchema";
+import FAQSchema, { FAQSection } from "@/components/FAQSchema";
 
 export default function Home() {
   return (
@@ -30,7 +30,7 @@ export default function Home() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@StipendieAss" />
       </Helmet>
-      <FAQSchema />
+      <FAQSchema topic="general" />
       <div className="space-y-12">
       {/* Hero Section */}
       <section className="text-center space-y-4 py-12">
@@ -141,6 +141,9 @@ export default function Home() {
           </CardContent>
         </Card>
       </section>
+
+      {/* FAQ Section */}
+      <FAQSection topic="general" />
     </div>
     </>
   );
