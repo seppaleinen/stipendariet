@@ -172,6 +172,44 @@ describe("GrantDetail", () => {
     expect(breadcrumb.itemListElement[2].name).toBe("Kunskapsstipendiet");
   });
 
+  it("emits ScholarshipProgram JSON-LD with entity fields for LLM citation probability", async () => {
+    vi.mocked(getGrant).mockResolvedValue({
+      id: "foundation-7994",
+      title: "Kunskapsstipendiet",
+      provider: "Utbildningsfonden",
+      category: "Utbildning",
+      summary: "Ett stipendium för studerande.",
+      description: "Stödjer universitetsstuderande.",
+      purpose: "Stöd för studerande i Uppsala.",
+      tags: ["utbildning", "studenter", "uppsala"],
+      deadline: "2026-06-01",
+      applicationStart: "2026-01-01",
+      applicationDeadline: "2026-05-15",
+      isRecurring: false,
+    } as any);
+    vi.mocked(getSavedGrants).mockResolvedValue([]);
+
+    render(<GrantDetail />);
+
+    await screen.findByRole("heading", { level: 1 });
+
+    const scripts = Array.from(
+      document.querySelectorAll('script[type="application/ld+json"]')
+    ) as HTMLScriptElement[];
+    const scholarship = scripts
+      .map((s) => JSON.parse(s.textContent ?? ""))
+      .find((parsed) => parsed["@type"] === "ScholarshipProgram");
+
+    expect(scholarship).toBeDefined();
+    expect(scholarship.name).toBe("Kunskapsstipendiet");
+    expect(scholarship.about).toBe("Stöd för studerande i Uppsala.");
+    expect(scholarship.keywords).toBe("utbildning, studenter, uppsala");
+    expect(scholarship.inLanguage).toBe("sv-SE");
+    expect(scholarship.applicationStartDate).toBe("2026-01-01");
+    expect(scholarship.applicationDeadline).toBe("2026-05-15");
+    expect(scholarship.expirationDate).toBe("2026-06-01");
+  });
+
   it("emits applying topic FAQPage JSON-LD with 3 Q&A pairs", async () => {
     vi.mocked(getGrant).mockResolvedValue({
       id: "foundation-7994",

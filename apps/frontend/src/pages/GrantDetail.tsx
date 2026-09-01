@@ -136,17 +136,21 @@ export default function GrantDetail() {
     [grant.postnr, grant.postort].filter(Boolean).join(" "),
   ].filter(Boolean).join("\n");
 
-  // ScholarshipProgram JSON-LD for rich results and AI ingestion (issue #23, AEO Flaw 2)
+  // ScholarshipProgram JSON-LD for rich results and AI ingestion
+  // (issue #2, GEO Flaw 2 — entity fields added for LLM citation probability)
   const scholarshipSchema = {
     "@context": "https://schema.org",
     "@type": "ScholarshipProgram",
     name: grant.title,
     description: descriptionText,
+    about: grant.purpose || grant.translatedPurpose || descriptionText,
     provider: {
       "@type": "Organization",
       name: grant.provider,
       ...(grant.websiteUrl ? { url: grant.websiteUrl } : {}),
     },
+    keywords: grant.tags.join(", "),
+    inLanguage: "sv-SE",
     ...(grant.amount
       ? {
           aggregateRating: {
@@ -157,6 +161,8 @@ export default function GrantDetail() {
         }
       : {}),
     ...(grant.deadline ? { expirationDate: grant.deadline } : {}),
+    ...(grant.applicationStart ? { applicationStartDate: grant.applicationStart } : {}),
+    ...(grant.applicationDeadline ? { applicationDeadline: grant.applicationDeadline } : {}),
     ...(grant.whoCanApply
       ? {
           step: grant.whoCanApply
