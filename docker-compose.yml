@@ -64,12 +64,48 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - ADMIN_USERNAME=${ADMIN_EMAIL}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - LITELLM_URL=${LITELLM_URL:-http://host.docker.internal:4000}
+      - LITELLM_TEXT_MODEL=${LITELLM_TEXT_MODEL:-gemma-4-12b}
     restart: unless-stopped
     networks:
       - stipendariet
     depends_on:
       postgres:
         condition: service_healthy
+
+  enrichment-worker:
+    image: seppaleinen/stipendariet-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    container_name: enrichment-worker
+    command: ["arq", "app.workers.enrichment_worker.WorkerSettings"]
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=${POSTGRES_USER}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379
+      - BROWSERLESS_URL=http://browserless:3000
+      - LITELLM_URL=${LITELLM_URL:-http://host.docker.internal:4000}
+      - LITELLM_TEXT_MODEL=${LITELLM_TEXT_MODEL:-gemma-4-12b}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    restart: unless-stopped
+    networks:
+      - stipendariet
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      browserless:
+        condition: service_started
 
   frontend:
     image: seppaleinen/stipendariet-frontend:latest
