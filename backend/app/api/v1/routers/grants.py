@@ -56,6 +56,21 @@ def list_grants(
     }
 
 
+@router.get("/sitemap-data")
+def get_sitemap_data(db: Session = Depends(get_db)):
+    """Lightweight endpoint — returns (foundation_id, last_updated) for every grant.
+
+    Used by the sitemap generator to populate <lastmod> without fetching full
+    grant data. Returns a flat list of {id, last_updated} entries.  The id field
+    matches the frontend format: "foundation-{foundation_id}".
+    """
+    foundations = db.query(crud.models.Foundation.foundation_id, crud.models.Foundation.last_updated).all()
+    return [
+        {"id": f"foundation-{f.foundation_id}", "last_updated": f.last_updated}
+        for f in foundations
+    ]
+
+
 @router.get("/{grant_id}")
 def get_grant(grant_id: str, db: Session = Depends(get_db)):
     """Grant detail; supports foundation-{foundation_id} where foundation_id is the external id."""
