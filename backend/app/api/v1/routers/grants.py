@@ -107,6 +107,7 @@ def get_grant(grant_id: str, db: Session = Depends(get_db)):
             "contact_email": foundation.contact_email,
             "contact_phone": foundation.contact_phone,
             "who_can_apply": foundation.who_can_apply,
+            "enriched_description": foundation.enriched_description,
             "deadline": None,
         }
 

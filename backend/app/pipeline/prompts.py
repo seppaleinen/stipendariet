@@ -36,6 +36,7 @@ Letar efter fält som:
 - Sista ansökningsdag (datum eller period, t.ex. "31 mars", "15 oktober")
 - Vem som kan söka (ändamål, målgrupp)
 - Hur man söker (formulär, e-post, brev)
+- En berikande sammanfattning (enriched_description) — en sammanhängande svensk text på MINST 150 ord som beskriver vad stiftelsen finansierar, vem som kan söka (behörighet), typiska användningsområden för bidraget, och konkreta tips för sökande. Detta fält är kritiskt för LLM-citering och måste vara substantiellt.
 - Övrig relevant information
 
 Observera att datumangivelser kan vara på svenska (t.ex. "1 mars", "oktober månad").
@@ -53,7 +54,8 @@ Extrahera informationen i detta JSON-format:
   "application_deadline": "sista ansökningsdag (datum/period) eller null",
   "who_can_apply": "vem kan söka / ändamål (kort beskrivning) eller null",
   "how_to_apply": "hur man söker (formulär/e-post/brev) eller null",
-  "notes": "övrig relevant info eller null"
+  "notes": "övrig relevant info eller null",
+  "enriched_description": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null"
 }}
 
 Returnera ENDAST giltig JSON, inga förklaringar.

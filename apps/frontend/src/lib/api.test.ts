@@ -138,6 +138,40 @@ describe("mapGrantFromBackend", () => {
     expect(grant.whoCanApply).toBe("Studerande med fullständiga betyg");
   });
 
+  // GEO Flaw #1 — verify enrichedDescription is mapped and used in descriptionText (issue #2)
+  it("maps enrichedDescription from backend", () => {
+    const backend: Record<string, unknown> = {
+      id: "123",
+      name: "Uppsala Stipendiet",
+      enriched_description:
+        "Detta stipendium stödjer universitetsstuderande i Uppsala. "
+        + "Behöriga är studenter vid Uppsala universitet som är i behov av "
+        + "ekonomiskt stöd för att kunna genomföra sina studier. "
+        + "Bidraget kan användas för att täcka kurslitteratur, resor samt "
+        + "levnadskostnader. Sökande bör bifoga studieintyg och motivering.",
+    };
+
+    const grant = mapGrantFromBackend(backend);
+
+    expect(grant.enrichedDescription).toBe(
+      "Detta stipendium stödjer universitetsstuderande i Uppsala. "
+        + "Behöriga är studenter vid Uppsala universitet som är i behov av "
+        + "ekonomiskt stöd för att kunna genomföra sina studier. "
+        + "Bidraget kan användas för att täcka kurslitteratur, resor samt "
+        + "levnadskostnader. Sökande bör bifoga studieintyg och motivering."
+    );
+  });
+
+  it("leaves enrichedDescription undefined when missing", () => {
+    const backend: Record<string, unknown> = {
+      id: "123",
+      name: "Test",
+    };
+
+    const grant = mapGrantFromBackend(backend);
+    expect(grant.enrichedDescription).toBeUndefined();
+  });
+
   it("leaves enrichment fields undefined when missing", () => {
     const backend: Record<string, unknown> = {
       id: "123",

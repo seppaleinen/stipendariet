@@ -131,6 +131,7 @@ class FoundationBase(BaseModel):
     contact_phone: str | None = None
     who_can_apply: str | None = None
     enrichment_notes: str | None = None
+    enriched_description: str | None = None  # 150+ word Swedish description for LLM citation
 
 
 class Foundation(FoundationBase):

@@ -210,6 +210,58 @@ describe("GrantDetail", () => {
     expect(scholarship.expirationDate).toBe("2026-06-01");
   });
 
+  // GEO Flaw #1 — ScholarshipProgram description should prefer enrichedDescription
+  // over translatedPurpose/purpose/description (issue #2)
+  it("uses enrichedDescription in ScholarshipProgram JSON-LD when present", async () => {
+    const enriched =
+      "Detta stipendium stödjer universitetsstuderande i Uppsala som är i behov av "
+      + "ekonomiskt stöd. Bidraget kan användas för kurslitteratur, resor och "
+      + "levnadskostnader under studieperioden. Sökande bör bifoga studieintyg, "
+      + "motivering samt en tydlig beskrivning av hur bidraget ska användas.";
+    vi.mocked(getGrant).mockResolvedValue({
+      id: "foundation-7994",
+      title: "Kunskapsstipendiet",
+      provider: "Utbildningsfonden",
+      category: "Utbildning",
+      summary: "Ett stipendium för studerande.",
+      description: "Fallback-beskrivning som INTE ska användas.",
+      purpose: "Stöd för studerande.",
+      translatedPurpose: "Modern svenska — INTE heller denna.",
+      enrichedDescription: enriched,
+      tags: ["utbildning"],
+      isRecurring: false,
+    } as any);
+    vi.mocked(getSavedGrants).mockResolvedValue([]);
+
+    render(<GrantDetail />);
+
+    await screen.findByRole("heading", { level: 1 });
+
+    const scripts = Array.from(
+      document.querySelectorAll('script[type="application/ld+json"]')
+    ) as HTMLScriptElement[];
+    const scholarship = scripts
+      .map((s) => JSON.parse(s.textContent ?? ""))
+      .find((parsed) => parsed["@type"] === "ScholarshipProgram");
+
+    expect(scholarship).toBeDefined();
+    expect(scholarship.description).toBe(enriched);
+    expect(scholarship.description).not.toContain("Fallback-beskrivning");
+    expect(scholarship.description).not.toContain("Modern svenska");
+
+    // The <meta name="description"> tag should likewise prefer enrichedDescription
+    const metaDescription = document
+      .querySelector('meta[name="description"]')
+      ?.getAttribute("content");
+    expect(metaDescription).toBe(enriched);
+
+    // The og:description should likewise prefer enrichedDescription
+    const ogDescription = document
+      .querySelector('meta[property="og:description"]')
+      ?.getAttribute("content");
+    expect(ogDescription).toBe(enriched);
+  });
+
   it("emits applying topic FAQPage JSON-LD with 3 Q&A pairs", async () => {
     vi.mocked(getGrant).mockResolvedValue({
       id: "foundation-7994",

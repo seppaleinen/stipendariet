@@ -113,6 +113,8 @@ export function mapGrantFromBackend(grant: BackendGrant): Grant {
     contactEmail: (grant.contact_email as string) || undefined,
     contactPhone: (grant.contact_phone as string) || undefined,
     whoCanApply: (grant.who_can_apply as string) || undefined,
+    enrichedDescription:
+      (grant.enriched_description as string) || undefined,
   };
 }
 

@@ -118,6 +118,7 @@ export interface Grant {
   contactEmail?: string;
   contactPhone?: string;
   whoCanApply?: string;
+  enrichedDescription?: string;
 }
 
 // ── API Response Wrappers ──────────────────────────────────────────────

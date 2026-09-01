@@ -130,6 +130,7 @@ class Foundation(Base):
     contact_phone = Column(String, nullable=True)
     who_can_apply = Column(Text, nullable=True)
     enrichment_notes = Column(Text, nullable=True)
+    enriched_description = Column(Text, nullable=True)  # 150+ word Swedish description for LLM citation
 
     # Relationships
     applications = relationship("Application", back_populates="foundation")

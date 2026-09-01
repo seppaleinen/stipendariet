@@ -37,6 +37,7 @@ def _db_update_foundation_status(
     phone: str = None,
     who: str = None,
     notes: str = None,
+    enriched_description: str = None,
 ):
     with SessionLocal() as db:
         foundation = db.query(Foundation).filter(Foundation.id == foundation_id).first()
@@ -62,6 +63,8 @@ def _db_update_foundation_status(
                 foundation.who_can_apply = who
             if notes is not None:
                 foundation.enrichment_notes = notes
+            if enriched_description is not None:
+                foundation.enriched_description = enriched_description
             db.commit()
 
 
@@ -322,6 +325,7 @@ async def run_foundation_pipeline_task(
         phone=merged.get("contact_phone"),
         who=merged.get("who_can_apply"),
         notes=merged.get("notes"),
+        enriched_description=merged.get("enriched_description"),
     )
 
     logger.info(f"Pipeline completed for {foundation_name}: {list(merged.keys())}")

@@ -126,8 +126,8 @@ export default function GrantDetail() {
     );
   }
 
-  // Get the best description to display
-  const descriptionText = grant.translatedPurpose || grant.purpose || grant.description;
+  // Get the best description to display — prefer the 150+ word enriched description for LLM citation
+  const descriptionText = grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description;
 
   // Build full address
   const fullAddress = [
@@ -190,12 +190,12 @@ export default function GrantDetail() {
      <>
        <Helmet>
          <title>{`${grant.title} - ${grant.provider} | StipendieAssistenten`}</title>
-         <meta name="description" content={grant.translatedPurpose || grant.purpose || grant.description || ""} />
+         <meta name="description" content={grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description || ""} />
          <link rel="canonical" href={`${SITE_URL}/grants/${id}`} />
          <link rel="alternate" hrefLang="sv-SE" href={`${SITE_URL}/grants/${id}`} />
          <link rel="alternate" hrefLang="x-default" href={`${SITE_URL}/grants/${id}`} />
          <meta property="og:title" content={grant.title} />
-         <meta property="og:description" content={grant.translatedPurpose || grant.purpose || grant.description || ""} />
+         <meta property="og:description" content={grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description || ""} />
          <meta property="og:type" content="article" />
          <meta property="og:url" content={`${SITE_URL}/grants/${id}`} />
          <meta property="og:image" content={`${SITE_URL}/og-image.png`} />

@@ -144,6 +144,7 @@ function mapGrantFromBackend(grant) {
     contactEmail: grant.contact_email || undefined,
     contactPhone: grant.contact_phone || undefined,
     whoCanApply: grant.who_can_apply || undefined,
+    enrichedDescription: grant.enriched_description || undefined,
   };
 }
 
