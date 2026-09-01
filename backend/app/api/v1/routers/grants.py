@@ -56,6 +56,40 @@ def list_grants(
     }
 
 
+@router.get("/export.json")
+def export_grants_json(
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(10000, ge=1, le=10000, description="Max items to return (cap 10000)"),
+    db: Session = Depends(get_db),
+):
+    """Public machine-readable grant export for AI platform ingestion.
+
+    Returns ALL foundations with full Grant schema fields — no pagination wrapper,
+    just a flat array. Intended for Perplexity, OpenAI Search, Claude, etc.
+    No auth required.
+    """
+    query = db.query(crud.models.Foundation)
+    foundations = query.order_by(crud.models.Foundation.name).offset(skip).limit(limit).all()
+    return [
+        {
+            "id": f"foundation-{f.foundation_id}",
+            "name": f.name,
+            "organization": f"Stiftelse ({f.orgnr or 'Org.nr saknas'})",
+            "summary": f.summary or (f.purpose[:200] + "...") if f.purpose and len(f.purpose) > 200 else f.purpose,
+            "category": f.category,
+            "website_url": f.website_url,
+            "application_deadline": f.application_deadline,
+            "application_start": f.application_start,
+            "application_method": f.application_method,
+            "contact_email": f.contact_email,
+            "contact_phone": f.contact_phone,
+            "who_can_apply": f.who_can_apply,
+            "enriched_description": f.enriched_description,
+        }
+        for f in foundations
+    ]
+
+
 @router.get("/sitemap-data")
 def get_sitemap_data(db: Session = Depends(get_db)):
     """Lightweight endpoint — returns (foundation_id, last_updated) for every grant.
