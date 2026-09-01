@@ -44,16 +44,16 @@ export const FAQ_CONTENT: Record<FAQTopic, FAQItem[]> = {
   ],
   applying: [
     {
-      q: "Hur ansöker jag?",
-      a: "Klicka på ett stipendium för att se ansökningsdetaljer och deadline. Följ instruktionerna från stiftelsen och skicka in din ansökan i god tid före deadline.",
+      q: "Hur ansöker jag om detta stipendium?",
+      a: "Klicka på knappen 'Starta ansökan' på sidan. Den guidade processen hjälper dig att samla information och formulera en stark ansökan.",
     },
     {
-      q: "Vad ska ansökan innehålla?",
-      a: "Kraven varierar mellan olika stipendier. Vanligtvis behöver du skicka in en personlig ansökan, intyg på din situation och ibland rekommendationsbrev. Läs igenom kraven noggrant för varje stipendium.",
+      q: "Vad ska min ansökan innehålla?",
+      a: "Vanligtvis behöver du skicka in en personlig ansökan, intyg på din situation och ibland rekommendationsbrev. Läs igenom kraven noggrant för varje stipendium.",
     },
     {
-      q: "Kan jag spara stipendier?",
-      a: "Ja, du kan spara stipendier till dina favoriter genom att klicka på bokmärkesikonen. Logga in för att se dina sparade stipendier och få påminnelser om deadlines.",
+      q: "Kan jag spara stipendiet för att ansöka senare?",
+      a: "Ja, du kan spara stipendiet genom att klicka på bokmärkesikonen. Logga in för att se dina sparade stipendier och få påminnelser om deadlines.",
     },
   ],
 };

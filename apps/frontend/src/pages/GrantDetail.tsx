@@ -16,6 +16,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SITE_URL } from "@/lib/page-metadata";
 import { useSSRData } from "@/contexts/SSRDataContext";
+import FAQSchema from "@/components/FAQSchema";
+import { FAQSection } from "@/components/FAQSchema";
 
 export default function GrantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -167,6 +169,17 @@ export default function GrantDetail() {
     url: `${SITE_URL}/grants/${id}`,
   };
 
+  // BreadcrumbList JSON-LD for grant navigation (issue #2, AEO Flaw 3)
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Hem", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Hitta stipendier", item: `${SITE_URL}/grants` },
+      { "@type": "ListItem", position: 3, name: grant.title, item: `${SITE_URL}/grants/${grant.id}` },
+    ],
+  };
+
    return (
      <>
        <Helmet>
@@ -185,10 +198,13 @@ export default function GrantDetail() {
          <meta property="og:image:alt" content={`${grant.title} - ${grant.provider}`} />
          <meta name="twitter:card" content="summary_large_image" />
          <meta name="twitter:site" content="@StipendieAss" />
-         <script type="application/ld+json">
-           {JSON.stringify(scholarshipSchema)}
-         </script>
-       </Helmet>
+<script type="application/ld+json">
+            {JSON.stringify(scholarshipSchema)}
+          </script>
+          <script type="application/ld+json">
+            {JSON.stringify(breadcrumbSchema)}
+          </script>
+        </Helmet>
        <article className="max-w-4xl mx-auto space-y-6">
          <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)} aria-label="Gå tillbaka till föregående sida">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -411,31 +427,37 @@ export default function GrantDetail() {
               </div>
             </div>
           )}
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Button asChild className="flex-1 gap-2">
-              <Link to={`/generate/${id}`}>
-                <FileText className="h-4 w-4" />
-                Starta Ansökan
-              </Link>
-            </Button>
-            {grant.websiteUrl && (
-              <Button asChild variant="outline" className="flex-1 gap-2">
-                <a
-                  href={grant.websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Besök Webbplats
-                </a>
-              </Button>
-            )}
-          </div>
         </CardContent>
       </Card>
+
+      {/* FAQ JSON-LD (applying topic) — self-mounts via Helmet */}
+      <FAQSchema topic="applying" />
+
+      {/* FAQ visible section — below grant details card, above CTA */}
+      <FAQSection topic="applying" />
+
+      {/* CTA — outside the card, below FAQ */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Button asChild className="flex-1 gap-2">
+          <Link to={`/generate/${id}`}>
+            <FileText className="h-4 w-4" />
+            Starta Ansökan
+          </Link>
+        </Button>
+        {grant.websiteUrl && (
+          <Button asChild variant="outline" className="flex-1 gap-2">
+            <a
+              href={grant.websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Besök Webbplats
+            </a>
+          </Button>
+        )}
+      </div>
     </article>
-    </>
+  </>
   );
 }

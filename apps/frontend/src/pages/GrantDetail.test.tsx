@@ -116,4 +116,91 @@ describe("GrantDetail", () => {
     const startLink = screen.getByRole("link", { name: /Starta Ansökan/i });
     expect(startLink).toHaveAttribute("href", "/generate/foundation-7994");
   });
+
+  it("renders the FAQSection with 'Vanliga frågor' heading", async () => {
+    vi.mocked(getGrant).mockResolvedValue({
+      id: "foundation-7994",
+      title: "Kunskapsstipendiet",
+      provider: "Utbildningsfonden",
+      category: "Utbildning",
+      summary: "Ett stipendium för studerande.",
+      description: "Stödjer universitetsstuderande.",
+      purpose: "Stöd för studerande.",
+      tags: ["utbildning"],
+      isRecurring: false,
+    } as any);
+    vi.mocked(getSavedGrants).mockResolvedValue([]);
+
+    render(<GrantDetail />);
+
+    await screen.findByRole("heading", { level: 1 });
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: /Vanliga frågor/i })
+    ).toBeInTheDocument();
+  });
+
+  it("emits BreadcrumbList JSON-LD with 3 items", async () => {
+    vi.mocked(getGrant).mockResolvedValue({
+      id: "foundation-7994",
+      title: "Kunskapsstipendiet",
+      provider: "Utbildningsfonden",
+      category: "Utbildning",
+      summary: "Ett stipendium för studerande.",
+      description: "Stödjer universitetsstuderande.",
+      purpose: "Stöd för studerande.",
+      tags: ["utbildning"],
+      isRecurring: false,
+    } as any);
+    vi.mocked(getSavedGrants).mockResolvedValue([]);
+
+    render(<GrantDetail />);
+
+    await screen.findByRole("heading", { level: 1 });
+
+    const scripts = Array.from(
+      document.querySelectorAll('script[type="application/ld+json"]')
+    ) as HTMLScriptElement[];
+    const breadcrumb = scripts
+      .map((s) => JSON.parse(s.textContent ?? ""))
+      .find((parsed) => parsed["@type"] === "BreadcrumbList");
+
+    expect(breadcrumb).toBeDefined();
+    expect(breadcrumb.itemListElement).toHaveLength(3);
+    expect(breadcrumb.itemListElement[0].name).toBe("Hem");
+    expect(breadcrumb.itemListElement[1].name).toBe("Hitta stipendier");
+    expect(breadcrumb.itemListElement[2].name).toBe("Kunskapsstipendiet");
+  });
+
+  it("emits applying topic FAQPage JSON-LD with 3 Q&A pairs", async () => {
+    vi.mocked(getGrant).mockResolvedValue({
+      id: "foundation-7994",
+      title: "Kunskapsstipendiet",
+      provider: "Utbildningsfonden",
+      category: "Utbildning",
+      summary: "Ett stipendium för studerande.",
+      description: "Stödjer universitetsstuderande.",
+      purpose: "Stöd för studerande.",
+      tags: ["utbildning"],
+      isRecurring: false,
+    } as any);
+    vi.mocked(getSavedGrants).mockResolvedValue([]);
+
+    render(<GrantDetail />);
+
+    await screen.findByRole("heading", { level: 1 });
+
+    const scripts = Array.from(
+      document.querySelectorAll('script[type="application/ld+json"]')
+    ) as HTMLScriptElement[];
+    const faqSchema = scripts
+      .map((s) => JSON.parse(s.textContent ?? ""))
+      .find((parsed) => parsed["@type"] === "FAQPage");
+
+    expect(faqSchema).toBeDefined();
+    expect(faqSchema.mainEntity).toHaveLength(3);
+    expect(faqSchema.mainEntity[0].name).toBe(
+      "Hur ansöker jag om detta stipendium?"
+    );
+  });
 });

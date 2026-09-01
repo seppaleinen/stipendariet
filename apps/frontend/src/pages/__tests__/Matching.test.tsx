@@ -205,5 +205,51 @@ describe("Matching", () => {
         expect(link).toHaveAttribute("href", "/grants");
       });
     });
+
+    it("renders a visible breadcrumb with links to home and current page", async () => {
+      render(<Matching />);
+
+      const breadcrumb = await waitFor(() => {
+        const el = document.querySelector('nav[aria-label="Brödsmula"]');
+        expect(el).toBeInTheDocument();
+        expect(el).toHaveTextContent("Hem");
+        expect(el).toHaveTextContent("AI-matchning");
+        return el;
+      });
+
+      const homeLink = screen.getByRole("link", { name: "Hem" });
+      expect(homeLink).toHaveAttribute("href", "/");
+      const currentPage = breadcrumb?.querySelector('[aria-current="page"]');
+      expect(currentPage).toHaveTextContent("AI-matchning");
+    });
+
+    it("injects BreadcrumbList JSON-LD in the document head", async () => {
+      render(<Matching />);
+
+      await waitFor(() => {
+        const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+        const breadcrumbScripts = Array.from(scripts).filter((s) => {
+          try {
+            const data = JSON.parse(s.textContent || "");
+            return data["@type"] === "BreadcrumbList";
+          } catch {
+            return false;
+          }
+        });
+        expect(breadcrumbScripts).toHaveLength(1);
+        const schema = JSON.parse(breadcrumbScripts[0].textContent || "");
+        expect(schema.itemListElement).toHaveLength(2);
+        expect(schema.itemListElement[0]).toMatchObject({
+          "@type": "ListItem",
+          position: 1,
+          name: "Hem",
+        });
+        expect(schema.itemListElement[1]).toMatchObject({
+          "@type": "ListItem",
+          position: 2,
+          name: "AI-matchning",
+        });
+      });
+    });
   });
 });

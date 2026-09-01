@@ -268,8 +268,57 @@ export default function Matching() {
                 <meta property="og:image:alt" content="Matcha stipendier med StipendieAssistenten" />
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:site" content="@StipendieAss" />
+                <script type="application/ld+json">
+                    {JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "BreadcrumbList",
+                        itemListElement: [
+                            { "@type": "ListItem", position: 1, name: "Hem", item: SITE_URL },
+                            { "@type": "ListItem", position: 2, name: "AI-matchning", item: `${SITE_URL}/matching` },
+                        ],
+                    })}
+                </script>
+                <script type="application/ld+json">
+                    {JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "HowTo",
+                        name: "Hitta stipendier med AI-matchning",
+                        description: "Skapa din profil, svara på frågor om din situation, och få AI-genererade stipendieförslag.",
+                        step: [
+                            {
+                                "@type": "HowToStep",
+                                name: "Skapa din profil",
+                                text: "Skapa en personlig profil med uppgifter om din familjesituation, hälsa och behov.",
+                            },
+                            {
+                                "@type": "HowToStep",
+                                name: "Svara på frågor",
+                                text: "Besvara frågor om dina mål, intressen och omständigheter så att vi kan matcha dig med rätt stipendier.",
+                            },
+                            {
+                                "@type": "HowToStep",
+                                name: "Granska förslag",
+                                text: "Se en lista med stipendier som passar din profil, rankade efter relevans.",
+                            },
+                            {
+                                "@type": "HowToStep",
+                                name: "Ansök",
+                                text: "Klicka på ett stipendium för att se ansökningsdetaljer och skicka in din ansökan.",
+                            },
+                        ],
+                    })}
+                </script>
             </Helmet>
             <div className="space-y-6">
+            {/* Breadcrumb */}
+            <nav aria-label="Brödsmula">
+                <ol className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <li><Link to="/">Hem</Link></li>
+                    <li aria-hidden="true">›</li>
+                    <li aria-current="page">AI-matchning</li>
+                </ol>
+            </nav>
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>

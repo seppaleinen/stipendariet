@@ -207,11 +207,29 @@ export default function Grants() {
         <meta property="og:image" content={DEFAULT_OG_IMAGE} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Stipendier och Bidrag | StipendieAssistenten" />
+            <meta property="og:image:alt" content="Stipendier och Bidrag | StipendieAssistenten" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@StipendieAss" />
+        <script type="application/ld+json">
+            {JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "BreadcrumbList",
+                itemListElement: [
+                    { "@type": "ListItem", position: 1, name: "Hem", item: SITE_URL },
+                    { "@type": "ListItem", position: 2, name: "Hitta stipendier", item: `${SITE_URL}/grants` },
+                ],
+            })}
+        </script>
       </Helmet>
       <FAQSchema topic="search" />
+      {/* Breadcrumb */}
+      <nav aria-label="Brödsmula">
+        <ol className="flex items-center gap-2 text-sm text-muted-foreground">
+          <li><Link to="/">Hem</Link></li>
+          <li aria-hidden="true">›</li>
+          <li aria-current="page">Hitta stipendier</li>
+        </ol>
+      </nav>
       <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">

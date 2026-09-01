@@ -157,4 +157,52 @@ describe("Grants", () => {
       expect(matchLink).toHaveAttribute("href", "/matching");
     });
   });
+
+  it("renders a visible breadcrumb with links to home and current page", async () => {
+    mockGetGrants.mockResolvedValue(grantsResponse([]));
+    render(<Grants />);
+
+    const breadcrumb = await waitFor(() => {
+      const el = document.querySelector('nav[aria-label="Brödsmula"]');
+      expect(el).toBeInTheDocument();
+      expect(el).toHaveTextContent("Hem");
+      expect(el).toHaveTextContent("Hitta stipendier");
+      return el;
+    });
+
+    const homeLink = screen.getByRole("link", { name: "Hem" });
+    expect(homeLink).toHaveAttribute("href", "/");
+    const currentPage = breadcrumb?.querySelector('[aria-current="page"]');
+    expect(currentPage).toHaveTextContent("Hitta stipendier");
+  });
+
+  it("injects BreadcrumbList JSON-LD in the document head", async () => {
+    mockGetGrants.mockResolvedValue(grantsResponse([]));
+    render(<Grants />);
+
+    await waitFor(() => {
+      const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      const breadcrumbScripts = Array.from(scripts).filter((s) => {
+        try {
+          const data = JSON.parse(s.textContent || "");
+          return data["@type"] === "BreadcrumbList";
+        } catch {
+          return false;
+        }
+      });
+      expect(breadcrumbScripts).toHaveLength(1);
+      const schema = JSON.parse(breadcrumbScripts[0].textContent || "");
+      expect(schema.itemListElement).toHaveLength(2);
+      expect(schema.itemListElement[0]).toMatchObject({
+        "@type": "ListItem",
+        position: 1,
+        name: "Hem",
+      });
+      expect(schema.itemListElement[1]).toMatchObject({
+        "@type": "ListItem",
+        position: 2,
+        name: "Hitta stipendier",
+      });
+    });
+  });
 });
