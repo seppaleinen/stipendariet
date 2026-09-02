@@ -66,3 +66,5 @@ A hard constraint limiting Matches to Foundations whose **Service area** covers 
 - "freetext" was used to mean both a format (any string) and the feature (the user's own words) — resolved: the concept is called **Self-description**; "freetext" is avoided entirely.
 - "profile data" was used loosely for both Structured selections and Self-description — resolved: these are distinct sources of **Matching text**.
 - Whether the Self-description should also feed application generation — resolved for now: no (Matching only). Opt-in inclusion on the Generate page is the acknowledged future direction, deliberately deferred.
+- "location" is ambiguous between a Foundation's **Registered address** and its **Service area** — resolved: these are distinct concepts; eligibility follows Service area.
+- How multi-place Service-area mentions (e.g., "Kalmar och Västervik") should be split into codes — unresolved: defer to the manual-review path for ambiguous cases; unambiguous single-place mentions proceed on their own.

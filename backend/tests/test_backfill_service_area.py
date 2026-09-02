@@ -8,11 +8,21 @@ from app.api.admin.enrichment import backfill_service_area_endpoint
 
 
 class _FakeFoundation:
-    def __init__(self, foundation_id: int, name: str, purpose=None, summary=None):
+    def __init__(
+        self,
+        foundation_id: int,
+        name: str,
+        purpose=None,
+        summary=None,
+        county_code=None,
+        municipality_code=None,
+    ):
         self.id = foundation_id
         self.name = name
         self.purpose = purpose
         self.summary = summary
+        self.county_code = county_code
+        self.municipality_code = municipality_code
 
 
 class _FakeQuery:
@@ -64,8 +74,8 @@ async def test_backfill_processes_null_rows(mock_save, mock_extract):
         _FakeFoundation(2, "Stiftelsen Skåne", purpose="För Skåne"),
     ]
     mock_extract.side_effect = [
-        {"municipality_code": "0880", "county_code": "08", "confidence": "high"},
-        {"municipality_code": None, "county_code": "12", "confidence": "medium"},
+        {"municipality_code": "0880", "county_code": "08", "confidence": "high", "service_area_status": "CONFIRMED"},
+        {"municipality_code": None, "county_code": "12", "confidence": "medium", "service_area_status": "REVIEW"},
     ]
 
     with patch("app.db.database.get_db", _patched_get_db(rows)):
@@ -78,12 +88,18 @@ async def test_backfill_processes_null_rows(mock_save, mock_extract):
 
     # Extract called per foundation with name + purpose + summary (extract-only, no scraping)
     assert mock_extract.call_count == 2
-    mock_extract.assert_any_call("Stiftelsen Kalmar", purpose="För Kalmar", description=None)
-    mock_extract.assert_any_call("Stiftelsen Skåne", purpose="För Skåne", description=None)
+    mock_extract.assert_any_call(
+        "Stiftelsen Kalmar", purpose="För Kalmar", description=None,
+        registered_county_code=None, registered_municipality_code=None,
+    )
+    mock_extract.assert_any_call(
+        "Stiftelsen Skåne", purpose="För Skåne", description=None,
+        registered_county_code=None, registered_municipality_code=None,
+    )
 
-    # Each result saved (overwrite semantics via the shared orchestrator helper)
-    mock_save.assert_any_call(1, {"municipality_code": "0880", "county_code": "08", "confidence": "high"})
-    mock_save.assert_any_call(2, {"municipality_code": None, "county_code": "12", "confidence": "medium"})
+    # Each result saved with status (overwrite semantics via the shared orchestrator helper)
+    mock_save.assert_any_call(1, {"municipality_code": "0880", "county_code": "08", "confidence": "high"}, "CONFIRMED")
+    mock_save.assert_any_call(2, {"municipality_code": None, "county_code": "12", "confidence": "medium"}, "REVIEW")
     assert mock_save.call_count == 2
 
 
@@ -113,7 +129,7 @@ async def test_backfill_reports_failures(mock_save, mock_extract):
         _FakeFoundation(5, "Felande stiftelse"),
     ]
     mock_extract.side_effect = [
-        {"municipality_code": "0180", "county_code": "01", "confidence": "high"},
+        {"municipality_code": "0180", "county_code": "01", "confidence": "high", "service_area_status": "CONFIRMED"},
         RuntimeError("LLM timeout"),
     ]
 
@@ -124,7 +140,9 @@ async def test_backfill_reports_failures(mock_save, mock_extract):
     assert result["failed"] == 1
     assert result["failures"][0]["id"] == 5
     assert result["failures"][0]["error"] == "LLM timeout"
-    mock_save.assert_called_once_with(4, {"municipality_code": "0180", "county_code": "01", "confidence": "high"})
+    mock_save.assert_called_once_with(
+        4, {"municipality_code": "0180", "county_code": "01", "confidence": "high"}, "CONFIRMED"
+    )
 
 
 @pytest.mark.asyncio

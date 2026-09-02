@@ -20,6 +20,10 @@ def list_foundations_for_translation_endpoint(
         "all",
         description="Filter by translation status: all, translated, missing",
     ),
+    service_area_status_filter: str = Query(
+        None,
+        description="Filter by service_area_status: CONFIRMED, REVIEW",
+    ),
 ):
     """
     Return a paginated list of foundations for translation judging.
@@ -39,6 +43,14 @@ def list_foundations_for_translation_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="status must be one of: all, translated, missing",
         )
+    if service_area_status_filter is not None and service_area_status_filter not in (
+        "CONFIRMED",
+        "REVIEW",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="service_area_status must be one of: CONFIRMED, REVIEW",
+        )
 
     try:
         from app.db import models
@@ -54,6 +66,10 @@ def list_foundations_for_translation_endpoint(
                 query = query.filter(
                     models.Foundation.translated_purpose.is_(None)
                 )
+            if service_area_status_filter == "REVIEW":
+                query = query.filter(models.Foundation.service_area_status == "REVIEW")
+            elif service_area_status_filter == "CONFIRMED":
+                query = query.filter(models.Foundation.service_area_status == "CONFIRMED")
 
             total = query.count()
 
@@ -80,6 +96,7 @@ def list_foundations_for_translation_endpoint(
                     "county_code": f.county_code,
                     "municipality_code": f.municipality_code,
                     "parsed_service_area": f.parsed_service_area,
+                    "service_area_status": f.service_area_status,
                     "category": f.category,
                     "last_updated": f.last_updated,
                 })

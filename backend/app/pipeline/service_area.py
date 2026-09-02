@@ -34,6 +34,36 @@ class ParsedServiceArea(BaseModel):
     service_area_detail: str | None = None  # fine-grained eligibility detail, preserved and displayed
 
 
+def _check_service_area_status(
+    parsed_county_code: str | None,
+    parsed_municipality_code: str | None,
+    registered_county_code: str | None,
+    registered_municipality_code: str | None,
+) -> str | None:
+    """Determine service_area_status by comparing parsed vs registered geography.
+
+    Returns "CONFIRMED" (parsed ⊆ registered), "REVIEW" (conflict), or None
+    (nothing to compare / no registered code).
+    """
+    # If no registered county to compare against, can't conflict
+    if not registered_county_code:
+        return None
+
+    parsed_county = parsed_county_code
+    if not parsed_county and parsed_municipality_code:
+        for _name, (muni_code, county_code) in MUNICIPALITY_LOOKUP.items():
+            if muni_code == parsed_municipality_code:
+                parsed_county = county_code
+                break
+
+    if not parsed_county:
+        return None
+
+    if parsed_county == registered_county_code:
+        return "CONFIRMED"
+    return "REVIEW"
+
+
 def _map_location_to_codes(
     location_name: str | None,
     granularity: str | None,
@@ -109,6 +139,8 @@ async def extract_service_area(
     foundation_name: str,
     purpose: str | None = None,
     description: str | None = None,
+    registered_county_code: str | None = None,
+    registered_municipality_code: str | None = None,
 ) -> dict[str, Any] | None:
     """Extract geographic service area from foundation name and purpose.
 
@@ -160,6 +192,20 @@ async def extract_service_area(
             llm_result.granularity,
         )
 
+        # Phase 1: if granularity is municipality but no municipality_code resolved,
+        # the LLM identified a place that doesn't map to any known municipality.
+        # Don't pass through county-only codes with a misleading "municipality" label.
+        if (
+            llm_result.granularity == "municipality"
+            and codes is not None
+            and codes.get("municipality_code") is None
+        ):
+            logger.warning(
+                f"LLM granularity was 'municipality' but no municipality_code resolved "
+                f"for '{llm_result.location_name}' in {foundation_name}; returning None"
+            )
+            return None
+
         if not codes:
             logger.warning(
                 f"LLM identified location '{llm_result.location_name}' "
@@ -174,12 +220,21 @@ async def extract_service_area(
             service_area_detail=llm_result.service_area_detail,
         )
 
+        status = _check_service_area_status(
+            parsed_county_code=result.county_code,
+            parsed_municipality_code=result.municipality_code,
+            registered_county_code=registered_county_code,
+            registered_municipality_code=registered_municipality_code,
+        )
+        result_dict = result.model_dump()
+        result_dict["service_area_status"] = status
+
         logger.info(
             f"Service area extracted for {foundation_name}: "
             f"{result.municipality_code or result.county_code} "
             f"({result.municipality_name or result.county_name})"
         )
-        return result.model_dump()
+        return result_dict
 
     except json.JSONDecodeError as e:
         logger.error(f"Service area LLM returned invalid JSON for {foundation_name}: {e}")

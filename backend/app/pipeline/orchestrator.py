@@ -109,11 +109,17 @@ def _db_save_extraction(foundation_id: int, source_id: int, extracted_data: dict
         db.commit()
 
 
-def _db_save_parsed_service_area(foundation_id: int, parsed_service_area: dict):
+def _db_save_parsed_service_area(
+    foundation_id: int,
+    parsed_service_area: dict,
+    service_area_status: str | None = None,
+):
     with SessionLocal() as db:
         foundation = db.query(Foundation).filter(Foundation.id == foundation_id).first()
         if foundation:
-            foundation.parsed_service_area = parsed_service_area
+            save_dict = {k: v for k, v in parsed_service_area.items() if k != "service_area_status"}
+            foundation.parsed_service_area = save_dict
+            foundation.service_area_status = service_area_status
             db.commit()
 
 
@@ -158,9 +164,12 @@ async def run_foundation_pipeline_task(
         foundation_name,
         purpose=foundation.purpose,
         description=foundation.summary,
+        registered_county_code=foundation.county_code,
+        registered_municipality_code=foundation.municipality_code,
     )
     if service_area:
-        await asyncio.to_thread(_db_save_parsed_service_area, foundation_id, service_area)
+        sa_status = service_area.pop("service_area_status", None)
+        await asyncio.to_thread(_db_save_parsed_service_area, foundation_id, service_area, sa_status)
         trace["service_area"] = service_area
         logger.info(f"Service area extracted for {foundation_name}: {service_area}")
 

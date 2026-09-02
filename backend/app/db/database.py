@@ -132,6 +132,7 @@ def create_tables():
             ("business_entities", "JSON"),
             ("translated_purpose", "TEXT"),
             ("purpose_embedding", "vector(768)"),
+            ("service_area_status", "VARCHAR"),
         ]
 
         for col_name, col_type in new_columns:

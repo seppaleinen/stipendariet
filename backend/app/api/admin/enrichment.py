@@ -392,6 +392,8 @@ async def backfill_service_area_endpoint(
                 foundation.name,
                 purpose=foundation.purpose,
                 description=foundation.summary,
+                registered_county_code=foundation.county_code,
+                registered_municipality_code=foundation.municipality_code,
             )
         except Exception as e:
             logger.error(f"Service area backfill failed for foundation {foundation.id}: {e}")
@@ -401,7 +403,10 @@ async def backfill_service_area_endpoint(
         # Overwrite semantics: the selected row is NULL by definition, but the
         # shared save helper also unconditionally overwrites on re-enrich.
         if service_area:
-            await asyncio.to_thread(_db_save_parsed_service_area, foundation.id, service_area)
+            sa_status = service_area.pop("service_area_status", None)
+            await asyncio.to_thread(
+                _db_save_parsed_service_area, foundation.id, service_area, sa_status
+            )
         processed += 1
 
         if delay_seconds > 0:

@@ -479,18 +479,19 @@ def find_matching_by_profile(
             if profile.municipality_code:
                 # Municipality filter: parsed_service_area first, then official codes
                 geo_filter = """AND (
-                    -- Foundation has parsed_service_area → check it (takes precedence)
+                    -- Foundation has parsed_service_area AND it is confirmed → check it (takes precedence)
                     (
                         parsed_service_area IS NOT NULL
+                        AND (service_area_status IS DISTINCT FROM 'REVIEW')
                         AND (
                             parsed_service_area->>'municipality_code' = :municipality_code
                             OR parsed_service_area->>'county_code' = :county_code
                         )
                     )
                     OR
-                    -- Foundation has NO parsed_service_area → use official codes
+                    -- Foundation has NO usable parsed_service_area (NULL or REVIEW) → use official codes
                     (
-                        parsed_service_area IS NULL
+                        (parsed_service_area IS NULL OR service_area_status = 'REVIEW')
                         AND (
                             municipality_code = :municipality_code
                             OR municipality_code IS NULL
@@ -503,15 +504,16 @@ def find_matching_by_profile(
             else:
                 # County-only filter: parsed_service_area first, then official codes
                 geo_filter = """AND (
-                    -- Foundation has parsed_service_area → check it (takes precedence)
+                    -- Foundation has parsed_service_area AND it is confirmed → check it (takes precedence)
                     (
                         parsed_service_area IS NOT NULL
+                        AND (service_area_status IS DISTINCT FROM 'REVIEW')
                         AND parsed_service_area->>'county_code' = :county_code
                     )
                     OR
-                    -- Foundation has NO parsed_service_area → use official codes
+                    -- Foundation has NO usable parsed_service_area (NULL or REVIEW) → use official codes
                     (
-                        parsed_service_area IS NULL
+                        (parsed_service_area IS NULL OR service_area_status = 'REVIEW')
                         AND (
                             county_code = :county_code
                             OR county_code IS NULL

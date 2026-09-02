@@ -222,3 +222,129 @@ class TestExtractServiceArea:
         assert result is not None
         assert result["municipality_code"] == "0880"
         assert result.get("service_area_detail") is None
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_subkommun_municipality_resolved(self, mock_chat):
+        """A sub-kommun mention resolves to its parent municipality, preserving detail."""
+        mock_chat.return_value = (
+            '{"location_name": "Stockholm", "granularity": "municipality", '
+            '"service_area_detail": "Stockholms domkyrkoförsamling"}'
+        )
+
+        result = await extract_service_area(
+            "Stockholms domkyrkoförsamling",
+            purpose="Stöd till medlemmar i Stockholms domkyrkoförsamling",
+        )
+
+        assert result is not None
+        assert result["municipality_code"] == "0180"
+        assert "domkyrkoförsamling" in result["service_area_detail"]
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_unknown_municipality_downgrades_to_none(self, mock_chat):
+        """An unrecognized municipality granularity must not pass through county codes."""
+        mock_chat.return_value = (
+            '{"location_name": "Atlantis", "granularity": "municipality", '
+            '"service_area_detail": null}'
+        )
+
+        result = await extract_service_area(
+            "Stiftelsen Atlantis",
+            purpose="Stöd till boende i Atlantis",
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_county_granularity_with_unknown_name_returns_none(self, mock_chat):
+        """An unrecognized county-level name still returns None."""
+        mock_chat.return_value = (
+            '{"location_name": "Narnia", "granularity": "county", '
+            '"service_area_detail": null}'
+        )
+
+        result = await extract_service_area(
+            "Stiftelsen för Narnia",
+            purpose="Stöd till boende i Narnia",
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_contradiction_returns_review(self, mock_chat):
+        """Parsed geography conflicting with registered county → REVIEW status."""
+        mock_chat.return_value = (
+            '{"location_name": "Gotland", "granularity": "municipality", '
+            '"service_area_detail": null}'
+        )
+
+        result = await extract_service_area(
+            "Stiftelsen Gotland",
+            purpose="För personer bosatta på Gotland",
+            registered_county_code="01",
+        )
+
+        assert result is not None
+        assert result["municipality_code"] == "0980"
+        assert result["county_code"] == "09"
+        assert result["service_area_status"] == "REVIEW"
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_contained_returns_confirmed(self, mock_chat):
+        """Parsed geography contained within registered county → CONFIRMED status."""
+        mock_chat.return_value = (
+            '{"location_name": "Kalmar", "granularity": "municipality", '
+            '"service_area_detail": null}'
+        )
+
+        result = await extract_service_area(
+            "Stiftelsen Kalmar",
+            purpose="För Kalmar",
+            registered_county_code="08",
+        )
+
+        assert result is not None
+        assert result["municipality_code"] == "0880"
+        assert result["service_area_status"] == "CONFIRMED"
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_no_registered_code_returns_none_status(self, mock_chat):
+        """Without registered codes, service_area_status is None."""
+        mock_chat.return_value = (
+            '{"location_name": "Kalmar", "granularity": "municipality", '
+            '"service_area_detail": null}'
+        )
+
+        result = await extract_service_area(
+            "Stiftelsen Kalmar",
+            purpose="För Kalmar",
+        )
+
+        assert result is not None
+        assert result["municipality_code"] == "0880"
+        assert result["service_area_status"] is None
+
+    @pytest.mark.asyncio
+    @patch("app.pipeline.service_area.chat_completion")
+    async def test_county_level_contradiction_returns_review(self, mock_chat):
+        """County-level parsed geography conflicting with registered county → REVIEW."""
+        mock_chat.return_value = (
+            '{"location_name": "Skåne", "granularity": "county", '
+            '"service_area_detail": null}'
+        )
+
+        result = await extract_service_area(
+            "Stiftelsen för Skåneboende",
+            purpose="Personer i Skåne",
+            registered_county_code="03",
+        )
+
+        assert result is not None
+        assert result["county_code"] == "12"
+        assert result["service_area_status"] == "REVIEW"

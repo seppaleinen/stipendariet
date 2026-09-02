@@ -73,7 +73,18 @@ Exempel på geografiska begränsningar:
 - "födda i Skåne" → län Skåne
 - "endast boende på Norr Mälarstrand i Stockholm" → kommun Stockholm, detalj: endast boende på Norr Mälarstrand
 
-Om texten anger en finare geografisk nivå än kommun (t.ex. gata, stadsdel, församling eller annat avgränsat område), bevara den beskrivningen i fältet service_area_detail. Om ingen finare detalj nämns, sätt service_area_detail till null.
+Om texten anger en finare geografisk nivå än kommun (t.ex. gata, stadsdel, församling eller annat avgränsat område), SKA du:
+1. Sätta location_name till den överordnade KOMMUNEN (inte församlingen eller gatan)
+2. Sätta granularity till "municipality"
+3. Bevara den finare detaljen i service_area_detail
+
+Exempel:
+- "Stockholms domkyrkoförsamling" → location_name: "Stockholm", granularity: "municipality", service_area_detail: "Stockholms domkyrkoförsamling"
+- "Sankt Petri församling i Malmö" → location_name: "Malmö", granularity: "municipality", service_area_detail: "Sankt Petri församling"
+- "Norr Mälarstrand i Stockholm" → location_name: "Stockholm", granularity: "municipality", service_area_detail: "Norr Mälarstrand"
+- "Gustavi församling i Göteborg" → location_name: "Göteborg", granularity: "municipality", service_area_detail: "Gustavi församling"
+
+Om ingen finare detalj nämns, sätt service_area_detail till null.
 
 Tydliga tecken på att en stiftelse ÄR geografiskt begränsad:
 - Namnet innehåller en kommuns eller läns namn

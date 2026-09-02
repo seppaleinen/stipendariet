@@ -167,7 +167,9 @@ def list_foundations_for_translation(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     status: str = Query("all"),
+    service_area_status: str = Query(None, description="Filter: CONFIRMED or REVIEW"),
 ):
     return list_foundations_for_translation_endpoint(
-        page=page, page_size=page_size, status_filter=status
+        page=page, page_size=page_size, status_filter=status,
+        service_area_status_filter=service_area_status,
     )

@@ -102,6 +102,7 @@ class Foundation(Base):
     county_code = Column(String)  # LANKOD from external API
     municipality_code = Column(String)  # KOMMUNKOD from external API
     parsed_service_area = Column(JSON)  # LLM-extracted location from name/purpose text
+    service_area_status = Column(String)  # NULL | 'CONFIRMED' | 'REVIEW' — contradiction check result
     phone = Column(String)  # TELEFON from external API
     co_address = Column(String)  # COADRESS from external API
     type = Column(Integer)  # TYP from external API
