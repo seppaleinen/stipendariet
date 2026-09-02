@@ -4,31 +4,92 @@ Smoke test: process exactly 5 foundations end-to-end through the enrichment pipe
 Requires: live Postgres + Redis + browserless + LiteLLM.
 Skips automatically if any of those services is unreachable.
 
-The conftest.py mocks the database module at import time (sys.modules level),
-which prevents any real DB calls.  This test deliberately imports AFTER that
-mocking so we can replace it with the real thing.
+IMPORTANT (CI unit tests): conftest.py mocks `app.db.database` at the sys.modules
+level so every other test runs as a pure unit test with no real DB.  That mock
+must NOT be replaced at module-import time — doing so (as this file historically
+did with a module-level `sys.modules.pop`) silently breaks the dependency-mock
+setup of test_routers.py / test_issue19_urls.py whenever this file is collected
+in the same run (which is exactly what happens in CI).
+
+So this module does NOT touch sys.modules at import time.  The real database
+module is imported lazily, only after a runtime check confirms a real, migrated
+`foundations` table is reachable.  If it isn't (CI unit runs, empty Postgres, or
+no DB), the test skips.  The conftest mock is restored afterwards so sibling
+unit tests are never affected.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 
 import pytest
 import requests
 
-# ── Un-mock app.db.database so we get the real SessionLocal ─────────────────
-# conftest.py sets this before any test code runs.  We reset it before this
-# module is even discovered by the import-order machinery.
-sys.modules.pop("app.db.database", None)
-sys.modules.pop("app.db", None)
-
-# ruff: noqa: E402 — must pop mocks first
-from app.db.database import SessionLocal  # noqa: E402
-from app.db.models import EnrichmentSource, Foundation  # noqa: E402
-from app.pipeline.orchestrator import run_foundation_pipeline_task  # noqa: E402
-
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lazy, self-healing access to the real database module
+# ---------------------------------------------------------------------------
+
+def _load_real_db():
+    """Temporarily swap the conftest sys.modules mock for the REAL database module.
+
+    Returns (SessionLocal, Foundation, EnrichmentSource, run_foundation_pipeline_task)
+    after importing the real modules, and restores the conftest mock so sibling
+    unit tests keep their mocked DB.
+
+    Callers must hold this in a try/finally so the mock is always restored.
+    """
+    import sys
+
+    # conftest installs a MagicMock for app.db.database.  Snapshot it so we can
+    # restore it after importing the real module.
+    mock_db = sys.modules.get("app.db.database")
+
+    sys.modules.pop("app.db.database", None)
+    sys.modules.pop("app.db", None)
+
+    try:
+        from app.db.database import SessionLocal
+        from app.db.models import EnrichmentSource, Foundation
+        from app.pipeline.orchestrator import run_foundation_pipeline_task
+        return SessionLocal, Foundation, EnrichmentSource, run_foundation_pipeline_task
+    finally:
+        # Drop any cached real module, then restore the conftest mock so we
+        # never pollute sibling unit tests.
+        sys.modules.pop("app.db.database", None)
+        sys.modules.pop("app.db", None)
+        if mock_db is not None:
+            sys.modules["app.db.database"] = mock_db
+
+
+def _real_db_ready() -> bool:
+    """Return True iff a real `foundations` table is reachable for this test.
+
+    Uses the same retry-based engine creation the app uses; returns False (-> skip)
+    for any unreachable DB / missing table / missing columns (CI unit runs).
+    """
+    try:
+        SessionLocal, Foundation, _, _ = _load_real_db()
+        with SessionLocal() as db:
+            # Select a full row (all mapped columns) so a missing column in a
+            # partially-migrated DB also triggers a skip rather than an error.
+            db.query(Foundation).limit(1).first()
+        return True
+    except Exception:
+        return False
+
+
+@pytest.fixture(scope="module")
+def real_db_ready() -> bool:
+    """Skip the whole module if no real, migrated Postgres `foundations` table."""
+    if not _real_db_ready():
+        pytest.skip(
+            "No real Postgres `foundations` table reachable. "
+            "This is an integration test and is skipped in CI unit runs."
+        )
+    return True
 
 # ---------------------------------------------------------------------------
 # Prerequisites check
@@ -71,17 +132,40 @@ def litellm_ok() -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Fixture: lazily load real DB modules once a real DB is confirmed
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def enrichment_db(real_db_ready):
+    """Load the real database modules and hold them for this module's tests.
+
+    `real_db_ready` guarantees a real `foundations` table exists (otherwise the
+    module skips).  Imports are done lazily here so the conftest sys.modules
+    mock is only swapped out for the short duration of this module's run.
+    """
+    loaded = _load_real_db()
+    yield {
+        "SessionLocal": loaded[0],
+        "Foundation": loaded[1],
+        "EnrichmentSource": loaded[2],
+        "run_foundation_pipeline_task": loaded[3],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Fixture: 5 test foundations
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def test_foundations() -> list[int]:
+def test_foundations(enrichment_db) -> list[int]:
     """
     Pick 5 UNPROCESSED foundations that have a non-empty purpose text.
 
     Returns a list of foundation primary keys.
     After the test these rows are reset to UNPROCESSED so the test is repeatable.
     """
+    SessionLocal = enrichment_db["SessionLocal"]
+    Foundation = enrichment_db["Foundation"]
     with SessionLocal() as db:
         rows = (
             db.query(Foundation)
@@ -103,8 +187,10 @@ def test_foundations() -> list[int]:
 
 
 @pytest.fixture
-def reset_after():
+def reset_after(enrichment_db):
     """Reset test foundations to UNPROCESSED after the test runs."""
+    SessionLocal = enrichment_db["SessionLocal"]
+    Foundation = enrichment_db["Foundation"]
     foundation_ids: list[int] = []
 
     def capture(ids: list[int]) -> None:
@@ -136,6 +222,7 @@ def reset_after():
 async def test_enrichment_smoke_5_foundations(
     browserless_ok: bool,
     litellm_ok: bool,
+    enrichment_db,
     test_foundations: list[int],
     reset_after,
 ):
@@ -156,6 +243,11 @@ async def test_enrichment_smoke_5_foundations(
         "LITELLM_URL is not reachable. "
         "Ensure LiteLLM proxy is running."
     )
+
+    SessionLocal = enrichment_db["SessionLocal"]
+    Foundation = enrichment_db["Foundation"]
+    EnrichmentSource = enrichment_db["EnrichmentSource"]
+    run_foundation_pipeline_task = enrichment_db["run_foundation_pipeline_task"]
 
     foundation_ids = test_foundations
     reset_after(foundation_ids)  # register teardown
