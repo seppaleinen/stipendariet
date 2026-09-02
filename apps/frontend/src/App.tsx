@@ -1,6 +1,6 @@
 import { Toaster, SonnerToaster as Sonner, TooltipProvider } from "@stipendariet/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useParams } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/contexts/ProfileContext";
 import { SSRDataProvider } from "@/contexts/SSRDataContext";
@@ -41,8 +41,16 @@ const App = ({ ssrData }: { ssrData?: SSRData } = {}) => (
                 <Route path="/" element={<Home />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/grants" element={<Grants />} />
-                <Route path="/matching" element={<Matching />} />
                 <Route path="/grants/:id" element={<GrantDetail />} />
+                <Route path="/matching" element={<Matching />} />
+                <Route
+                  path="/matching/generate/:id"
+                  element={
+                    <ProtectedRoute>
+                      <Matching generateMode={true} matchId={parseInt(useParams().id || '0')} />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Protected routes - require login */}
                 <Route path="/applications" element={
