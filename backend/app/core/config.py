@@ -46,6 +46,6 @@ class Settings(BaseSettings):
     TRANSLATION_CONCURRENCY: int = Field(default=3, env="TRANSLATION_CONCURRENCY")
     TRANSLATION_DELAY: float = Field(default=0.1, env="TRANSLATION_DELAY")
 
-    model_config = {"env_file": ".env"}
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 settings = Settings()
