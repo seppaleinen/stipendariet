@@ -24,7 +24,18 @@ vi.mock("react-router-dom", () => ({
       {children}
     </a>
   ),
+  // Re-export everything from the actual module to avoid "No export is defined" errors
 }));
+
+// Use actual react hooks
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+  return {
+    ...actual,
+    useState: actual.useState,
+    useEffect: actual.useEffect,
+  };
+});
 
 describe("Home", () => {
   it("renders the hero heading", () => {
