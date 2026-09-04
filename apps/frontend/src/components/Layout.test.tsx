@@ -125,7 +125,26 @@ describe("Layout", () => {
       expect(nav.getByText("Stipendier")).toBeInTheDocument();
       expect(nav.getByText("Familj")).toBeInTheDocument();
       expect(nav.getByText("Ansökningar")).toBeInTheDocument();
-      expect(nav.getByText("Skapa Ansökan")).toBeInTheDocument();
+      // "Skapa Ansökan" is no longer in the desktop top nav — it lives in
+      // the mobile "+" overflow sheet (it was removed to keep desktop nav
+      // consistent with the mobile-first design and avoid a 5-item top bar).
+      expect(nav.queryByText("Skapa Ansökan")).not.toBeInTheDocument();
+    });
+
+    it("mobile nav exposes 'Skapa Ansökan' through a '+' overflow sheet", () => {
+      mockUseAuth.mockReturnValue(
+        authState({ user: authedUser, isAuthenticated: true })
+      );
+      render(<Layout>content</Layout>);
+
+      // The "+" overflow button is inside the mobile nav.
+      const overflowButton = within(mobileNav()).getByRole("button", {
+        name: /Fler alternativ/,
+      });
+      fireEvent.click(overflowButton);
+
+      const createLink = screen.getByRole("link", { name: /Skapa Ansökan/ });
+      expect(createLink).toHaveAttribute("href", "/generate");
     });
 
     it("renders ProfileSwitcher and avatar with user initials", () => {
@@ -186,9 +205,10 @@ describe("Layout", () => {
       );
       render(<Layout>content</Layout>);
 
-      // Open the dropdown via the avatar trigger button.
-      // Radix DropdownMenuTrigger opens on pointerdown with primary button.
-      fireEvent.pointerDown(screen.getByRole("button"), {
+      // Open the avatar dropdown via the avatar trigger button.
+      // Use name=/TU/ to disambiguate from the mobile "+" overflow button.
+      const avatarTrigger = screen.getByRole("button", { name: /TU/ });
+      fireEvent.pointerDown(avatarTrigger, {
         button: 0,
         ctrlKey: false,
       });

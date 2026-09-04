@@ -316,7 +316,7 @@ export default function Grants() {
                     </div>
                   </div>
                   <CardTitle className="line-clamp-2">{grant.title}</CardTitle>
-                  <CardDescription className="line-clamp-2">
+                  <CardDescription className="line-clamp-3">
                     {grant.summary}
                   </CardDescription>
                 </CardHeader>

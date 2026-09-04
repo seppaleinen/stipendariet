@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, FileText, PenSquare, Users, LogIn, LogOut, Loader2 } from "lucide-react";
+import { Home, Search, FileText, PenSquare, Users, LogIn, LogOut, Loader2, Plus } from "lucide-react";
 import { cn } from "@stipendariet/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@stipendariet/ui";
@@ -9,6 +9,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+} from "@stipendariet/ui";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
 } from "@stipendariet/ui";
 import { Avatar, AvatarFallback, AvatarImage } from "@stipendariet/ui";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
@@ -24,9 +31,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   // Protected navigation items (only when logged in)
+  // "Skapa Ansökan" is intentionally excluded from the bottom mobile nav —
+  // it lives in the "+" Sheet menu to keep the mobile bar 4 columns instead of 5.
   const protectedNavigation = [
     { name: "Familj", href: "/family-setup", icon: Users },
     { name: "Ansökningar", href: "/applications", icon: FileText },
+  ];
+
+  // Items that only appear inside the mobile "+" Sheet menu (authenticated)
+  const overflowNavigation = [
     { name: "Skapa Ansökan", href: "/generate", icon: PenSquare },
   ];
 
@@ -63,7 +76,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 S
               </span>
             </div>
-            <span className="font-bold text-xl">StipendieAssistenten</span>
+            <span className="font-bold text-xl hidden sm:inline">StipendieAssistenten</span>
           </Link>
 
           <div className="flex items-center gap-4">
@@ -158,7 +171,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card" aria-label="Mobilnavigering">
         <div className={cn(
           "grid gap-1 p-2",
-          isAuthenticated ? "grid-cols-5" : "grid-cols-3"
+          isAuthenticated
+            ? overflowNavigation.length > 0
+              ? "grid-cols-5" // 4 nav + 1 "+" sheet trigger
+              : "grid-cols-4"
+            : "grid-cols-3"
         )}>
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -180,6 +197,51 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          {/* "+" overflow menu for items that don't fit in the bottom bar (mobile only) */}
+          {isAuthenticated && overflowNavigation.length > 0 && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Fler alternativ"
+                  className={cn(
+                    "flex flex-col items-center justify-center py-2 rounded-lg transition-colors",
+                    overflowNavigation.some((i) => i.href === location.pathname)
+                      ? "text-primary bg-primary/10"
+                      : "text-muted-foreground hover:text-primary",
+                  )}
+                >
+                  <Plus className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-xs mt-1">Mer</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="pb-8">
+                <SheetHeader>
+                  <SheetTitle>Fler alternativ</SheetTitle>
+                </SheetHeader>
+                <div className="grid gap-2 mt-4">
+                  {overflowNavigation.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                          location.pathname === item.href
+                            ? "text-primary bg-primary/10"
+                            : "text-foreground hover:bg-muted",
+                        )}
+                      >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        <span className="font-medium">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
           {!isAuthenticated && (
             <Link
               to="/auth"

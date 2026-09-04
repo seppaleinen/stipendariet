@@ -65,15 +65,21 @@ export function ProfileSwitcher() {
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-[200px] justify-between"
+            aria-label={activeProfile?.name ? `Vald profil: ${activeProfile.name}` : "Välj profil"}
+            className="w-[120px] md:w-[200px] justify-between"
           >
             {activeProfile?.name ? (
               <div className="flex items-center gap-2 truncate">
                 <UserCircle className="h-4 w-4 shrink-0 opacity-50" />
-                <span className="truncate">{activeProfile.name}</span>
+                {/* On mobile, show only the icon — profile name is in the dropdown */}
+                <span className="truncate hidden sm:inline">{activeProfile.name}</span>
               </div>
             ) : (
-              "Välj profil..."
+              <>
+                <UserCircle className="h-4 w-4 shrink-0 opacity-50 md:hidden" />
+                <span className="hidden md:inline">Välj profil...</span>
+                <span className="md:hidden">Profil</span>
+              </>
             )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>

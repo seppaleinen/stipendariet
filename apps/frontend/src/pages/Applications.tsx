@@ -11,6 +11,13 @@ import {
   CardTitle,
 } from "@stipendariet/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@stipendariet/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@stipendariet/ui";
 import { getApplications } from "@/lib/api";
 import { Application } from "@/types/grants";
 import { Link } from "react-router-dom";
@@ -80,7 +87,33 @@ export default function Applications() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        {/* Mobile: Select-based tab switcher (5 tabs don't fit at 385px) */}
+        <div className="md:hidden mb-4">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger aria-label="Filtrera ansökningar efter status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                Alla ({counts.all})
+              </SelectItem>
+              <SelectItem value="draft">
+                Utkast ({counts.draft})
+              </SelectItem>
+              <SelectItem value="submitted">
+                Inskickad ({counts.submitted})
+              </SelectItem>
+              <SelectItem value="approved">
+                Godkänd ({counts.approved})
+              </SelectItem>
+              <SelectItem value="rejected">
+                Avslagen ({counts.rejected})
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Desktop: standard tabs */}
+        <TabsList className="hidden md:grid w-full grid-cols-5">
           <TabsTrigger value="all" className="gap-2">
             Alla <Badge variant="secondary">{counts.all}</Badge>
           </TabsTrigger>
