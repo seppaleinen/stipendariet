@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.turbo
+out
+graft
+graphify-out
+*.min.js
+*.min.css
+backend

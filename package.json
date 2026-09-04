@@ -17,12 +17,19 @@
     "lint": "turbo run lint",
     "lint:backend": "cd backend && (venv/bin/ruff check . || python3 -m ruff check .)",
     "test": "turbo run test",
+    "test:backend": "cd backend && (venv/bin/pytest . || python3 -m pytest .)",
     "test:e2e": "turbo run test:e2e",
-    "test:all": "turbo run test test:e2e",
+    "test:all": "turbo run test test:e2e && pnpm run test:backend",
     "ci:build-all": "turbo run build",
     "docker:build-backend": "docker compose -f docker-compose.yml build backend",
     "docker:up": "docker compose -f docker-compose.yml up -d",
-    "docker:down": "docker compose -f docker-compose.yml down"
+    "docker:down": "docker compose -f docker-compose.yml down",
+    "format:check:ts": "prettier --check \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\"",
+    "format:check:py": "cd backend && (venv/bin/ruff format --check . || python3 -m ruff format --check .)",
+    "format:check": "pnpm run format:check:ts && pnpm run format:check:py",
+    "format:fix:ts": "prettier --write \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\"",
+    "format:fix:py": "cd backend && (venv/bin/ruff format . || python3 -m ruff format .)",
+    "format": "pnpm run format:fix:ts && pnpm run format:fix:py"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -30,6 +37,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
+    "prettier": "^3.5.3",
     "turbo": "^2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0"

@@ -42,6 +42,8 @@
         "e2e/**"
       ],
       "outputs": []
-    }
+    },
+    "format:check": {},
+    "format:fix": {}
   }
 }
