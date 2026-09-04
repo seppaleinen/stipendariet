@@ -141,3 +141,33 @@ def test_get_foundation_categories(client):
     assert response.status_code == 200
     categories = response.json()
     assert isinstance(categories, (list, dict))
+
+
+def test_categorization_scheduled_daily():
+    """
+    Regression test for #28: categorization job must run daily, not weekly.
+    """
+    from app.foundation.categorization.categorization_job import (
+        init_categorization_scheduler,
+    )
+
+    # Re-init scheduler with the current config
+    init_categorization_scheduler()
+    from app.foundation.categorization.categorization_job import (
+        get_categorization_scheduler,
+    )
+    scheduler = get_categorization_scheduler()
+
+    # Access the scheduler's internal APScheduler instance
+    job = scheduler.scheduler.get_job("foundation_categorization_job")
+    assert job is not None, "Categorization job should be registered"
+
+    # Verify the trigger is daily (day_of_week field must be wildcard "*")
+    # APScheduler CronTrigger fields order:
+    # [year, month, day, week, day_of_week, hour, minute, second]
+    trigger = job.trigger
+    fields = trigger.fields
+    # fields[4] is day_of_week
+    assert str(fields[4]) == "*", (
+        f"Expected daily schedule (day_of_week='*'), got day_of_week='{fields[4]}'"
+    )

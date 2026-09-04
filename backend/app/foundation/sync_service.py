@@ -420,12 +420,33 @@ def sync_foundations(task_id: str = None):
                     f"Orphan SavedGrant cleanup failed (sync still succeeded): {cleanup_err}"
                 )
 
+            # Categorize newly created / uncategorized foundations immediately,
+            # so they don't sit uncategorized until the weekly job.
+            categorized_count = 0
+            try:
+                from app.foundation.categorization.categorize_foundations import (
+                    FoundationCategorizer,
+                )
+                categorizer = FoundationCategorizer()
+                categorized_count = categorizer.categorize_foundations_in_db(
+                    task_id=task_id
+                )
+                logger.info(
+                    f"Sync-time categorization: {categorized_count} foundations categorized"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Post-sync categorization failed (non-fatal): {e}"
+                )
+                # Do NOT fail the sync — sync success is independent of categorization.
+
             result = {
                 "status": "completed",
                 "created": created_total,
                 "updated": updated_total,
                 "failed": process_failed,
                 "total": total,
+                "categorized": categorized_count,
             }
             _set_task_result(result)
 

@@ -78,7 +78,7 @@ describe("mapGrantFromBackend", () => {
     expect(grant.provider).toBe("Okänd utgivare");
     expect(grant.summary).toBe("Ingen sammanfattning tillgänglig");
     expect(grant.description).toBe("Ingen beskrivning tillgänglig");
-    expect(grant.category).toBe("Diverse");
+    expect(grant.category).toBe("Okänd");
     expect(grant.tags).toEqual([]);
     expect(grant.isRecurring).toBe(false);
     expect(grant.amount).toBeUndefined();

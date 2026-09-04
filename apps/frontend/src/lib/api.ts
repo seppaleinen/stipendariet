@@ -89,7 +89,7 @@ export function mapGrantFromBackend(grant: BackendGrant): Grant {
       "Ok\u00e4nd utgivare",
     amount: (grant.amount as string) || undefined,
     deadline: formatDate(deadline),
-    category: (grant.category as string) || "Diverse",
+    category: (grant.category as string) || "Okänd",
     tags: Array.isArray(grant.tags) ? (grant.tags as string[]) : [],
     isRecurring: grant.cadence
       ? String(grant.cadence).toLowerCase().includes("år")

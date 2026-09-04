@@ -18,19 +18,19 @@ class CategorizationJobScheduler:
         self.scheduler = BackgroundScheduler()
         self.scheduler.start()
 
-        # Schedule the foundation categorization to run weekly on Sundays at 2 AM
+        # Schedule the foundation categorization to run daily at 6:30 AM
         self.scheduler.add_job(
             func=self.run_categorization_job,
             trigger=CronTrigger(
-                day_of_week="sun", hour=2, minute=0
-            ),  # Weekly on Sunday at 2:00 AM
+                hour=6, minute=30
+            ),  # Daily at 6:30 AM, after sync at 6:00 AM
             id="foundation_categorization_job",
             name="Categorize foundations using Ollama",
             replace_existing=True,
         )
 
         logger.info(
-            "Foundation categorization scheduler initialized. Job scheduled for weekly on Sundays at 2:00 AM"
+            "Foundation categorization scheduler initialized. Job scheduled daily at 6:30 AM"
         )
 
     def run_categorization_job(self):

@@ -176,7 +176,7 @@ def create_or_update_foundation(
     Preserves translated_purpose and purpose_embedding on updates.
     """
     # Fields that should NOT be overwritten on update
-    preserve_fields = {'translated_purpose', 'purpose_embedding'}
+    preserve_fields = {'translated_purpose', 'purpose_embedding', 'category'}
 
     # Check if foundation already exists using the foundation_id
     foundation_id = foundation_data.get("foundation_id")
@@ -233,8 +233,8 @@ def create_foundations_batch(
     """
     created_foundations = []
 
-    # Fields that should NOT be overwritten on update (preserve translations/embeddings)
-    preserve_fields = {'translated_purpose', 'purpose_embedding'}
+    # Fields that should NOT be overwritten on update (preserve translations/embeddings/category)
+    preserve_fields = {'translated_purpose', 'purpose_embedding', 'category'}
 
     for foundation_data in foundations_data:
         foundation_id = foundation_data.get("foundation_id")
