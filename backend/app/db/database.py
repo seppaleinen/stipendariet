@@ -196,6 +196,25 @@ def create_tables():
                 conn.commit()
                 print(f"Added '{col_name}' column to applications table")
 
+        # Check if the source_type column exists on enrichment_sources, if not, add it
+        result = conn.execute(
+            text(
+                """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='enrichment_sources' AND column_name='source_type'
+        """
+            )
+        )
+
+        if not result.fetchone():
+            # Add the source_type column
+            conn.execute(text("ALTER TABLE enrichment_sources ADD COLUMN source_type VARCHAR"))
+            conn.commit()
+            print("Added 'source_type' column to enrichment_sources table")
+        else:
+            print("Source_type column already exists in enrichment_sources table")
+
     # Create admin user if it doesn't exist
     create_admin_user()
 
