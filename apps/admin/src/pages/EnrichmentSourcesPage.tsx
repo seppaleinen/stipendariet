@@ -92,11 +92,16 @@ function EnrichmentSourcesPage() {
     }
   };
 
-  const handleFilterChange = (key: keyof Filters, value: string | number | undefined) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+  const handleFoundationFilter = (value: number | undefined) => {
+    setFilters((prev) => ({ ...prev, foundationId: value }));
+  };
+
+  const handleOfficialFilter = (value: boolean | undefined) => {
+    setFilters((prev) => ({ ...prev, isOfficial: value }));
+  };
+
+  const handleTypeFilter = (value: string | undefined) => {
+    setFilters((prev) => ({ ...prev, sourceType: value }));
   };
 
   const sourceTypeOptions = [
@@ -139,7 +144,7 @@ function EnrichmentSourcesPage() {
               <input
                 type="number"
                 onChange={(e) =>
-                  handleFilterChange('foundationId', e.target.value ? Number(e.target.value) : undefined)
+                  handleFoundationFilter(e.target.value ? Number(e.target.value) : undefined)
                 }
                 className="w-full px-3 py-2 border rounded"
                 placeholder="All"
@@ -149,7 +154,7 @@ function EnrichmentSourcesPage() {
               <label className="block text-sm font-medium mb-1">Official</label>
               <select
                 onChange={(e) =>
-                  handleFilterChange('isOfficial', e.target.value ? e.target.value === 'true' : undefined)
+                  handleOfficialFilter(e.target.value ? e.target.value === 'true' : undefined)
                 }
                 className="w-full px-3 py-2 border rounded"
               >
@@ -161,7 +166,7 @@ function EnrichmentSourcesPage() {
             <div>
               <label className="block text-sm font-medium mb-1">Source Type</label>
               <select
-                onChange={(e) => handleFilterChange('sourceType', e.target.value || undefined)}
+                onChange={(e) => handleTypeFilter(e.target.value || undefined)}
                 className="w-full px-3 py-2 border rounded"
               >
                 <option value="">All</option>
