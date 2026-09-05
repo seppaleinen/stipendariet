@@ -63,6 +63,15 @@ spec:
         - name: ssr
           image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # The image default ENTRYPOINT/CMD runs nginx — but this sidecar must
+          # run the on-demand SSR server instead. Override both while keeping the
+          # image's dumb-init wrapper (signal forwarding + zombie reaping):
+          #   dumb-init -- node scripts/ssr-server.js
+          # Plain Node http server rendering /grants/<id> on demand (PORT=3001,
+          # VITE_API_URL envs below; health endpoint GET /health).
+          # contract: image WORKDIR must contain scripts/ and dist/ as siblings.
+          command: ["dumb-init", "--"]
+          args: ["node", "scripts/ssr-server.js"]
           env:
             - name: VITE_API_URL
               value: {{ .Values.ssrApiUrl | quote }}

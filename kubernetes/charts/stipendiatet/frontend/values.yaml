@@ -14,9 +14,11 @@ image:
 env:
   viteApiUrl: "/api"
 # Internal URL the SSR server uses to reach the backend — must be the Kubernetes
-# service DNS (e.g. http://backend:8000), not the public /api path, because
-# SSR runs server-side inside the cluster where the ingress is not in scope.
-ssrApiUrl: "http://backend:8000"
+# service DNS with the /api path prefix (e.g. http://backend:8000/api), not the
+# public ingress path, because SSR runs server-side inside the cluster where the
+# ingress is not in scope. The backend mounts routers under /api (grants router
+# prefix is /api/grants), and ssr-server.js appends "/grants/<id>" to this base.
+ssrApiUrl: "http://backend:8000/api"
 
 # ── SSR Fallback Server ─────────────────────────────────────────────────────────
 # When enabled, a second container runs the Express SSR server (port 3001) in the
