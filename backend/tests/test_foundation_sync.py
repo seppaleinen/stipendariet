@@ -39,15 +39,19 @@ def _make_foundation_search_response(count=2, uppdaterad="2024-01-15T10:00:00"):
 # =============================================================================
 
 
+@patch('app.foundation.categorization.categorize_foundations.FoundationCategorizer')
 @patch('app.foundation.sync_service.get_db')
 @patch('app.foundation.sync_service.crud')
 @patch('app.foundation.sync_service.poll_foundations')
-def test_sync_foundations_successful_cycle(mock_poll, mock_crud, mock_get_db):
+def test_sync_foundations_successful_cycle(
+    mock_poll, mock_crud, mock_get_db, mock_categorizer
+):
     """Full cycle: poll → extract → persist succeeds."""
     mock_poll.return_value = _make_foundation_search_response(count=2)
     mock_crud.get_foundation_batch_size.return_value = 100
     mock_crud.get_foundation.return_value = None
     mock_crud.create_foundations_batch.return_value = []
+    mock_categorizer.return_value.categorize_foundations_in_db.return_value = 0
 
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
@@ -58,6 +62,8 @@ def test_sync_foundations_successful_cycle(mock_poll, mock_crud, mock_get_db):
     mock_poll.assert_called_once()
     mock_crud.create_foundations_batch.assert_called_once()
     mock_crud.get_foundation_batch_size.assert_called_once()
+    # Post-sync categorization should be triggered over the mocked DB
+    mock_categorizer.return_value.categorize_foundations_in_db.assert_called_once()
 
 
 @patch('app.foundation.sync_service.poll_foundations')
@@ -71,12 +77,13 @@ def test_sync_foundations_poll_failure(mock_poll):
     mock_poll.assert_called_once()
 
 
+@patch('app.foundation.categorization.categorize_foundations.FoundationCategorizer')
 @patch('app.foundation.sync_service.get_db')
 @patch('app.foundation.sync_service.crud')
 @patch('app.foundation.sync_service.extract_and_refine_foundation_data')
 @patch('app.foundation.sync_service.poll_foundations')
 def test_sync_foundations_partial_processing_failure(
-    mock_poll, mock_extract, mock_crud, mock_get_db
+    mock_poll, mock_extract, mock_crud, mock_get_db, mock_categorizer
 ):
     """One foundation raises during extraction; the other succeeds and is persisted."""
     mock_poll.return_value = _make_foundation_search_response(count=2)
@@ -94,6 +101,7 @@ def test_sync_foundations_partial_processing_failure(
     mock_crud.get_foundation_batch_size.return_value = 100
     mock_crud.get_foundation.return_value = None
     mock_crud.create_foundations_batch.return_value = []
+    mock_categorizer.return_value.categorize_foundations_in_db.return_value = 0
 
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
@@ -109,12 +117,14 @@ def test_sync_foundations_partial_processing_failure(
     assert call_args[0][1][0]["foundation_id"] == 2
 
 
+@patch('app.foundation.categorization.categorize_foundations.FoundationCategorizer')
 @patch('app.foundation.sync_service.extract_and_refine_foundation_data')
 @patch('app.foundation.sync_service.poll_foundations')
-def test_sync_foundations_empty_refined_data(mock_poll, mock_extract):
+def test_sync_foundations_empty_refined_data(mock_poll, mock_extract, mock_categorizer):
     """Returns False when all foundations fail extraction."""
     mock_poll.return_value = _make_foundation_search_response(count=2)
     mock_extract.side_effect = Exception("LLM error")
+    mock_categorizer.return_value.categorize_foundations_in_db.return_value = 0
 
     result = sync_foundations()
 
@@ -314,13 +324,14 @@ def test_cleanup_orphan_saved_grants_skips_unknown_format():
 # =============================================================================
 
 
+@patch('app.foundation.categorization.categorize_foundations.FoundationCategorizer')
 @patch('app.foundation.sync_service.get_db')
 @patch('app.foundation.sync_service.crud')
 @patch('app.foundation.sync_service.poll_foundations')
 @patch('app.foundation.sync_service.extract_and_refine_foundation_data')
 @patch('app.foundation.sync_service._cleanup_orphan_saved_grants')
 def test_sync_orphan_cleanup_failure_does_not_fail_sync(
-    mock_cleanup, mock_extract, mock_poll, mock_crud, mock_get_db
+    mock_cleanup, mock_extract, mock_poll, mock_crud, mock_get_db, mock_categorizer
 ):
     """sync_foundations returns True even when _cleanup_orphan_saved_grants raises."""
     mock_poll.return_value = _make_foundation_search_response(count=1)
@@ -335,6 +346,7 @@ def test_sync_orphan_cleanup_failure_does_not_fail_sync(
     mock_crud.get_foundation.return_value = None
     mock_crud.create_foundations_batch.return_value = []
     mock_cleanup.side_effect = Exception("cleanup error")
+    mock_categorizer.return_value.categorize_foundations_in_db.return_value = 0
 
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
