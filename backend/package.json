@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "build": "docker compose -f ../docker-compose.yml build backend",
     "dev": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "lint": "(venv/bin/ruff check . || python3 -m ruff check .)",
     "format:check": "(venv/bin/ruff format --check . || python3 -m ruff format --check .)",
