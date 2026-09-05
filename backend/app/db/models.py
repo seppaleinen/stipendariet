@@ -148,6 +148,7 @@ class EnrichmentSource(Base):
     id = Column(Integer, primary_key=True, index=True)
     foundation_id = Column(Integer, ForeignKey("foundations.id"), index=True)
     url = Column(String, nullable=False)
+    source_type = Column(String)  # 'aggregator', 'official', 'blog', 'directory'
     is_official = Column(Boolean, default=False)
     confidence = Column(Float, default=0.0)
     last_validated = Column(DateTime, default=datetime.utcnow)
