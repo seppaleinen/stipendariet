@@ -142,7 +142,7 @@ export default function Home() {
                     {county.name}
                   </SelectItem>
                 ))}
-                <SelectItem value="">Alla län</SelectItem>
+                <SelectItem value="all">Alla län</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -1,24 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import Matching from "../Matching";
 import * as AuthContext from "@/contexts/AuthContext";
-import * as ProfileContext from "@/contexts/ProfileContext";
-import * as Api from "@/lib/api";
-import type { MatchedFoundation } from "@/lib/api";
 
 const mockUseAuth = vi.spyOn(AuthContext, "useAuth");
-const mockUseProfile = vi.spyOn(ProfileContext, "useProfile");
-const mockFindMatchingFoundationsByProfile = vi.spyOn(
-  Api,
-  "findMatchingFoundationsByProfile"
-);
 
 // Link renders as a real anchor so href assertions are valid.
 vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
   useParams: () => ({}),
   useLocation: () => ({ pathname: "/matching" }),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
   Outlet: () => null,
   Routes: () => null,
   Route: () => null,
@@ -37,219 +30,169 @@ vi.mock("react-router-dom", () => ({
   ),
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
-  useToast: () => ({ toast: vi.fn() }),
-}));
+const grant = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  id: "gr-1",
+  title: "Kunskapsfonden",
+  summary: "Ett stipendium för studerande.",
+  provider: "Stiftelsen Kunskap",
+  amount: "10 000 kr",
+  deadline: "2026-10-01",
+  category: "Utbildning",
+  ...overrides,
+});
 
-const mockProfile = {
-  id: 1,
-  name: "Test Profile",
-  isDefault: true,
-  countyCode: "01",
-  municipalityCode: "0114",
-  lifeSituations: ["Studerande"],
-  healthConditions: [],
-  occupations: [],
-  supportPurposes: [],
-  selfDescription: "Jag studerar på universitetet.",
+const mockFetch = vi.fn();
+
+const stubMatchingResponse = (grants: unknown[], categories: string[] = []) => {
+  mockFetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ grants, categories }),
+  });
 };
-
-const mockMatch = (overrides: Partial<MatchedFoundation> = {}): MatchedFoundation =>
-  ({
-    foundation: {
-      foundation_id: "f-1",
-      name: "Kunskapsfonden",
-      summary: "Ett stipendium för studerande.",
-      category: "Utbildning",
-      translated_purpose: "Syftet är att stödja studerande.",
-      parsedServiceArea: null,
-    },
-    similarity_score: 0.75,
-    ...overrides,
-  } as unknown as MatchedFoundation);
 
 describe("Matching", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFindMatchingFoundationsByProfile.mockResolvedValue([]);
+    vi.stubGlobal("fetch", mockFetch);
+    stubMatchingResponse([]);
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      user: null,
+    });
   });
 
-  describe("unauthenticated", () => {
-    it("shows an auth prompt", () => {
-      mockUseAuth.mockReturnValue({ isAuthenticated: false } as ReturnType<typeof AuthContext.useAuth>);
-      mockUseProfile.mockReturnValue({
-        activeProfile: null,
-        isLoading: false,
-      } as ReturnType<typeof ProfileContext.useProfile>);
-
+  describe("rendering", () => {
+    it("renders the page heading", async () => {
       render(<Matching />);
-
       expect(
-        screen.getByText(/Logga in och fyll i din profil/i)
+        screen.getByRole("heading", { name: "Matcha stipendier" })
       ).toBeInTheDocument();
-      const loginLink = screen.getByRole("link", { name: /Logga in/i });
-      expect(loginLink).toHaveAttribute("href", "/auth");
-    });
-  });
-
-  describe("authenticated without profile", () => {
-    it("shows a prompt to create a profile", () => {
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: true,
-        user: { id: "1", email: "test@example.com" },
-      } as ReturnType<typeof AuthContext.useAuth>);
-      mockUseProfile.mockReturnValue({
-        activeProfile: null,
-        isLoading: false,
-      } as ReturnType<typeof ProfileContext.useProfile>);
-
-      render(<Matching />);
-
-      expect(
-        screen.getByText(/Fyll i profilen för att börja/i)
-      ).toBeInTheDocument();
-      const profileLink = screen.getByRole("link", { name: /Gå till profilsidan/i });
-      expect(profileLink).toHaveAttribute("href", "/profile-setup");
-    });
-  });
-
-  describe("authenticated with profile (full matching view)", () => {
-    beforeEach(() => {
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: true,
-        user: { id: "1", email: "test@example.com" },
-      } as ReturnType<typeof AuthContext.useAuth>);
-      mockUseProfile.mockReturnValue({
-        activeProfile: mockProfile as ProfileContext.Profile,
-        isLoading: false,
-        updateProfile: vi.fn().mockResolvedValue(undefined),
-      } as unknown as ReturnType<typeof ProfileContext.useProfile>);
     });
 
-    it("renders the matching page heading", async () => {
+    it("fetches matching results on mount", async () => {
       render(<Matching />);
       await waitFor(() => {
-        expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-          "Matchande stiftelser"
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining("/foundations/matching"),
+          expect.objectContaining({ method: "POST" })
         );
       });
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body).toMatchObject({ limit: 50 });
+      // "all" county means no county filter is sent
+      expect(body.county).toBeUndefined();
     });
 
-    it("renders matching results when the API returns data", async () => {
-      mockFindMatchingFoundationsByProfile.mockResolvedValue([
-        mockMatch(),
-        mockMatch({
-          foundation: {
-            ...mockMatch().foundation,
-            foundation_id: "f-2",
-            name: "Hälsofonden",
-          },
-          similarity_score: 0.55,
-        }),
-      ]);
-
+    it("shows the empty state when no grants match", async () => {
       render(<Matching />);
-
       await waitFor(() => {
-        expect(screen.getByText("Kunskapsfonden")).toBeInTheDocument();
-        expect(screen.getByText("Hälsofonden")).toBeInTheDocument();
+        expect(
+          screen.getByText(/Inga stipendier hittades/)
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("filters", () => {
+    it("renders search input with category and county selects", () => {
+      render(<Matching />);
+      expect(
+        screen.getByPlaceholderText("Sök stipendier...")
+      ).toBeInTheDocument();
+      // Selected values render in the Radix triggers without opening the lists.
+      expect(screen.getByText("Alla Kategorier")).toBeInTheDocument();
+      expect(screen.getByText("Alla län")).toBeInTheDocument();
+    });
+  });
+
+  describe("results", () => {
+    beforeEach(() => {
+      stubMatchingResponse(
+        [
+          grant(),
+          grant({
+            id: "gr-2",
+            title: "Hälsofonden",
+            provider: "Hälsofonden AB",
+            amount: undefined,
+            deadline: undefined,
+            category: "Hälsa",
+          }),
+        ],
+        ["Utbildning", "Hälsa"]
+      );
+    });
+
+    it("renders result cards with title, provider, amount, deadline and count", async () => {
+      render(<Matching />);
+      expect(await screen.findByText("Kunskapsfonden")).toBeInTheDocument();
+      expect(screen.getByText("Hälsofonden")).toBeInTheDocument();
+      expect(screen.getByText("2 stipendier hittades")).toBeInTheDocument();
+      expect(screen.getAllByText("Utgivare:")).toHaveLength(2);
+      expect(screen.getByText("Stiftelsen Kunskap")).toBeInTheDocument();
+      expect(screen.getByText("Belopp:")).toBeInTheDocument();
+      expect(screen.getByText("10 000 kr")).toBeInTheDocument();
+      expect(screen.getByText("Deadline:")).toBeInTheDocument();
+      expect(screen.getByText("2026-10-01")).toBeInTheDocument();
+      expect(screen.getByText("Utbildning")).toBeInTheDocument();
+    });
+
+    it("renders a Läs mer link to the grant detail page", async () => {
+      render(<Matching />);
+      await screen.findByText("Kunskapsfonden");
+      const links = screen.getAllByRole("link", { name: "Läs mer" });
+      expect(links[0]).toHaveAttribute("href", "/grants/gr-1");
+      expect(links[1]).toHaveAttribute("href", "/grants/gr-2");
+    });
+  });
+
+  describe("auth gating", () => {
+    beforeEach(() => {
+      stubMatchingResponse([grant()]);
+    });
+
+    it("opens the login prompt when saving while logged out", async () => {
+      render(<Matching />);
+      await screen.findByText("Kunskapsfonden");
+
+      fireEvent.click(screen.getByRole("button", { name: "Spara Kunskapsfonden" }));
+      expect(
+        screen.getByText("Logga in för att spara")
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Avbryt" }));
+      await waitFor(() => {
+        expect(
+          screen.queryByText("Logga in för att spara")
+        ).not.toBeInTheDocument();
       });
     });
 
-    it("renders similarity badges on result cards", async () => {
-      mockFindMatchingFoundationsByProfile.mockResolvedValue([
-        mockMatch({ similarity_score: 0.82 }),
-      ]);
-
+    it("disables the generate button for logged-out users", async () => {
       render(<Matching />);
-
-      await waitFor(() => {
-        expect(screen.getByText("82% match")).toBeInTheDocument();
+      await screen.findByText("Kunskapsfonden");
+      const generate = screen.getByRole("button", {
+        name: /Generera ansökan/,
       });
+      expect(generate).toBeDisabled();
+      expect(generate).toHaveAttribute(
+        "title",
+        "Logga in för att generera ansökan"
+      );
     });
 
-    it("renders result cards with a link to the grant detail page", async () => {
-      mockFindMatchingFoundationsByProfile.mockResolvedValue([mockMatch()]);
-
+    it("enables the generate button for authenticated users", async () => {
+      mockUseAuth.mockReturnValue({
+        isAuthenticated: true,
+        user: { id: "1", email: "test@example.com" },
+      });
       render(<Matching />);
-
-      await waitFor(() => {
-        const detailLink = screen.getByRole("link", { name: /Läs mer/i });
-        expect(detailLink).toHaveAttribute("href", "/grants/foundation-f-1");
+      await screen.findByText("Kunskapsfonden");
+      const generate = screen.getByRole("button", {
+        name: /Generera ansökan/,
       });
-    });
-
-    it("geo filter toggle is present and functional", async () => {
-      render(<Matching />);
-
-      await waitFor(() => {
-        const toggle = screen.getByRole("switch", { name: /Filtrera på geografiskt område/i });
-        expect(toggle).toBeInTheDocument();
-        expect(toggle).toHaveAttribute("aria-checked", "true"); // default: useGeoFilter = true
-      });
-
-      // Toggle it off
-      fireEvent.click(screen.getByLabelText(/Filtrera på geografiskt område/i));
-
-      await waitFor(() => {
-        const toggle = screen.getByRole("switch", { name: /Filtrera på geografiskt område/i });
-        expect(toggle).toHaveAttribute("aria-checked", "false");
-      });
-    });
-
-    it("renders an 'Alla stipendier' back link", async () => {
-      render(<Matching />);
-
-      await waitFor(() => {
-        const link = screen.getByRole("link", { name: /Alla stipendier/i });
-        expect(link).toHaveAttribute("href", "/grants");
-      });
-    });
-
-    it("renders a visible breadcrumb with links to home and current page", async () => {
-      render(<Matching />);
-
-      const breadcrumb = await waitFor(() => {
-        const el = document.querySelector('nav[aria-label="Brödsmula"]');
-        expect(el).toBeInTheDocument();
-        expect(el).toHaveTextContent("Hem");
-        expect(el).toHaveTextContent("AI-matchning");
-        return el;
-      });
-
-      const homeLink = screen.getByRole("link", { name: "Hem" });
-      expect(homeLink).toHaveAttribute("href", "/");
-      const currentPage = breadcrumb?.querySelector('[aria-current="page"]');
-      expect(currentPage).toHaveTextContent("AI-matchning");
-    });
-
-    it("injects BreadcrumbList JSON-LD in the document head", async () => {
-      render(<Matching />);
-
-      await waitFor(() => {
-        const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-        const breadcrumbScripts = Array.from(scripts).filter((s) => {
-          try {
-            const data = JSON.parse(s.textContent || "");
-            return data["@type"] === "BreadcrumbList";
-          } catch {
-            return false;
-          }
-        });
-        expect(breadcrumbScripts).toHaveLength(1);
-        const schema = JSON.parse(breadcrumbScripts[0].textContent || "");
-        expect(schema.itemListElement).toHaveLength(2);
-        expect(schema.itemListElement[0]).toMatchObject({
-          "@type": "ListItem",
-          position: 1,
-          name: "Hem",
-        });
-        expect(schema.itemListElement[1]).toMatchObject({
-          "@type": "ListItem",
-          position: 2,
-          name: "AI-matchning",
-        });
-      });
+      expect(generate).toBeEnabled();
     });
   });
 });

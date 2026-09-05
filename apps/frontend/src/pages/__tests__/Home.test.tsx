@@ -1,11 +1,15 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import Home from "../Home";
 
+const { mockNavigate } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+}));
+
 // Link renders as a real anchor so href assertions are valid (overrides test-setup.ts).
 vi.mock("react-router-dom", () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mockNavigate,
   useParams: () => ({}),
   useLocation: () => ({ pathname: "/" }),
   Outlet: () => null,
@@ -24,74 +28,115 @@ vi.mock("react-router-dom", () => ({
       {children}
     </a>
   ),
-  // Re-export everything from the actual module to avoid "No export is defined" errors
 }));
 
-// Use actual react hooks
-vi.mock("react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react")>();
-  return {
-    ...actual,
-    useState: actual.useState,
-    useEffect: actual.useEffect,
-  };
-});
-
 describe("Home", () => {
-  it("renders the hero heading", () => {
-    render(<Home />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Välkommen till StipendieAssistenten"
-    );
+  beforeEach(() => {
+    mockNavigate.mockClear();
   });
 
-  it("renders hero section with a subtitle", () => {
-    render(<Home />);
-    expect(
-      screen.getByText(/Din guide till att hitta och ansöka om stipendier/)
-    ).toBeInTheDocument();
+  describe("hero", () => {
+    it("renders the matching-first hero heading", () => {
+      render(<Home />);
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+        "Hitta stipendier som matchar dig"
+      );
+    });
+
+    it("renders a value proposition subtitle", () => {
+      render(<Home />);
+      expect(
+        screen.getByText(
+          /Beskriv din situation och hitta stipendier som passar dina behov/
+        )
+      ).toBeInTheDocument();
+    });
   });
 
-  it("renders the Skapa profil CTA button linking to /profile-setup", () => {
-    render(<Home />);
-    const profileLink = screen.getByRole("link", { name: /Skapa profil/ });
-    expect(profileLink).toHaveAttribute("href", "/profile-setup");
+  describe("match entry point", () => {
+    it("renders the self-description input and a disabled Matcha button", () => {
+      render(<Home />);
+      const input = screen.getByLabelText("Beskriv din situation");
+      expect(input).toHaveAttribute(
+        "placeholder",
+        expect.stringContaining("ensamstående förälder")
+      );
+      expect(screen.getByRole("button", { name: "Matcha" })).toBeDisabled();
+    });
+
+    it("keeps Matcha disabled with whitespace-only input", () => {
+      render(<Home />);
+      fireEvent.change(screen.getByLabelText("Beskriv din situation"), {
+        target: { value: "   " },
+      });
+      expect(screen.getByRole("button", { name: "Matcha" })).toBeDisabled();
+    });
+
+    it("scrolls to the county selector (does not navigate) when no county is chosen", () => {
+      render(<Home />);
+      fireEvent.change(screen.getByLabelText("Beskriv din situation"), {
+        target: { value: "matte" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Matcha" }));
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it("navigates to /matching with search and county when both are set", async () => {
+      render(<Home />);
+      fireEvent.change(screen.getByLabelText("Beskriv din situation"), {
+        target: { value: "matte" },
+      });
+      // Select a county via the Radix Select (items render into a portal when opened).
+      fireEvent.click(screen.getByRole("combobox"));
+      fireEvent.click(await screen.findByText("Skåne län"));
+      fireEvent.click(screen.getByRole("button", { name: "Matcha" }));
+      expect(mockNavigate).toHaveBeenCalledWith("/matching?search=matte&county=12", {
+        replace: true,
+      });
+    });
+
+    it("shows the county filter hint", () => {
+      render(<Home />);
+      expect(
+        screen.getByText(/Eller välj län för geografisk filtrering:/)
+      ).toBeInTheDocument();
+    });
   });
 
-  it("renders the Utforska Stipendier CTA button linking to /grants", () => {
-    render(<Home />);
-    const grantsLink = screen.getByRole("link", { name: /Utforska Stipendier/ });
-    expect(grantsLink).toHaveAttribute("href", "/grants");
+  describe("example profiles", () => {
+    it("renders the example profiles section heading", () => {
+      render(<Home />);
+      expect(
+        screen.getByRole("heading", { name: "Exempel på profiler" })
+      ).toBeInTheDocument();
+    });
+
+    it("renders example profile cards with match counts and tags", () => {
+      render(<Home />);
+      expect(screen.getByText("Student in Malmö")).toBeInTheDocument();
+      expect(screen.getByText("Ensamstående förälder, Stockholm")).toBeInTheDocument();
+      expect(screen.getByText("Pensionär, Göteborg")).toBeInTheDocument();
+      expect(screen.getByText("Konstnär, Uppsala")).toBeInTheDocument();
+      expect(screen.getByText("12")).toBeInTheDocument();
+      expect(screen.getByText("utbildning")).toBeInTheDocument();
+    });
+
+    it("navigates to /matching with the profile search when a card is clicked", () => {
+      render(<Home />);
+      fireEvent.click(screen.getByText("Student in Malmö"));
+      expect(mockNavigate).toHaveBeenCalledWith(
+        "/matching?search=Computer+science+student+seeking+education+grants+and+housing+support&county=SE-K",
+        { replace: true }
+      );
+    });
   });
 
-  it("renders all four feature cards", () => {
-    render(<Home />);
-    expect(screen.getByText("Personlig Profil")).toBeInTheDocument();
-    expect(screen.getByText("Hitta Stipendier")).toBeInTheDocument();
-    expect(screen.getByText("Spåra Ansökningar")).toBeInTheDocument();
-    expect(screen.getByText("AI-Assisterad Ansökan")).toBeInTheDocument();
-  });
-
-  it("feature card links point to the correct routes", () => {
-    render(<Home />);
-    // Personlig Profil → /profile-setup
-    expect(
-      screen.getByRole("link", { name: /Kom igång/i })
-    ).toHaveAttribute("href", "/profile-setup");
-
-    // Hitta Stipendier → /grants
-    expect(
-      screen.getByRole("link", { name: /Börja söka/i })
-    ).toHaveAttribute("href", "/grants");
-
-    // Spåra Ansökningar → /applications
-    expect(
-      screen.getByRole("link", { name: /Se ansökningar/i })
-    ).toHaveAttribute("href", "/applications");
-
-    // AI-Assisterad Ansökan → /generate
-    expect(
-      screen.getByRole("link", { name: /Prova nu/i })
-    ).toHaveAttribute("href", "/generate");
+  describe("FAQ", () => {
+    it("renders the FAQ section", () => {
+      render(<Home />);
+      expect(
+        screen.getByRole("heading", { name: "Vanliga frågor" })
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -15,9 +15,6 @@ import {
 } from "@stipendariet/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@stipendariet/ui";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
-import { SITE_URL } from "@/lib/page-metadata";
-import { SWEDISH_REGIONS } from "@/data/swedish-regions";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -28,13 +25,14 @@ export interface MatchingProps {
 }
 
 export default function Matching({ saveMode, generateMode, matchId }: MatchingProps) {
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [grants, setGrants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [countyFilter, setCountyFilter] = useState<string>("");
+  const [countyFilter, setCountyFilter] = useState<string>("all");
   const [categories, setCategories] = useState<string[]>(["all"]);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -177,7 +175,7 @@ export default function Matching({ saveMode, generateMode, matchId }: MatchingPr
               <SelectValue placeholder="Län" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Alla län</SelectItem>
+              <SelectItem value="all">Alla län</SelectItem>
               <SelectItem value="SE-K">Skåne</SelectItem>
               <SelectItem value="SE-AB">Stockholms län</SelectItem>
               <SelectItem value="SE-O">Västra Götaland</SelectItem>
@@ -291,13 +289,3 @@ export default function Matching({ saveMode, generateMode, matchId }: MatchingPr
     </>
   );
 }
-
-// Note: This is a simplified version for demonstration
-// In a real implementation, we would need to:
-// 1. Properly implement saveGrant and generateApplication API calls
-// 2. Track saved grant IDs in state or context
-// 3. Handle the actual matching API response structure
-// For now, this shows the UI structure and routing logic
-
-// We need to define savedGrantIds somewhere - for now let's use a placeholder
-const [savedGrantIds, setSavedGrantIds] = useState<Set<string>>(new Set());
