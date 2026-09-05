@@ -70,6 +70,39 @@ describe("Matching", () => {
       ).toBeInTheDocument();
     });
 
+    it("emits SEO meta via Helmet (title, description, og, twitter)", async () => {
+      render(<Matching />);
+
+      // Helmet children render into the DOM (mocked Helmet in test-setup);
+      // this asserts Matching actually emits the block, not just imports Helmet.
+      expect(
+        document.querySelector("title")?.textContent
+      ).toBe("Matcha dina behov med rätt stipendier | StipendieAssistenten");
+      const description = document
+        .querySelector('meta[name="description"]')
+        ?.getAttribute("content");
+      expect(description).toBe(
+        "Låt vår AI hjälpa dig hitta stipendier som matchar dina och din familjs behov. Personliga förslag baserat på din profil."
+      );
+      expect(
+        document
+          .querySelector('link[rel="canonical"]')
+          ?.getAttribute("href")
+      ).toBe("https://stipendieassistenten.labb.site/matching");
+      expect(
+        document.querySelector('meta[property="og:image"]')?.getAttribute("content")
+      ).toBe("https://stipendieassistenten.labb.site/og-image.png");
+      expect(
+        document.querySelector('meta[property="og:url"]')?.getAttribute("content")
+      ).toBe("https://stipendieassistenten.labb.site/matching");
+      expect(
+        document.querySelector('meta[name="twitter:card"]')?.getAttribute("content")
+      ).toBe("summary_large_image");
+      expect(
+        document.querySelector('meta[name="twitter:site"]')?.getAttribute("content")
+      ).toBe("@StipendieAss");
+    });
+
     it("fetches matching results on mount", async () => {
       render(<Matching />);
       await waitFor(() => {

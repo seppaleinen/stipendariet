@@ -129,6 +129,15 @@ export default function GrantDetail() {
   // Get the best description to display — prefer the 150+ word enriched description for LLM citation
   const descriptionText = grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description;
 
+  // Meta/OG description — capped to 155 chars for SEO, consistent with the
+  // getGrantMetadata() truncation in page-metadata.ts (slice(0, 152) + "...")
+  // so the <meta name="description"> and og:description stay within 120-155.
+  const metaDescription =
+    (grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description || "").length > 155
+      ? (grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description || "").slice(0, 152) +
+        "..."
+      : (grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description || "");
+
   // Build full address
   const fullAddress = [
     grant.coAddress,
@@ -190,12 +199,12 @@ export default function GrantDetail() {
      <>
        <Helmet>
          <title>{`${grant.title} - ${grant.provider} | StipendieAssistenten`}</title>
-         <meta name="description" content={grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description || ""} />
+         <meta name="description" content={metaDescription} />
          <link rel="canonical" href={`${SITE_URL}/grants/${id}`} />
          <link rel="alternate" hrefLang="sv-SE" href={`${SITE_URL}/grants/${id}`} />
          <link rel="alternate" hrefLang="x-default" href={`${SITE_URL}/grants/${id}`} />
          <meta property="og:title" content={grant.title} />
-         <meta property="og:description" content={grant.enrichedDescription || grant.translatedPurpose || grant.purpose || grant.description || ""} />
+         <meta property="og:description" content={metaDescription} />
          <meta property="og:type" content="article" />
          <meta property="og:url" content={`${SITE_URL}/grants/${id}`} />
          <meta property="og:image" content={`${SITE_URL}/og-image.png`} />

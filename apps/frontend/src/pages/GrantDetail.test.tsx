@@ -250,16 +250,22 @@ describe("GrantDetail", () => {
     expect(scholarship.description).not.toContain("Modern svenska");
 
     // The <meta name="description"> tag should likewise prefer enrichedDescription
+    // — but capped to the 120-155 char SEO range (consistency with
+    // page-metadata.ts getGrantMetadata truncation: slice(0,152) + "...").
     const metaDescription = document
       .querySelector('meta[name="description"]')
       ?.getAttribute("content");
-    expect(metaDescription).toBe(enriched);
+    expect(metaDescription?.length).toBeLessThanOrEqual(155);
+    expect(metaDescription?.endsWith("...")).toBe(true);
+    expect(metaDescription?.slice(0, 152)).toBe(enriched.slice(0, 152));
 
-    // The og:description should likewise prefer enrichedDescription
+    // The og:description should likewise prefer enrichedDescription, capped
     const ogDescription = document
       .querySelector('meta[property="og:description"]')
       ?.getAttribute("content");
-    expect(ogDescription).toBe(enriched);
+    expect(ogDescription?.length).toBeLessThanOrEqual(155);
+    expect(ogDescription?.endsWith("...")).toBe(true);
+    expect(ogDescription?.slice(0, 152)).toBe(enriched.slice(0, 152));
   });
 
   it("emits applying topic FAQPage JSON-LD with 3 Q&A pairs", async () => {

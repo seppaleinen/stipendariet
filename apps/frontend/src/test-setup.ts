@@ -36,12 +36,13 @@ class ResizeObserverMock {
 global.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 // Stub scrollIntoView (not implemented in jsdom; required by cmdk)
-if (!Element.prototype.scrollIntoView) {
+// Guarded: entry-server.test.tsx runs in a node environment (no DOM).
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn();
 }
 
 // Mock matchMedia
-Object.defineProperty(window, "matchMedia", {
+if (typeof window !== "undefined") Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
     matches: false,
@@ -65,9 +66,10 @@ const localStorageMock = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 };
-Object.defineProperty(window, "localStorage", {
-  value: localStorageMock,
-});
+if (typeof window !== "undefined")
+  Object.defineProperty(window, "localStorage", {
+    value: localStorageMock,
+  });
 
 // Mock TextEncoder/TextDecoder
 global.TextEncoder = class TextEncoder {

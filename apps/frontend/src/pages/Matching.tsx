@@ -15,6 +15,7 @@ import {
 } from "@stipendariet/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@stipendariet/ui";
 import { useAuth } from "@/contexts/AuthContext";
+import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -122,6 +123,22 @@ export default function Matching({ saveMode, generateMode, matchId }: MatchingPr
 
   return (
     <>
+      <Helmet>
+        <title>Matcha dina behov med rätt stipendier | StipendieAssistenten</title>
+        <meta name="description" content="Låt vår AI hjälpa dig hitta stipendier som matchar dina och din familjs behov. Personliga förslag baserat på din profil." />
+        <link rel="canonical" href={`${SITE_URL}/matching`} />
+        <meta property="og:title" content="Matcha dina behov med rätt stipendier | StipendieAssistenten" />
+        <meta property="og:description" content="Låt vår AI hjälpa dig hitta stipendier som matchar dina och din familjs behov." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${SITE_URL}/matching`} />
+        <meta property="og:image" content={DEFAULT_OG_IMAGE} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Matcha dina behov med rätt stipendier | StipendieAssistenten" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@StipendieAss" />
+      </Helmet>
+
       {showAuthRedirect && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 max-w-sm">

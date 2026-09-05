@@ -47,19 +47,24 @@ COPY apps/frontend/tsconfig.json apps/frontend/tsconfig.app.json apps/frontend/t
 
 RUN pnpm turbo run build --filter=@stipendariet/frontend
 
-# Stage 3: Production (nginx)
+# Stage 3: Production (nginx + SSR sidecar capable)
 FROM nginx:1.29-alpine AS production
 
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init nodejs
 
-COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/frontend/dist /app/dist
+COPY --from=builder /app/apps/frontend/scripts /app/scripts
 COPY apps/frontend/nginx.conf /etc/nginx/nginx.conf
 
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
+WORKDIR /app
+
+RUN chown -R nginx:nginx /app/dist && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
     chown -R nginx:nginx /etc/nginx/conf.d && \
-    chmod -R 755 /usr/share/nginx/html && \
+    mkdir -p /app/dist/.ssr-cache && \
+    chown -R nginx:nginx /app/dist/.ssr-cache && \
+    chmod -R 755 /app/dist && \
     chmod 1777 /tmp
 
 USER nginx
