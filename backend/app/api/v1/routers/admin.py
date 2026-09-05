@@ -26,6 +26,17 @@ from app.api.admin.enrichment import (
     trigger_enrichment_endpoint,
 )
 from app.api.admin.foundations import list_foundations_for_translation_endpoint
+
+# --- Enrichment Source Schema ---
+from app.api.admin.sources import (
+    EnrichmentSourceCreate,
+    EnrichmentSourceUpdate,
+    create_source_endpoint,
+    delete_source_endpoint,
+    get_source_endpoint,
+    list_sources_endpoint,
+    update_source_endpoint,
+)
 from app.api.admin.sync import (
     get_sync_status_endpoint,
     trigger_foundation_sync_endpoint,
@@ -173,3 +184,41 @@ def list_foundations_for_translation(
         page=page, page_size=page_size, status_filter=status,
         service_area_status_filter=service_area_status,
     )
+
+# --- Enrichment Source CRUD Routes ---
+@router.get("/sources")
+def list_sources(
+    foundation_id: int | None = Query(None),
+    is_official: bool | None = Query(None),
+    source_type: str | None = Query(None),
+):
+    return list_sources_endpoint(
+        foundation_id=foundation_id,
+        is_official=is_official,
+        source_type=source_type,
+    )
+
+
+@router.get("/sources/{source_id}")
+def get_source(source_id: int):
+    return get_source_endpoint(source_id)
+
+
+@router.post("/sources")
+def create_source(
+    payload: EnrichmentSourceCreate,
+):
+    return create_source_endpoint(payload)
+
+
+@router.put("/sources/{source_id}")
+def update_source(
+    source_id: int,
+    payload: EnrichmentSourceUpdate,
+):
+    return update_source_endpoint(source_id, payload)
+
+
+@router.delete("/sources/{source_id}")
+def delete_source(source_id: int):
+    return delete_source_endpoint(source_id)

@@ -33,6 +33,12 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
       - name: Install deps
         run: pnpm install --frozen-lockfile
+      - name: Setup Python for backend lint
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install ruff for backend lint
+        run: pip install ruff
       - name: Lint
         run: pnpm lint
 

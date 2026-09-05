@@ -11,6 +11,7 @@ import ReviewPage from '@/pages/ReviewPage';
 import JobsPage from '@/pages/JobsPage';
 import EnrichmentResultsPage from '@/pages/EnrichmentResultsPage';
 import TranslationsPage from '@/pages/TranslationsPage';
+import EnrichmentSourcesPage from '@/pages/EnrichmentSourcesPage';
 
 const App: React.FC = () => {
   return (
@@ -75,6 +76,16 @@ const App: React.FC = () => {
                 <ProtectedRoute>
                   <AdminLayout>
                     <TranslationsPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sources"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <EnrichmentSourcesPage />
                   </AdminLayout>
                 </ProtectedRoute>
               }

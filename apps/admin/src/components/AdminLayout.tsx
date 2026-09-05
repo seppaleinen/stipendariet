@@ -9,6 +9,7 @@ import {
   PlayCircle,
   BarChart2,
   Languages,
+  Database,
 } from 'lucide-react';
 import { Button } from '@stipendariet/ui';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,6 +28,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/queue', label: 'Queue', icon: List },
     { path: '/jobs', label: 'Jobs', icon: PlayCircle },
     { path: '/enrichment-results', label: 'Berikningsresultat', icon: BarChart2 },
+    { path: '/sources', label: 'Källor', icon: Database },
     { path: '/translations', label: 'Översättningar', icon: Languages },
   ];
 
