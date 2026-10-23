@@ -142,6 +142,21 @@ jobs:
         run: |
           pip install -r requirements.txt pytest pytest-asyncio httpx
           pytest -v
+      - name: Verify alembic chain
+        working-directory: backend
+        run: |
+          python -c "
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+          s = ScriptDirectory.from_config(Config('alembic.ini'))
+          heads = s.get_heads()
+          assert len(heads) == 1, f'Multiple alembic heads detected: {heads}. Run alembic merge to resolve.'
+          known = {sc.revision for sc in s.walk_revisions()}
+          critical = ['2026_09_02_000001', '2026_09_01_000001', '93d610535c3d']
+          missing = [r for r in critical if r not in known]
+          assert not missing, f'Critical revisions missing from migration graph: {missing}'
+          print(f'Alembic chain OK: single head={heads[0]}, {len(known)} revisions')
+          "
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:

@@ -17,7 +17,7 @@ envs:
     value: "50"
 image:
   repository: ghcr.io/seppaleinen/stipendariet/backend
-  tag: latest
+  tag: "0.15.4"
   pullPolicy: IfNotPresent
 browserless:
   resources:
