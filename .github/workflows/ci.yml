@@ -142,6 +142,9 @@ jobs:
         run: |
           pip install -r requirements.txt pytest pytest-asyncio httpx
           pytest -v
+      - name: Run migrations_check no-driver regression test
+        working-directory: backend
+        run: pytest tests/test_migrations_check.py -v
       - name: Verify alembic chain
         working-directory: backend
         run: |
