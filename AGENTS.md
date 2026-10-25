@@ -54,6 +54,12 @@ The project uses `helmfile` for orchestration.
 - **Testing Integration**: Integration tests in `apps/frontend/src/lib/api.integration.test.ts` require the backend to be running (via Docker).
 - **Build Order**: Turbo handles the dependency graph, but when manually building, ensure `@stipendariet/types` is built before `@stipendariet/api-client`.
 
+## Tooling Conventions (for pipeline leads)
+
+- `shell` tool → `command` parameter — for plain shell commands (preferred default).
+- `execute` tool → `code` parameter only — JavaScript in a confined Code Mode runtime; no `require`/`import`, no direct fs access; only the catalogued `tools` namespace and `fetch`.
+- Rule of thumb: if you just want to run a shell command, use `shell`; only use `execute` to compose multiple tool calls / HTTP requests.
+
 ## Git Hooks
 - Hooks live in `.githooks/`. Activate them with: `git config core.hooksPath .githooks`
 - `pre-push` runs `ruff check .` over `backend/` and blocks the push on lint errors.
