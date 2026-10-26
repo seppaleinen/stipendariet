@@ -1,6 +1,6 @@
 import hmac
 import ipaddress
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
@@ -24,7 +24,7 @@ COMPILED_INTERNAL_NETWORKS = [
 
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS))
     to_encode.update({"exp": expire})
     return pyjwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
@@ -62,10 +62,7 @@ def _is_internal_request(request: Request) -> bool:
     except ValueError:
         return False
 
-    for network in COMPILED_INTERNAL_NETWORKS:
-        if client_ip in network:
-            return True
-    return False
+    return any(client_ip in network for network in COMPILED_INTERNAL_NETWORKS)
 
 
 def _validate_forwardauth(request: Request) -> dict[str, Any]:

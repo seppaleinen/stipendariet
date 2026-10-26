@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Admin auth via Authentik ForwardAuth**: `POST /api/auth/exchange` endpoint auto-provisions admin users and returns HS256 JWT; `useAuth.tsx` replaces password login with ForwardAuth exchange; `LoginPage.tsx` shows spinner and "Continue with Authentik" fallback; `ExchangeResponse` interface added to `@stipendariet/types`.
+- **Ops: Authentik ForwardAuth deployment**: Traefik middleware annotation on admin ingress; `INTERNAL_AUTH_TOKEN` via Helm values and fleet-infra `backend-secrets`; nginx header passthrough for `X-Forwarded-User/Email/Groups`; `X-Internal-Auth` scoped to `/api/auth/exchange` only.
 
 ### Changed
 - **Backend**: `_validate_forwardauth` and `_is_internal_request` in `backend/app/core/security.py` enforce header trust boundary (internal auth token + CIDR network check); `get_admin_user` falls back to ForwardAuth only on `/api/auth/exchange` path.

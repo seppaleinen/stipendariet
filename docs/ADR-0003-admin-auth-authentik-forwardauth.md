@@ -37,4 +37,20 @@ Negative:
 - Rotate `JWT_SECRET_KEY` from default `change-me` before production.
 - Network topology must ensure admin ingress passes headers through to backend.
 
+## Implementation Details
+
+### Kubernetes Configuration
+- Admin ingress annotated with `traefik.ingress.kubernetes.io/router.middlewares: traefik-authentik-forward-auth@kubernetescrd`
+- `INTERNAL_AUTH_TOKEN` passed via Helm values to admin-frontend environment secrets
+- Fleet-infra references `backend-secrets` Secret for token injection
+
+### Nginx Configuration
+- `env INTERNAL_AUTH_TOKEN;` directive enables token access in nginx config
+- ForwardAuth headers (`X-Forwarded-User/Email/Groups`) passed to backend on all `/api/` requests
+- `X-Internal-Auth` header scoped to `/api/auth/exchange` location block only (security boundary)
+
+### Authentik Setup
+- Group `stipendariet-admins` (id=1) created in Authentik PostgreSQL
+- ForwardAuth provider configured to inject headers on successful authentication
+
 ---
