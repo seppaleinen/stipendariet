@@ -10,6 +10,7 @@ metadata:
     app.kubernetes.io/name: {{ .Release.Name }}
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-authentik-forward-auth@kubernetescrd
     kubernetes.io/ingress.class: traefik
 spec:
   ingressClassName: traefik
