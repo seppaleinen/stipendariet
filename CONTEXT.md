@@ -51,7 +51,7 @@ A hard constraint limiting Matches to Foundations whose **Service area** covers 
 - A search produces **Matches** from exactly one source of **Matching text**: either the Structured selections or the Self-description
 - A **Foundation** has a **Registered address** and a **Service area** — distinct concepts that may disagree; eligibility follows the Service area
 - The **Geographic filter** constrains Matches regardless of Matching-text source
-- The **Self-description** drives Finding only — it never feeds application generation, which consumes Structured selections only
+- The **Self-description** drives Finding only — it never feeds application generation by default, which consumes Structured selections only; on the Generate page the user may opt in per generation to append their Self-description (verbatim, capped at 2000 chars) alongside the Structured selections
 
 ## Example dialogue
 

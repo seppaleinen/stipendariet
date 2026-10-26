@@ -2,6 +2,7 @@ import { Helmet } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@stipendariet/ui";
+import { Checkbox } from "@stipendariet/ui";
 import { Label } from "@stipendariet/ui";
 import { Textarea } from "@stipendariet/ui";
 import {
@@ -28,6 +29,8 @@ export default function Generate() {
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
   const [foundation, setFoundation] = useState<Grant | null>(null);
+  const [useSelfDescription, setUseSelfDescription] = useState(false);
+  const hasSelfDescription = !!activeProfile?.selfDescription?.trim();
 
   // Load foundation details if an ID is provided
   useEffect(() => {
@@ -53,7 +56,9 @@ export default function Generate() {
     if (!activeProfile) return;
     setLoading(true);
     try {
-      const prompt = buildApplicationPrompt(activeProfile, foundation);
+      const prompt = buildApplicationPrompt(activeProfile, foundation, {
+        useSelfDescription,
+      });
 
       const result = await generateApplicationWithAI(foundation?.id ?? "", prompt);
       setGeneratedContent(
@@ -156,6 +161,30 @@ export default function Generate() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center gap-3 mb-4">
+                  <Checkbox
+                    id="useSelfDescription"
+                    checked={useSelfDescription}
+                    onCheckedChange={(checked) => setUseSelfDescription(!!checked)}
+                    disabled={!hasSelfDescription}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="useSelfDescription" className="text-sm font-medium">
+                      Använd min egen beskrivning
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Lägg till din egen beskrivning i ansökan, utöver uppgifterna i din profil.
+                    </p>
+                    {!hasSelfDescription && (
+                      <p className="text-xs text-muted-foreground">
+                        Du har ingen egen beskrivning. Lägg till en under{" "}
+                        <Link to="/profile-setup" className="underline hover:text-primary">
+                          Profilinställningar
+                        </Link>
+                      </p>
+                    )}
+                  </div>
+                </div>
                 <Button
                   onClick={handleGenerate}
                   disabled={loading}

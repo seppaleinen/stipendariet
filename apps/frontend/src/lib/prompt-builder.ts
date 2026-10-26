@@ -25,12 +25,35 @@ function joinLabels(labels: string[]): string {
 }
 
 /**
+ * Truncates a self-description to the builder-level hard cap of 2000 chars.
+ * - null/undefined/empty-after-trim → ""
+ * - ≤ 2000 chars after trim → verbatim, no ellipsis
+ * - > 2000 chars after trim → first 2000 chars + single U+2026 ellipsis (total 2001)
+ */
+export function truncateDescription(text: string | null | undefined): string {
+  if (text == null) return "";
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return "";
+  if (trimmed.length > 2000) {
+    return trimmed.slice(0, 2000) + "…";
+  }
+  return trimmed;
+}
+
+/**
  * Builds the Swedish AI prompt for a grant application from the user's
  * structured profile and the selected grant/foundation.
+ *
+ * When `options.useSelfDescription` is true and the profile carries a
+ * non-empty self-description, the description is appended verbatim (capped
+ * at 2000 chars) after the structured profile lines and before the
+ * foundation context, with an instruction line noting the description may
+ * be in any language while the application is still written in Swedish.
  */
 export function buildApplicationPrompt(
   profile: Profile,
   foundation: Grant | null,
+  options?: { useSelfDescription?: boolean },
 ): string {
   let prompt =
     "Skriv en personlig och övertygande ansökan på svenska baserat på följande information:\n\n";
@@ -59,6 +82,17 @@ export function buildApplicationPrompt(
   }
   prompt += `- Yrkesbakgrund: ${joinLabels(labelsFor(OCCUPATION_OPTIONS, profile.occupations))}\n`;
   prompt += `Sökända syften med stödet: ${joinLabels(labelsFor(SUPPORT_PURPOSE_OPTIONS, profile.supportPurposes))}\n`;
+
+  // Optional self-description section (opt-in, additive to structured selections)
+  if (options?.useSelfDescription) {
+    const description = truncateDescription(profile.selfDescription);
+    if (description) {
+      prompt += "Självbeskrivning (sökändens egna ord):\n";
+      prompt += description + "\n";
+      prompt +=
+        "OBS: Sökändens egen beskrivning kan vara på vilket språk som helst — ansökan skrivs ändå på svenska.\n";
+    }
+  }
 
   // Foundation context
   if (foundation) {
