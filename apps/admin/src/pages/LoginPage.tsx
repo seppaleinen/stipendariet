@@ -1,94 +1,91 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
-import { Input } from '@stipendariet/ui';
-import { Label } from '@stipendariet/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { exchange, isExchanging, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [loginError, setLoginError] = useState<string | null>(null);
   const redirectTo =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
 
-  const onSubmit = async (data: LoginFormValues) => {
-    setLoginError(null);
-    const success = await login(data.email, data.password);
-    if (!success) {
-      setLoginError('Inloggningen misslyckades. Kontrollera dina uppgifter och försök igen.');
+  // Track whether the page has already attempted an exchange in this mount
+  const [hasAttempted, setHasAttempted] = useState(false);
+  const [exchangeFailed, setExchangeFailed] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(redirectTo, { replace: true });
       return;
     }
-    navigate(redirectTo, { replace: true });
-  };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
-          <CardDescription>Enter your credentials to access the admin panel</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@stipendie.labb.site"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                {...register('password')}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
-              {loginError && (
-                <p className="text-sm text-destructive">{loginError}</p>
-              )}
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Signing in...' : 'Sign in'}
+    // If the provider is already exchanging, wait for it to finish
+    if (isExchanging) return;
+
+    // If already attempted (e.g. provider already tried and failed), show fallback
+    if (hasAttempted) {
+      setExchangeFailed(true);
+      return;
+    }
+
+    let active = true;
+    setHasAttempted(true);
+
+    (async () => {
+      const success = await exchange();
+      if (!active) return;
+      setExchangeFailed(!success);
+      if (success) {
+        navigate(redirectTo, { replace: true });
+      }
+    })();
+
+    return () => { active = false; };
+  }, [isAuthenticated, isExchanging, exchange, navigate, redirectTo]);
+
+  // Determine what to render based on auth state
+  if (isAuthenticated) {
+    // About to navigate away — render nothing so router can replace
+    return null;
+  }
+
+  if (isExchanging || !hasAttempted) {
+    // Initial mount or provider/exchange in flight — show spinner
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted p-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" role="status" aria-label="Loading" data-testid="loading-spinner"></div>
+      </div>
+    );
+  }
+
+  if (exchangeFailed) {
+    // Exchange failed — show "Continue with Authentik" fallback
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-muted p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <CardTitle>Admin Access</CardTitle>
+          </CardHeader>
+          <CardDescription>
+            Your account is authenticated via Authentik. Please continue below.
+          </CardDescription>
+          <CardContent className="pt-4">
+            <Button
+              onClick={() => window.location.reload()}
+              className="w-full"
+            >
+              Continue with Authentik
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Fallback — should not reach here
+  return null;
 };
 
 export default LoginPage;

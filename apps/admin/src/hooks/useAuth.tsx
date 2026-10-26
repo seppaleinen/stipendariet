@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { api, request } from '@/lib/api';
+import { ApiError } from '@stipendariet/api-client';
+import { apiPublic } from '@/lib/api';
+import { ExchangeResponse } from '@stipendariet/types';
 
 interface User {
   id: string;
@@ -19,13 +21,38 @@ interface AdminTokenPayload {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isExchanging: boolean;
+  exchange: () => Promise<boolean>;
+  refreshToken: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function decodeAdminToken(token: string): User | null {
+  try {
+    const decoded = jwtDecode<AdminTokenPayload>(token);
+    if (decoded.exp * 1000 > Date.now()) {
+      return {
+        id: decoded.sub || 'admin',
+        email: decoded.email || '',
+        name: decoded.name || 'Admin User',
+        role: decoded.role || 'admin',
+      };
+    }
+  } catch {
+    // invalid token
+  }
+  return null;
+}
+
+function removeInvalidToken(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('adminToken');
+  }
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -39,61 +66,129 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const REFRESH_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const PERIODIC_CHECK_INTERVAL_MS = 60_000; // 1 minute
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      try {
-        const decoded = jwtDecode<AdminTokenPayload>(token);
-        if (decoded.exp * 1000 > Date.now()) {
-          setUser({
-            id: decoded.sub || 'admin',
-            email: decoded.email || '',
-            name: decoded.name || 'Admin User',
-            role: decoded.role || 'admin'
-          });
-        } else {
-          localStorage.removeItem('adminToken');
-        }
-      } catch (error) {
-        console.error('Error decoding token:', error);
-        localStorage.removeItem('adminToken');
-      }
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      const response = await request(api.post('/auth/login', { email, password }));
-      const { access_token, user: userData } = response.data;
-
-      localStorage.setItem('adminToken', access_token);
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        role: userData.role
-      });
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
-    }
-  };
+  const [isExchanging, setIsExchanging] = useState(false);
 
   const logout = () => {
     localStorage.removeItem('adminToken');
     setUser(null);
+    const authentikLogoutUrl = import.meta.env.VITE_AUTHENTIK_LOGOUT_URL;
+    if (authentikLogoutUrl && typeof window !== 'undefined') {
+      window.location.href = authentikLogoutUrl;
+    } else {
+      window.location.href = '/login';
+    }
   };
 
-  const isAuthenticated = !!user;
+  const exchange = useCallback(async (): Promise<boolean> => {
+    // Exchange via the tokenless public client (no Authorization header).
+    const attempt = async (): Promise<{ ok: boolean; data: ExchangeResponse | null }> => {
+      try {
+        const response = await apiPublic.post<ExchangeResponse>('/auth/exchange');
+        return { ok: true, data: response.data };
+      } catch (error: unknown) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          return { ok: false, data: null };
+        }
+        // network error or other — propagate for retry
+        throw error;
+      }
+    };
+
+    for (let i = 0; i < 2; i++) {
+      try {
+        const result = await attempt();
+        if (!result.ok || !result.data) return false;
+
+        const { access_token } = result.data;
+        localStorage.setItem('adminToken', access_token);
+
+        // Decode user from JWT (backend only returns token fields)
+        const decoded = decodeAdminToken(access_token);
+        if (decoded) {
+          setUser(decoded);
+        }
+        return true;
+      } catch {
+        if (i === 1) return false;
+        // retry once on network error
+      }
+    }
+    return false;
+  }, []);
+
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      return exchange();
+    }
+
+    try {
+      const decoded = jwtDecode<AdminTokenPayload>(token);
+      const remainingMs = decoded.exp * 1000 - Date.now();
+
+      if (remainingMs > REFRESH_THRESHOLD_MS) {
+        // Token is still valid and has > 5 min remaining
+        return true;
+      }
+      // Token near expiry or invalid — re-exchange
+      return exchange();
+    } catch {
+      // Invalid token — re-exchange
+      return exchange();
+    }
+  }, [exchange]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    let active = true;
+
+    const init = async () => {
+      if (token) {
+        const u = decodeAdminToken(token);
+        if (u) {
+          setUser(u);
+          setIsLoading(false);
+          // Proactive refresh check
+          await refreshToken();
+          return;
+        } else {
+          removeInvalidToken();
+        }
+      }
+
+      // Token missing or expired → auto-call exchange (ForwardAuth has already
+      // authenticated the browser session at the proxy)
+      setIsExchanging(true);
+      const success = await exchange();
+      if (!active) return;
+      setIsExchanging(false);
+      setIsLoading(false);
+      if (!success) {
+        // Exchange failed — user stays unauthenticated; LoginPage will show fallback
+      }
+    };
+
+    init();
+    return () => { active = false; };
+  }, [exchange, refreshToken]);
+
+  // Periodic token refresh check while mounted and user is authenticated
+  useEffect(() => {
+    if (!user) return;
+    const intervalId = setInterval(() => {
+      refreshToken();
+    }, PERIODIC_CHECK_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [user, refreshToken]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, isLoading }}>
+    <AuthContext.Provider value={{ user, logout, isAuthenticated: !!user, isLoading, isExchanging, exchange, refreshToken }}>
       {children}
     </AuthContext.Provider>
   );

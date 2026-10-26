@@ -17,7 +17,6 @@ vi.mock('react-router-dom', () => ({
 const mockLogout = vi.fn();
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    login: vi.fn(),
     user: { id: '1', email: 'anna@example.com', name: 'Anna Svensson', role: 'admin' },
     logout: mockLogout,
     isAuthenticated: true,

@@ -5,7 +5,7 @@
 //   api      — raw HttpClient from createApiClient (use for new code)
 //   request  — wrapper that adds 401 redirect + { data } destructuring
 //              (use for mechanical migration of existing callers)
-
+//
 import { createApiClient, ApiError } from '@stipendariet/api-client';
 import { getAdminAuthToken } from './auth';
 
@@ -14,6 +14,11 @@ const baseUrl = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_UR
 export const api = createApiClient({
   baseUrl,
   getToken: getAdminAuthToken,
+});
+
+export const apiPublic = createApiClient({
+  baseUrl,
+  // No getToken → no Authorization header attached (used for /auth/exchange)
 });
 
 function handle401(error: unknown): void {

@@ -42,6 +42,12 @@ class TokenResponse(BaseModel):
     user: User
 
 
+class ExchangeResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
 class FamilyMember(BaseModel):
     name: str
     age: int

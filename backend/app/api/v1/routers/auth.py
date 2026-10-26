@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import create_access_token, get_current_user_payload
+from app.core.security import ACCESS_TOKEN_EXPIRE_HOURS, create_access_token, get_admin_user, get_current_user_payload
 from app.db import models, schemas
 from app.db.database import get_db
 
@@ -220,6 +220,57 @@ def get_current_user(
         name=user.name,
         is_active=user.is_active,
         created_at=user.created_at,
+    )
+
+
+@router.post("/exchange", response_model=schemas.ExchangeResponse)
+def exchange_token(
+    payload: dict = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Exchange Authentik ForwardAuth identity for a backend JWT.
+
+    Requires admin group membership via X-Forwarded-Groups header
+    and request from trusted internal network.
+    """
+    email = payload.get("email", "")
+    name = payload.get("name", "")
+
+    # Look up existing user by email
+    user = get_user_by_email(db, email)
+
+    if user:
+        # Upgrade to admin if not already (idempotent)
+        if not user.is_admin:
+            user.is_admin = True
+            db.commit()
+            db.refresh(user)
+    else:
+        # Create new admin user (no password — ForwardAuth identity)
+        db_user = models.User(
+            email=email,
+            hashed_password=None,  # No password for ForwardAuth users
+            name=name or None,
+            is_active=True,
+            is_admin=True,
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        user = db_user
+
+    # Mint JWT with same claims as existing login
+    token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email,
+        "role": "admin",
+        "name": user.name or "",
+    })
+
+    return schemas.ExchangeResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_HOURS * 3600,
     )
 
 

@@ -13,6 +13,17 @@ export interface User {
   avatar?: string;
 }
 
+// ── Auth token exchange (Issue #14: Authentik ForwardAuth) ──────────────
+
+/** Response shape of POST /auth/exchange — matches backend schema in
+ *  app/db/schemas.py::ExchangeResponse. Kept here so frontend and backend
+ *  share a single source of truth. */
+export interface ExchangeResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
 // ── Matching Profile ───────────────────────────────────────────────────
 
 export type LifeSituation =

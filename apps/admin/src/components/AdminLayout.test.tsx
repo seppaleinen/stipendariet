@@ -29,7 +29,6 @@ let mockUser: { id: string; email: string; name: string; role: string } = {
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    login: vi.fn(),
     user: mockUser,
     logout: mockLogout,
     isAuthenticated: true,

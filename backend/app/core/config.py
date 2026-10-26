@@ -20,7 +20,11 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = Field(default="change-me", env="JWT_SECRET_KEY")
 
     # Internal auth (for service-to-service calls)
-    INTERNAL_AUTH_TOKEN: str = Field(default="internal-secret-token", env="INTERNAL_AUTH_TOKEN")
+    INTERNAL_AUTH_TOKEN: str = Field(default="internal-secret-token", env="INTERNAL_AUTH_TOKEN")  # Empty = skip header check, IP check alone applies
+
+    # Authentik ForwardAuth settings
+    INTERNAL_NETWORKS: list[str] = Field(default=["127.0.0.1/32", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"], env="INTERNAL_NETWORKS")
+    AUTHENTIK_ADMIN_GROUP: str = Field(default="stipendariet-admins", env="AUTHENTIK_ADMIN_GROUP")
 
     # Foundation sync
     FOUNDATION_BATCH_SIZE: int = Field(default=500, env="FOUNDATION_BATCH_SIZE")
