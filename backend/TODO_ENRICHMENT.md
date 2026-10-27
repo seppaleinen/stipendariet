@@ -11,7 +11,7 @@ the pages/data harvested from them. Provenance is tracked per foundation:
 each matched source, its crawled pages, and the extracted data linked back to
 the source that produced it.
 
-### Tables (defined in `backend/app/db/models.py`)
+### Tables (defined in `backend/app/db/models/enrichment.py`)
 
 - **`enrichment_sources`** — one row per discovered source for a foundation:
   `id` (PK), `foundation_id` (FK → `foundations.id`, indexed), `url` (NOT

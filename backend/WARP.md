@@ -81,7 +81,15 @@ app/
 │   └── search.py        # SQL text search
 ├── db/
 │   ├── database.py      # SQLAlchemy engine, session management, connection retry logic
-│   ├── models.py        # SQLAlchemy ORM models (Grant, Application, Profile, Foundation)
+│   ├── models/          # SQLAlchemy ORM models (split by entity; see ADR-0004)
+│   │   ├── __init__.py  # Base + re-exports
+│   │   ├── user.py
+│   │   ├── saved_grant.py
+│   │   ├── profile.py
+│   │   ├── foundation.py
+│   │   ├── enrichment.py
+│   │   ├── grant.py
+│   │   └── application.py
 │   └── schemas.py       # Pydantic models for request/response validation
 ├── crud/
 │   └── crud.py          # Data access layer - database operations

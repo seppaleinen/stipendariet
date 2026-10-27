@@ -22,7 +22,15 @@ backend/
 │   │           └── foundations.py
 │   ├── db/                 # Database related code
 │   │   ├── __init__.py
-│   │   ├── models.py       # SQLAlchemy models
+│   │   ├── models/         # SQLAlchemy ORM models (split by entity)
+│   │   │   ├── __init__.py # Base + re-exports
+│   │   │   ├── user.py
+│   │   │   ├── saved_grant.py
+│   │   │   ├── profile.py
+│   │   │   ├── foundation.py
+│   │   │   ├── enrichment.py
+│   │   │   ├── grant.py
+│   │   │   └── application.py
 │   │   ├── database.py     # Database connection setup
 │   │   └── schemas.py      # Pydantic schemas
 │   ├── crud/               # Data access layer
