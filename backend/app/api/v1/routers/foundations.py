@@ -5,12 +5,12 @@ from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from app.core.security import get_admin_user, get_current_user_payload
-from app.crud import crud
 from app.db import models, schemas
 from app.db.database import get_db
 from app.foundation.foundation_api import get_foundations_by_query, poll_foundations
 from app.foundation.foundation_schemas import FoundationSearchResponse
 from app.foundation.profile_text_generator import generate_profile_text
+from app.repositories.foundation_repo import FoundationRepository
 from app.services.embedding_service import SIMILARITY_THRESHOLD, ollama_embedding_service
 from app.services.llm_translation_service import llm_translation_service
 
@@ -67,14 +67,16 @@ def search_foundations(query: str | None = None):
 @router.get("/stored", response_model=list[schemas.Foundation])
 def get_stored_foundations(db: Session = Depends(get_db)):
     """Get all stored foundations from the database"""
-    foundations = crud.get_foundations(db)
+    repo = FoundationRepository(db)
+    foundations = repo.get_foundations()
     return foundations
 
 
 @router.get("/stored/{foundation_id}", response_model=schemas.Foundation)
 def get_stored_foundation(foundation_id: int, db: Session = Depends(get_db)):
     """Get a specific stored foundation from the database"""
-    foundation = crud.get_foundation(db, foundation_id)
+    repo = FoundationRepository(db)
+    foundation = repo.get_foundation(foundation_id)
     if foundation is None:
         raise HTTPException(status_code=404, detail="Foundation not found in database")
     return foundation
@@ -92,14 +94,16 @@ def get_stored_foundations_by_category(category: str, db: Session = Depends(get_
 @router.get("/stored/by-county/{county_code}", response_model=list[schemas.Foundation])
 def get_stored_foundations_by_county(county_code: str, db: Session = Depends(get_db)):
     """Get all stored foundations from the database filtered by county code"""
-    foundations = crud.get_foundations_by_county_code(db, county_code)
+    repo = FoundationRepository(db)
+    foundations = repo.get_foundations_by_county_code(county_code)
     return foundations
 
 
 @router.get("/stored/by-municipality/{municipality_code}", response_model=list[schemas.Foundation])
 def get_stored_foundations_by_municipality(municipality_code: str, db: Session = Depends(get_db)):
     """Get all stored foundations from the database filtered by municipality code"""
-    foundations = crud.get_foundations_by_municipality_code(db, municipality_code)
+    repo = FoundationRepository(db)
+    foundations = repo.get_foundations_by_municipality_code(municipality_code)
     return foundations
 
 

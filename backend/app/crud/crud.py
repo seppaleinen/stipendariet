@@ -1,9 +1,11 @@
 
-from sqlalchemy import or_
+import warnings
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db import models, schemas
+from app.repositories.foundation_repo import FoundationRepository
 
 
 def get_foundation_batch_size() -> int:
@@ -14,34 +16,29 @@ def get_foundation_batch_size() -> int:
 
 
 # Foundation CRUD operations
+# NOTE: Foundation CRUD operations are deprecated. Use
+# app.repositories.foundation_repo.FoundationRepository instead.
 def get_foundations_with_category_filter(
     db: Session,
     q: str | None = None,
     category: str | None = None,
     sort: str | None = None,
 ) -> list[models.Foundation]:
-    """Get all foundations with optional filtering and sorting"""
-    query = db.query(models.Foundation)
+    """Get all foundations with optional filtering and sorting
 
-    if q:
-        query = query.filter(
-            or_(
-                models.Foundation.name.contains(q),
-                models.Foundation.purpose.contains(q),
-                models.Foundation.translated_purpose.contains(q),
-                models.Foundation.summary.contains(q)
-            )
-        )
-
-    if category:
-        query = query.filter(models.Foundation.category == category)
-
-    if sort == "name":
-        query = query.order_by(models.Foundation.name)
-    elif sort == "location":
-        query = query.order_by(models.Foundation.postort)
-
-    return query.all()
+    .. deprecated::
+        Use ``FoundationRepository.get_foundations_with_category_filter`` instead.
+    """
+    warnings.warn(
+        "crud.get_foundations_with_category_filter is deprecated, "
+        "use FoundationRepository.get_foundations_with_category_filter",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return (
+        FoundationRepository(db)
+        .get_foundations_with_category_filter(q=q, category=category, sort=sort)
+    )
 
 
 # Application CRUD operations - now for foundations
@@ -124,48 +121,84 @@ def save_profile(db: Session, profile: schemas.Profile) -> models.Profile:
 
 # Foundation CRUD operations
 def get_foundations(db: Session) -> list[models.Foundation]:
-    """Get all foundations"""
-    return db.query(models.Foundation).all()
+    """Get all foundations
+
+    .. deprecated::
+        Use ``FoundationRepository.get_foundations`` instead.
+    """
+    warnings.warn(
+        "crud.get_foundations is deprecated, use FoundationRepository.get_foundations",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return FoundationRepository(db).get_foundations()
 
 
 def get_foundation(
     db: Session, foundation_id: int
 ) -> models.Foundation | None:
-    """Get a single foundation by foundation_id (from external API)"""
-    if foundation_id is None:
-        return None
-    return (
-        db.query(models.Foundation)
-        .filter(models.Foundation.foundation_id == foundation_id)
-        .first()
+    """Get a single foundation by foundation_id (from external API)
+
+    .. deprecated::
+        Use ``FoundationRepository.get_foundation`` instead.
+    """
+    warnings.warn(
+        "crud.get_foundation is deprecated, use FoundationRepository.get_foundation",
+        DeprecationWarning,
+        stacklevel=2,
     )
+    return FoundationRepository(db).get_foundation(foundation_id)
 
 
 def get_foundations_by_county_code(
     db: Session, county_code: str
 ) -> list[models.Foundation]:
-    """Get all foundations in a specific county by county code"""
-    return (
-        db.query(models.Foundation)
-        .filter(models.Foundation.county_code == county_code)
-        .all()
+    """Get all foundations in a specific county by county code
+
+    .. deprecated::
+        Use ``FoundationRepository.get_foundations_by_county_code`` instead.
+    """
+    warnings.warn(
+        "crud.get_foundations_by_county_code is deprecated, "
+        "use FoundationRepository.get_foundations_by_county_code",
+        DeprecationWarning,
+        stacklevel=2,
     )
+    return FoundationRepository(db).get_foundations_by_county_code(county_code)
 
 
 def get_foundations_by_municipality_code(
     db: Session, municipality_code: str
 ) -> list[models.Foundation]:
-    """Get all foundations in a specific municipality by municipality code"""
-    return (
-        db.query(models.Foundation)
-        .filter(models.Foundation.municipality_code == municipality_code)
-        .all()
+    """Get all foundations in a specific municipality by municipality code
+
+    .. deprecated::
+        Use ``FoundationRepository.get_foundations_by_municipality_code`` instead.
+    """
+    warnings.warn(
+        "crud.get_foundations_by_municipality_code is deprecated, "
+        "use FoundationRepository.get_foundations_by_municipality_code",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return FoundationRepository(db).get_foundations_by_municipality_code(
+        municipality_code
     )
 
 
 def get_foundation_by_db_id(db: Session, db_id: int) -> models.Foundation | None:
-    """Get a single foundation by database ID"""
-    return db.query(models.Foundation).filter(models.Foundation.id == db_id).first()
+    """Get a single foundation by database ID
+
+    .. deprecated::
+        Use ``FoundationRepository.get_foundation_by_db_id`` instead.
+    """
+    warnings.warn(
+        "crud.get_foundation_by_db_id is deprecated, "
+        "use FoundationRepository.get_foundation_by_db_id",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return FoundationRepository(db).get_foundation_by_db_id(db_id)
 
 
 def create_or_update_foundation(
@@ -174,53 +207,33 @@ def create_or_update_foundation(
     """Create a foundation or update if it already exists.
 
     Preserves translated_purpose and purpose_embedding on updates.
+
+    .. deprecated::
+        Use ``FoundationRepository.create_or_update_foundation`` instead.
     """
-    # Fields that should NOT be overwritten on update
-    preserve_fields = {'translated_purpose', 'purpose_embedding', 'category'}
-
-    # Check if foundation already exists using the foundation_id
-    foundation_id = foundation_data.get("foundation_id")
-    existing_foundation = get_foundation(db, foundation_id)
-
-    if existing_foundation:
-        # Update existing foundation
-        # Only update fields that are in the foundation_data dict
-        for field, value in foundation_data.items():
-            # Skip preserved fields - don't overwrite translations/embeddings
-            if field in preserve_fields:
-                continue
-            if hasattr(existing_foundation, field):
-                setattr(existing_foundation, field, value)
-        db.commit()
-        db.refresh(existing_foundation)
-        return existing_foundation
-    else:
-        # Create new foundation
-        # Filter the data to only include fields that exist in the model
-        valid_fields = {}
-        for field, value in foundation_data.items():
-            # Check if the field exists in the model
-            if hasattr(models.Foundation, field):
-                valid_fields[field] = value
-
-        db_foundation = models.Foundation(**valid_fields)
-        db.add(db_foundation)
-        db.commit()
-        db.refresh(db_foundation)
-        return db_foundation
+    warnings.warn(
+        "crud.create_or_update_foundation is deprecated, "
+        "use FoundationRepository.create_or_update_foundation",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return FoundationRepository(db).create_or_update_foundation(foundation_data)
 
 
 def create_foundations(
     db: Session, foundations_data: list[dict]
 ) -> list[models.Foundation]:
-    """Create/update multiple foundations in batch"""
-    created_foundations = []
+    """Create/update multiple foundations in batch
 
-    for foundation_data in foundations_data:
-        foundation = create_or_update_foundation(db, foundation_data)
-        created_foundations.append(foundation)
-
-    return created_foundations
+    .. deprecated::
+        Use ``FoundationRepository.create_foundations`` instead.
+    """
+    warnings.warn(
+        "crud.create_foundations is deprecated, use FoundationRepository.create_foundations",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return FoundationRepository(db).create_foundations(foundations_data)
 
 
 def create_foundations_batch(
@@ -230,41 +243,32 @@ def create_foundations_batch(
 
     Preserves translated_purpose and purpose_embedding on updates to avoid
     losing work from translation/embedding jobs.
+
+    .. deprecated::
+        Use ``FoundationRepository.create_foundations_batch`` instead.
     """
-    created_foundations = []
-
-    # Fields that should NOT be overwritten on update (preserve translations/embeddings/category)
-    preserve_fields = {'translated_purpose', 'purpose_embedding', 'category'}
-
-    for foundation_data in foundations_data:
-        foundation_id = foundation_data.get("foundation_id")
-        existing = get_foundation(db, foundation_id)
-        if existing:
-            for field, value in foundation_data.items():
-                # Skip preserved fields - don't overwrite translations/embeddings
-                if field in preserve_fields:
-                    continue
-                if hasattr(existing, field):
-                    setattr(existing, field, value)
-            created_foundations.append(existing)
-        else:
-            valid_fields = {k: v for k, v in foundation_data.items() if hasattr(models.Foundation, k)}
-            db_foundation = models.Foundation(**valid_fields)
-            db.add(db_foundation)
-            created_foundations.append(db_foundation)
-
-    db.commit()
-    for foundation in created_foundations:
-        db.refresh(foundation)
-
-    return created_foundations
+    warnings.warn(
+        "crud.create_foundations_batch is deprecated, "
+        "use FoundationRepository.create_foundations_batch",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return FoundationRepository(db).create_foundations_batch(foundations_data)
 
 
 def delete_all_foundations(db: Session) -> int:
-    """Delete all foundations from the database (useful for clean sync)"""
-    count = db.query(models.Foundation).delete()
-    db.commit()
-    return count
+    """Delete all foundations from the database (useful for clean sync)
+
+    .. deprecated::
+        Use ``FoundationRepository.delete_all_foundations`` instead.
+    """
+    warnings.warn(
+        "crud.delete_all_foundations is deprecated, "
+        "use FoundationRepository.delete_all_foundations",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return FoundationRepository(db).delete_all_foundations()
 
 
 def delete_all_profiles(db: Session) -> int:
