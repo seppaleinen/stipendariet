@@ -11,12 +11,18 @@ from app.foundation.profile_text_generator import generate_profile_text
 from app.repositories.foundation_repo import FoundationRepository
 from app.services.embedding_service import SIMILARITY_THRESHOLD, ollama_embedding_service
 from app.services.foundation_service import (
+    categorize_db_foundations as _categorize_service,
+)
+from app.services.foundation_service import (
     find_matching_by_profile as _fm_service,
 )
 from app.services.foundation_service import (
     find_matching_foundations_with_db,
     get_all_categories,
     get_categorization_status,
+)
+from app.services.foundation_service import (
+    reset_categories as _reset_categories_service,
 )
 from app.services.llm_translation_service import llm_translation_service
 
@@ -130,23 +136,25 @@ def get_categorization_status_endpoint(db: Session = Depends(get_db)):
 # Categorization endpoints
 @router.post(
     "/reset-categories",
+    tags=["foundations", "admin"],
     summary="Reset all foundation categories in database",
     dependencies=[Depends(get_admin_user)],
 )
 def reset_categories(db: Session = Depends(get_db)):
     """Reset all foundation categories to allow recategorization"""
-    result = reset_categories(db)
+    result = _reset_categories_service(db)
     return result
 
 
 @router.post(
     "/categorize-db-foundations",
+    tags=["foundations", "admin"],
     summary="Categorize all foundations in database",
     dependencies=[Depends(get_admin_user)],
 )
 def categorize_db_foundations(db: Session = Depends(get_db)):
     """Trigger categorization of all foundations stored in the database"""
-    result = categorize_db_foundations(db)
+    result = _categorize_service(db)
     return result
 
 

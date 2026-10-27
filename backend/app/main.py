@@ -4,11 +4,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.v1.routers import (
-    admin as admin_router,
-)
-from app.api.v1.routers import (
-    admin_password_reset,
+from app.api.v1.routers.admin import admin as admin_router
+from app.api.v1.routers.admin import admin_password_reset
+from app.api.v1.routers.public import (
     applications,
     auth,
     foundation_sync,

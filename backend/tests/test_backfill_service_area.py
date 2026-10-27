@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.api.admin.enrichment import backfill_service_area_endpoint
+from app.api.v1.routers.admin.enrichment import backfill_service_area_endpoint
 
 
 class _FakeFoundation:

@@ -223,7 +223,7 @@ def get_current_user(
     )
 
 
-@router.post("/exchange", response_model=schemas.ExchangeResponse)
+@router.post("/exchange", response_model=schemas.ExchangeResponse, tags=["auth", "admin"])
 def exchange_token(
     payload: dict = Depends(get_admin_user),
     db: Session = Depends(get_db),

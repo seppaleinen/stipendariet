@@ -57,7 +57,7 @@ class TestAuthRouter:
 
     def test_signup_email_already_registered(self):
         """Signup fails when email already exists"""
-        with patch("app.api.v1.routers.auth.get_user_by_email") as mock_get_user:
+        with patch("app.api.v1.routers.public.auth.get_user_by_email") as mock_get_user:
             mock_get_user.return_value = MagicMock()
 
             response = client.post("/api/auth/signup", json={
@@ -77,9 +77,9 @@ class TestAuthRouter:
         mock_user.is_active = True
         mock_user.created_at = "2026-01-01T00:00:00"
 
-        with patch("app.api.v1.routers.auth.get_user_by_email") as mock_get_user, \
-             patch("app.api.v1.routers.auth.create_user") as mock_create_user, \
-             patch("app.api.v1.routers.auth.create_access_token") as mock_token:
+        with patch("app.api.v1.routers.public.auth.get_user_by_email") as mock_get_user, \
+             patch("app.api.v1.routers.public.auth.create_user") as mock_create_user, \
+             patch("app.api.v1.routers.public.auth.create_access_token") as mock_token:
 
             mock_get_user.return_value = None
             mock_create_user.return_value = mock_user
@@ -102,11 +102,11 @@ class TestAuthRouter:
 
         admin_email = settings.ADMIN_EMAIL
 
-        with patch("app.api.v1.routers.auth.get_user_by_email") as mock_get_user, \
-             patch("app.api.v1.routers.auth._verify_admin_password") as mock_verify, \
-             patch("app.api.v1.routers.auth.hash_password") as mock_hash, \
-             patch("app.api.v1.routers.auth.create_access_token") as mock_token, \
-             patch("app.api.v1.routers.auth.models.User") as mock_user_cls:
+        with patch("app.api.v1.routers.public.auth.get_user_by_email") as mock_get_user, \
+             patch("app.api.v1.routers.public.auth._verify_admin_password") as mock_verify, \
+             patch("app.api.v1.routers.public.auth.hash_password") as mock_hash, \
+             patch("app.api.v1.routers.public.auth.create_access_token") as mock_token, \
+             patch("app.api.v1.routers.public.auth.models.User") as mock_user_cls:
 
             mock_get_user.return_value = None
             mock_verify.return_value = True
@@ -134,8 +134,8 @@ class TestAuthRouter:
 
     def test_login_invalid_credentials(self):
         """Login fails with invalid credentials"""
-        with patch("app.api.v1.routers.auth.get_user_by_email") as mock_get_user, \
-             patch("app.api.v1.routers.auth._verify_admin_password") as mock_verify:
+        with patch("app.api.v1.routers.public.auth.get_user_by_email") as mock_get_user, \
+             patch("app.api.v1.routers.public.auth._verify_admin_password") as mock_verify:
 
             mock_get_user.return_value = None
             mock_verify.return_value = False
@@ -153,8 +153,8 @@ class TestAuthRouter:
         mock_user.hashed_password = "hashed"
         mock_user.is_active = True
 
-        with patch("app.api.v1.routers.auth.get_user_by_email") as mock_get_user, \
-             patch("app.api.v1.routers.auth.verify_password") as mock_verify:
+        with patch("app.api.v1.routers.public.auth.get_user_by_email") as mock_get_user, \
+             patch("app.api.v1.routers.public.auth.verify_password") as mock_verify:
 
             mock_get_user.return_value = mock_user
             mock_verify.return_value = False
@@ -172,8 +172,8 @@ class TestAuthRouter:
         mock_user.hashed_password = "hashed"
         mock_user.is_active = False
 
-        with patch("app.api.v1.routers.auth.get_user_by_email") as mock_get_user, \
-             patch("app.api.v1.routers.auth.verify_password") as mock_verify:
+        with patch("app.api.v1.routers.public.auth.get_user_by_email") as mock_get_user, \
+             patch("app.api.v1.routers.public.auth.verify_password") as mock_verify:
 
             mock_get_user.return_value = mock_user
             mock_verify.return_value = True
@@ -195,9 +195,9 @@ class TestAuthRouter:
         mock_user.is_admin = False
         mock_user.created_at = "2026-01-01T00:00:00"
 
-        with patch("app.api.v1.routers.auth.get_user_by_email") as mock_get_user, \
-             patch("app.api.v1.routers.auth.verify_password") as mock_verify, \
-             patch("app.api.v1.routers.auth.create_access_token") as mock_token:
+        with patch("app.api.v1.routers.public.auth.get_user_by_email") as mock_get_user, \
+             patch("app.api.v1.routers.public.auth.verify_password") as mock_verify, \
+             patch("app.api.v1.routers.public.auth.create_access_token") as mock_token:
 
             mock_get_user.return_value = mock_user
             mock_verify.return_value = True
@@ -416,7 +416,7 @@ class TestProfileRouter:
         """Self-description within the cap is accepted on create"""
         self._set_auth()
         try:
-            with patch("app.api.v1.routers.profile.models.Profile") as mock_profile_cls:
+            with patch("app.api.v1.routers.public.profile.models.Profile") as mock_profile_cls:
                 mock_instance = MagicMock()
                 mock_instance.id = 1
                 mock_instance.name = "My Profile"
@@ -525,7 +525,7 @@ class TestFoundationsRouter:
         """Translation succeeds"""
         app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
         try:
-            with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
+            with patch("app.api.v1.routers.public.foundations.llm_translation_service") as mock_service:
                 mock_service.translate_purpose.return_value = "Translated purpose"
                 response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
                 assert response.status_code == 200
@@ -539,7 +539,7 @@ class TestFoundationsRouter:
         """Translation fails when service returns None"""
         app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
         try:
-            with patch("app.api.v1.routers.foundations.llm_translation_service") as mock_service:
+            with patch("app.api.v1.routers.public.foundations.llm_translation_service") as mock_service:
                 mock_service.translate_purpose.return_value = None
                 response = client.post("/api/foundations/translate-purpose", json={"purpose": "Original purpose"})
                 assert response.status_code == 500
@@ -555,7 +555,7 @@ class TestFoundationsRouter:
 
     def test_matching_foundations_success(self):
         """Matching succeeds and returns results"""
-        with patch("app.api.v1.routers.foundations.ollama_embedding_service") as mock_service:
+        with patch("app.api.v1.routers.public.foundations.ollama_embedding_service") as mock_service:
             mock_service.generate_embedding.return_value = [0.1, 0.2, 0.3]
             response = client.post("/api/foundations/matching", json={
                 "needs": "Education funding for students",
@@ -615,8 +615,8 @@ class TestFoundationsRouter:
 
         mock_db = self._set_user_auth_and_db(mock_profile)
         try:
-            with patch("app.api.v1.routers.foundations.ollama_embedding_service") as mock_service, \
-                 patch("app.api.v1.routers.foundations.generate_profile_text") as mock_generate_text:
+            with patch("app.api.v1.routers.public.foundations.ollama_embedding_service") as mock_service, \
+                 patch("app.api.v1.routers.public.foundations.generate_profile_text") as mock_generate_text:
                 mock_service.generate_embedding.return_value = [0.1, 0.2, 0.3]
                 response = client.post("/api/foundations/matching-by-profile", json={
                     "profile_id": 1,
@@ -651,8 +651,8 @@ class TestFoundationsRouter:
 
         self._set_user_auth_and_db(mock_profile)
         try:
-            with patch("app.api.v1.routers.foundations.ollama_embedding_service") as mock_service, \
-                 patch("app.api.v1.routers.foundations.generate_profile_text") as mock_generate_text:
+            with patch("app.api.v1.routers.public.foundations.ollama_embedding_service") as mock_service, \
+                 patch("app.api.v1.routers.public.foundations.generate_profile_text") as mock_generate_text:
                 mock_generate_text.return_value = "Generated profile text"
                 mock_service.generate_embedding.return_value = [0.1, 0.2, 0.3]
 
@@ -698,7 +698,7 @@ class TestFoundationSyncRouter:
         """Trigger sync succeeds for admin"""
         app.dependency_overrides[get_admin_user] = lambda: {"sub": "admin", "role": "admin"}
         try:
-            with patch("app.api.v1.routers.foundation_sync.trigger_foundation_sync") as mock_sync:
+            with patch("app.api.v1.routers.public.foundation_sync.trigger_foundation_sync") as mock_sync:
                 mock_sync.return_value = True
                 response = client.post("/api/foundation-sync/trigger-sync")
                 assert response.status_code == 200
@@ -783,7 +783,7 @@ class TestSearchFoundationsNullTags:
 
         app.dependency_overrides[real_get_db] = _gen
         try:
-            with patch("app.api.v1.routers.search.or_", return_value=MagicMock()):
+            with patch("app.api.v1.routers.public.search.or_", return_value=MagicMock()):
                 response = client.get(
                     "/api/search/foundations",
                     params={"query": "test", "limit": 10},
@@ -878,7 +878,7 @@ class TestApplicationsRouter:
         """Create application fails when grant doesn't exist"""
         self._set_auth()
         try:
-            with patch("app.api.v1.routers.applications.crud.get_grant") as mock_get_grant:
+            with patch("app.api.v1.routers.public.applications.crud.get_grant") as mock_get_grant:
                 mock_get_grant.return_value = None
                 response = client.post("/api/applications/", json={
                     "grant_id": 999,

@@ -211,7 +211,7 @@ class _FakeSourceSession:
 
 def _patched_session():
     """Context manager: run the TestClient endpoint against a fresh fake session."""
-    return patch("app.api.admin.sources._get_session", lambda: _FakeSourceSession())
+    return patch("app.api.v1.routers.admin.sources._get_session", lambda: _FakeSourceSession())
 
 
 def _insert_direct(session, payload):
@@ -246,7 +246,7 @@ def test_list_sources_after_creation_and_filters():
     _insert_direct(session, _mk_payload("https://stiftelsen.se", source_type="official", foundation_id=2, is_official=True))
     _insert_direct(session, _mk_payload("https://blogg.se", source_type="blog", foundation_id=None, is_official=False))
 
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         # All rows
         resp = client.get("/api/admin/sources", headers=_admin_headers())
         assert resp.status_code == 200
@@ -289,7 +289,7 @@ def test_list_sources_requires_admin_auth():
 def test_get_source_found():
     session = _FakeSourceSession()
     _insert_direct(session, _mk_payload("https://stiftelsen.se", source_type="official"))
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         response = client.get("/api/admin/sources/1", headers=_admin_headers())
     assert response.status_code == 200
     data = response.json()
@@ -303,7 +303,7 @@ def test_get_source_found():
 
 def test_get_source_not_found():
     session = _FakeSourceSession()
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         response = client.get("/api/admin/sources/999", headers=_admin_headers())
     assert response.status_code == 404
     assert response.json()["detail"] == "Source not found"
@@ -316,7 +316,7 @@ def test_get_source_not_found():
 
 def test_create_source_success():
     session = _FakeSourceSession()
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         response = client.post(
             "/api/admin/sources",
             json={
@@ -338,7 +338,7 @@ def test_create_source_success():
     assert data["foundation_id"] == 7
 
     # Persisted — a subsequent list sees it
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         listing = client.get("/api/admin/sources", headers=_admin_headers())
     assert [s["url"] for s in listing.json()] == ["https://stiftelsen.se"]
 
@@ -349,7 +349,7 @@ def test_create_source_duplicate_url_allowed():
     newest row (re-fetch orders by id desc)."""
     session = _FakeSourceSession()
     payload = {"url": "https://annsansradstod.se", "source_type": "aggregator"}
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         first = client.post("/api/admin/sources", json=payload, headers=_admin_headers())
         second = client.post("/api/admin/sources", json=payload, headers=_admin_headers())
     assert first.status_code == 200
@@ -357,11 +357,11 @@ def test_create_source_duplicate_url_allowed():
     assert first.json()["id"] == 1
     assert second.json()["id"] == 2
 
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         listing = client.get("/api/admin/sources", headers=_admin_headers())
     assert [s["id"] for s in listing.json()] == [1, 2]
     # The newest row for the duplicate URL is returned by a create re-fetch
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         third = client.post("/api/admin/sources", json=payload, headers=_admin_headers())
     assert third.json()["id"] == 3
 
@@ -374,7 +374,7 @@ def test_create_source_duplicate_url_allowed():
 def test_update_source_fields():
     session = _FakeSourceSession()
     _insert_direct(session, _mk_payload("https://old.se", source_type="blog"))
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         response = client.put(
             "/api/admin/sources/1",
             json={"url": "https://new.se", "is_official": True, "confidence": 0.7, "source_type": "official"},
@@ -388,14 +388,14 @@ def test_update_source_fields():
     assert data["source_type"] == "official"
 
     # Untouched fields preserved (foundation_id was never sent)
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         got = client.get("/api/admin/sources/1", headers=_admin_headers())
     assert got.json()["foundation_id"] is None
 
 
 def test_update_source_missing_404():
     session = _FakeSourceSession()
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         response = client.put(
             "/api/admin/sources/999",
             json={"url": "https://nope.se"},
@@ -413,12 +413,12 @@ def test_update_source_missing_404():
 def test_delete_source_then_missing():
     session = _FakeSourceSession()
     _insert_direct(session, _mk_payload("https://stiftelsen.se"))
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         deleted = client.delete("/api/admin/sources/1", headers=_admin_headers())
     assert deleted.status_code == 200
     assert deleted.json() == {"detail": "Source deleted successfully"}
 
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         gone = client.get("/api/admin/sources/1", headers=_admin_headers())
         listing = client.get("/api/admin/sources", headers=_admin_headers())
     assert gone.status_code == 404
@@ -427,7 +427,7 @@ def test_delete_source_then_missing():
 
 def test_delete_source_missing_404():
     session = _FakeSourceSession()
-    with patch("app.api.admin.sources._get_session", lambda: session):
+    with patch("app.api.v1.routers.admin.sources._get_session", lambda: session):
         response = client.delete("/api/admin/sources/999", headers=_admin_headers())
     assert response.status_code == 404
     assert response.json()["detail"] == "Source not found"
@@ -440,7 +440,7 @@ def test_delete_source_missing_404():
 
 def _mk_payload(url, source_type=None, foundation_id=None, is_official=False):
     """Build an EnrichmentSourceCreate payload without going through the API."""
-    from app.api.admin.sources import EnrichmentSourceCreate
+    from app.api.v1.routers.admin.sources import EnrichmentSourceCreate
 
     return EnrichmentSourceCreate(
         url=url,

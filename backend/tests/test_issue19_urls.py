@@ -104,7 +104,7 @@ class TestGrantsCanonicalIds:
 
     def test_get_grant_resolves_canonical_foundation_id(self):
         """GET /api/grants/foundation-700 resolves by foundation_id and echoes canonical."""
-        with patch("app.api.v1.routers.grants.crud.get_foundation") as mock_get_foundation:
+        with patch("app.api.v1.routers.public.grants.crud.get_foundation") as mock_get_foundation:
             mock_get_foundation.return_value = _foundation(db_id=7, foundation_id=700)
             resp = client.get("/api/grants/foundation-700")
             assert resp.status_code == 200
@@ -119,7 +119,7 @@ class TestGrantsCanonicalIds:
         With canonical-only resolution, a numeric id can only match a legacy grant
         row. Here no grant exists, so it 404s — the foundation fallback is gone.
         """
-        with patch("app.api.v1.routers.grants.crud.get_grant") as mock_get_grant:
+        with patch("app.api.v1.routers.public.grants.crud.get_grant") as mock_get_grant:
             mock_get_grant.return_value = None
             resp = client.get("/api/grants/7")
             assert resp.status_code == 404
@@ -144,8 +144,8 @@ class TestFundingCanonicalIds:
         from app.db.database import get_db as real_get_db
         app.dependency_overrides.pop(real_get_db, None)
 
-    @patch("app.api.v1.routers.funding.crud.get_grants")
-    @patch("app.api.v1.routers.funding.crud.get_foundations")
+    @patch("app.api.v1.routers.public.funding.crud.get_grants")
+    @patch("app.api.v1.routers.public.funding.crud.get_foundations")
     def test_list_emits_canonical_foundation_id(self, mock_get_foundations, mock_get_grants):
         """Funding list emits foundation-{foundation_id}."""
         self._override_db()
@@ -165,7 +165,7 @@ class TestFundingCanonicalIds:
         """GET /api/funding/foundation-700 resolves via foundation_id and echoes canonical."""
         self._override_db()
         try:
-            with patch("app.api.v1.routers.funding.crud.get_foundation") as mock_get_foundation:
+            with patch("app.api.v1.routers.public.funding.crud.get_foundation") as mock_get_foundation:
                 mock_get_foundation.return_value = _foundation(db_id=7, foundation_id=700)
                 resp = client.get("/api/funding/foundation-700")
                 assert resp.status_code == 200
@@ -178,7 +178,7 @@ class TestFundingCanonicalIds:
         """A bare numeric id can only be a legacy grant; missing grant -> 404."""
         self._override_db()
         try:
-            with patch("app.api.v1.routers.funding.crud.get_grant") as mock_get_grant:
+            with patch("app.api.v1.routers.public.funding.crud.get_grant") as mock_get_grant:
                 mock_get_grant.return_value = None
                 resp = client.get("/api/funding/7")
                 assert resp.status_code == 404
@@ -212,7 +212,7 @@ class TestSearchCanonicalIds:
 
         tags_mock = MagicMock()
         tags_mock.contains.return_value = MagicMock()
-        with patch("app.api.v1.routers.search.or_", return_value=MagicMock()), \
+        with patch("app.api.v1.routers.public.search.or_", return_value=MagicMock()), \
              patch.object(db_models.Foundation, "tags", tags_mock):
             try:
                 resp = client.get("/api/search/foundations", params={"query": "test", "limit": 10})
@@ -236,7 +236,7 @@ def test_canonical_grant_roundtrip_survives_db_renumber():
     from 7 -> 1), but foundation_id (700) is stable. The canonical lookup must
     still resolve — proving the surrogate renumber no longer breaks saved links.
     """
-    with patch("app.api.v1.routers.grants.crud.get_foundation") as mock_get_foundation:
+    with patch("app.api.v1.routers.public.grants.crud.get_foundation") as mock_get_foundation:
         # After re-sync: same foundation_id (700), DIFFERENT db id (now 1).
         mock_get_foundation.return_value = _foundation(db_id=1, foundation_id=700)
         resp = client.get("/api/grants/foundation-700")

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Backend (router namespace separation, Phase 6)**: `backend/app/api/v1/routers/` reorganized into `public/` (9 routers) and `admin/` (aggregator + 8 submodules) subpackages; legacy `backend/app/api/admin/` package deleted; `main.py` imports updated; `routers/__init__.py` re-exports added; `admin` OpenAPI tag applied to 4 mixed endpoints. Zero endpoint path or response shape changes — 79 `/api/` routes identical to HEAD.
 - **Admin auth via Authentik ForwardAuth**: `POST /api/auth/exchange` endpoint auto-provisions admin users and returns HS256 JWT; `useAuth.tsx` replaces password login with ForwardAuth exchange; `LoginPage.tsx` shows spinner and "Continue with Authentik" fallback; `ExchangeResponse` interface added to `@stipendariet/types`.
 - **Ops: Authentik ForwardAuth deployment**: Traefik middleware annotation on admin ingress; `INTERNAL_AUTH_TOKEN` via Helm values and fleet-infra `backend-secrets`; nginx header passthrough for `X-Forwarded-User/Email/Groups`; `X-Internal-Auth` scoped to `/api/auth/exchange` only.
 

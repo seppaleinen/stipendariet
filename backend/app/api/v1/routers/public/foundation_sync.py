@@ -12,7 +12,7 @@ from app.foundation.sync_service import trigger_foundation_sync
 router = APIRouter(prefix="/api/foundation-sync", tags=["foundation-sync"])
 
 
-@router.post("/trigger-sync", dependencies=[Depends(get_admin_user)])
+@router.post("/trigger-sync", tags=["foundation-sync", "admin"], dependencies=[Depends(get_admin_user)])
 def trigger_foundation_sync_endpoint():
     """
     Trigger a manual foundation sync.

@@ -20,8 +20,10 @@ ignore = [
 "alembic/**" = ["E", "F", "W", "I", "UP", "N", "B", "SIM"]
 "tests/**" = ["N"]
 # Deliberate imports-after-comment for organizing split routers
-"app/api/v1/routers/admin.py" = ["E402"]
+"app/api/v1/routers/admin/*" = ["E402"]
 "app/api/v1/routers/foundation_sync.py" = ["E402"]
+"app/api/v1/routers/public/foundation_sync.py" = ["E402"]
+"app/api/v1/routers/public/*" = ["E402"]
 # Logger setup before prompts import
 "app/pipeline/extraction.py" = ["E402"]
 "app/pipeline/validation.py" = ["E402"]

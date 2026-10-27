@@ -6,15 +6,15 @@ from app.core.security import get_admin_user
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(get_admin_user)])
 
 # Import from split modules
-from app.api.admin.categorization import (
+from .categorization import (
     reset_categories_endpoint,
     trigger_bulk_categorization_endpoint,
 )
-from app.api.admin.embeddings import (
+from .embeddings import (
     generate_single_embedding_endpoint,
     trigger_bulk_embedding_generation_endpoint,
 )
-from app.api.admin.enrichment import (
+from .enrichment import (
     EnrichmentTestRequest,
     backfill_service_area_endpoint,
     enrich_single_foundation_endpoint,
@@ -25,10 +25,10 @@ from app.api.admin.enrichment import (
     reset_enrichment_status_endpoint,
     trigger_enrichment_endpoint,
 )
-from app.api.admin.foundations import list_foundations_for_translation_endpoint
+from .foundations import list_foundations_for_translation_endpoint
 
 # --- Enrichment Source Schema ---
-from app.api.admin.sources import (
+from .sources import (
     EnrichmentSourceCreate,
     EnrichmentSourceUpdate,
     create_source_endpoint,
@@ -37,18 +37,18 @@ from app.api.admin.sources import (
     list_sources_endpoint,
     update_source_endpoint,
 )
-from app.api.admin.sync import (
+from .sync import (
     get_sync_status_endpoint,
     trigger_foundation_sync_endpoint,
     trigger_grant_sync_endpoint,
 )
-from app.api.admin.system import (
+from .system import (
     clear_database_endpoint,
     get_active_jobs_endpoint,
     get_foundation_stats_endpoint,
     search_foundations_admin_endpoint,
 )
-from app.api.admin.translation import (
+from .translation import (
     get_translation_defaults_endpoint,
     get_translation_task_status_endpoint,
     translate_single_foundation_endpoint,
