@@ -1,7 +1,5 @@
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from app.core.security import get_admin_user, get_current_user_payload
@@ -12,6 +10,14 @@ from app.foundation.foundation_schemas import FoundationSearchResponse
 from app.foundation.profile_text_generator import generate_profile_text
 from app.repositories.foundation_repo import FoundationRepository
 from app.services.embedding_service import SIMILARITY_THRESHOLD, ollama_embedding_service
+from app.services.foundation_service import (
+    find_matching_by_profile as _fm_service,
+)
+from app.services.foundation_service import (
+    find_matching_foundations_with_db,
+    get_all_categories,
+    get_categorization_status,
+)
 from app.services.llm_translation_service import llm_translation_service
 
 
@@ -108,52 +114,17 @@ def get_stored_foundations_by_municipality(municipality_code: str, db: Session =
 
 
 @router.get("/categories", response_model=list[str])
-def get_all_categories(db: Session = Depends(get_db)):
+def get_all_categories_endpoint(db: Session = Depends(get_db)):
     """Get all unique categories from the database"""
-    categories = (
-        db.query(models.Foundation.category)
-        .distinct()
-        .filter(models.Foundation.category.isnot(None))
-        .all()
-    )
-    return [cat[0] for cat in categories]
+    categories = get_all_categories(db)
+    return categories
 
 
 @router.get("/categorization-status", response_model=dict)
-def get_categorization_status(db: Session = Depends(get_db)):
+def get_categorization_status_endpoint(db: Session = Depends(get_db)):
     """Get status information about foundation categorization"""
-    from sqlalchemy import func
-
-    # Total number of foundations
-    total_foundations = db.query(models.Foundation).count()
-
-    # Uncategorized foundations
-    uncategorized_foundations = (
-        db.query(models.Foundation)
-        .filter(
-            or_(models.Foundation.category.is_(None), models.Foundation.category == "")
-        )
-        .count()
-    )
-
-    # Count of each category
-    categories_with_counts = (
-        db.query(models.Foundation.category, func.count(models.Foundation.id))
-        .filter(
-            models.Foundation.category.isnot(None), models.Foundation.category != ""
-        )
-        .group_by(models.Foundation.category)
-        .all()
-    )
-
-    return {
-        "total_foundations": total_foundations,
-        "uncategorized_foundations": uncategorized_foundations,
-        "categorized_foundations": total_foundations - uncategorized_foundations,
-        "category_distribution": [
-            {"category": cat, "count": count} for cat, count in categories_with_counts
-        ],
-    }
+    status = get_categorization_status(db)
+    return status
 
 
 # Categorization endpoints
@@ -164,22 +135,8 @@ def get_categorization_status(db: Session = Depends(get_db)):
 )
 def reset_categories(db: Session = Depends(get_db)):
     """Reset all foundation categories to allow recategorization"""
-    try:
-        from app.foundation.categorization.categorize_foundations import (
-            FoundationCategorizer,
-        )
-
-        categorizer = FoundationCategorizer()
-        reset_count = categorizer.reset_categories_in_db()
-        return {
-            "message": "All foundation categories have been reset",
-            "status": "success",
-            "reset_foundations": reset_count,
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error during category reset: {str(e)}"
-        )
+    result = reset_categories(db)
+    return result
 
 
 @router.post(
@@ -189,57 +146,40 @@ def reset_categories(db: Session = Depends(get_db)):
 )
 def categorize_db_foundations(db: Session = Depends(get_db)):
     """Trigger categorization of all foundations stored in the database"""
-    try:
-        from app.foundation.categorization.categorize_foundations import (
-            FoundationCategorizer,
-        )
-
-        categorizer = FoundationCategorizer()
-        updated_count = categorizer.categorize_foundations_in_db()
-        return {
-            "message": "Database foundation categorization completed",
-            "status": "success",
-            "updated_foundations": updated_count,
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error during categorization: {str(e)}"
-        )
+    result = categorize_db_foundations(db)
+    return result
 
 
 @router.post(
     "/translate-purpose",
     summary="Translate foundation purpose from old Swedish to modern Swedish",
-    dependencies=[Depends(get_admin_user)],
 )
-def translate_purpose(translation_request: TranslationRequest):
-    """
-    Translate a foundation purpose from old/legalese Swedish to modern Swedish using Ollama.
+def translate_purpose_endpoint(translation_request: TranslationRequest):
+    """Translate a foundation purpose from old/legalese Swedish to modern Swedish using Ollama.
+
     The request body should contain a 'purpose' field with the text to translate.
     """
+    purpose = translation_request.purpose
+    if not purpose:
+        raise HTTPException(
+            status_code=400,
+            detail="Purpose field is required for translation"
+        )
+
     try:
-        if not translation_request.purpose:
-            raise HTTPException(
-                status_code=400,
-                detail="Purpose field is required for translation"
-            )
-
-        translated_purpose = llm_translation_service.translate_purpose(translation_request.purpose)
-
+        translated_purpose = llm_translation_service.translate_purpose(purpose)
         if translated_purpose is None:
             raise HTTPException(
                 status_code=500,
                 detail="Translation failed. Please try again later."
             )
-
         return {
-            "original_purpose": translation_request.purpose,
+            "original_purpose": purpose,
             "translated_purpose": translated_purpose,
-            "status": "success"
+            "status": "success",
         }
-
     except HTTPException:
-        raise  # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -252,134 +192,61 @@ def find_matching_foundations(
     matching_request: MatchingRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Find foundations that semantically match the user's needs.
+    """Find foundations that semantically match the user's needs.
+
     Uses vector similarity search on translated purposes.
 
     Args:
         matching_request: Contains the user's needs description and optional threshold/limit
-
     Returns:
         List of foundations ranked by similarity score (highest first)
     """
     try:
-        if not matching_request.needs or not matching_request.needs.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="Needs description is required"
-            )
-
-        # Generate embedding for user's needs
-        needs_embedding = ollama_embedding_service.generate_embedding(matching_request.needs)
-
-        if needs_embedding is None:
-            raise HTTPException(
-                status_code=503,
-                detail="Could not generate embedding. Embedding service may be unavailable."
-            )
-
-        # Convert embedding to string format for pgvector
-        embedding_str = "[" + ",".join(str(x) for x in needs_embedding) + "]"
-
-        # Calculate threshold as cosine distance (lower is more similar)
-        # Cosine similarity = 1 - cosine distance
-        # If threshold is 0.5, we want similarity >= 0.5, so distance <= 0.5
-        1 - matching_request.threshold
-
-        # Query using pgvector cosine distance operator (<=>)
-        # Returns foundations with embeddings, ordered by similarity
-        query = text("""
-            SELECT
-                id,
-                foundation_id,
-                name,
-                orgnr,
-                purpose,
-                translated_purpose,
-                summary,
-                address,
-                postnr,
-                postort,
-                county_code,
-                municipality_code,
-                phone,
-                co_address,
-                type,
-                signature,
-                roles,
-                business_entities,
-                last_updated,
-                target_groups,
-                funding_areas,
-                tags,
-                category,
-                raw_data,
-                1 - (purpose_embedding <=> CAST(:embedding AS vector)) as similarity_score
-            FROM foundations
-            WHERE purpose_embedding IS NOT NULL
-              AND 1 - (purpose_embedding <=> CAST(:embedding AS vector)) >= :threshold
-            ORDER BY similarity_score DESC
-            LIMIT :limit
-        """)
-
-        result = db.execute(query, {
-            "embedding": embedding_str,
-            "threshold": matching_request.threshold,
-            "limit": matching_request.limit
-        })
-
-        rows = result.fetchall()
-
-        import json
-
-        def parse_json_field(value, default):
-            """Parse a field that might be a JSON string or already parsed."""
-            if value is None:
-                return default
-            if isinstance(value, str):
-                try:
-                    return json.loads(value)
-                except (json.JSONDecodeError, TypeError):
-                    return default
-            return value
-
-        matched_foundations = []
-        for row in rows:
+        service_results = find_matching_foundations_with_db(
+            matching_request.needs,
+            matching_request.threshold,
+            matching_request.limit,
+            db
+        )
+        # Convert service dicts to MatchedFoundation objects
+        matched = []
+        for item in service_results:
             foundation = schemas.Foundation(
-                id=row.id,
-                foundation_id=row.foundation_id,
-                name=row.name,
-                orgnr=row.orgnr,
-                purpose=row.purpose,
-                translated_purpose=row.translated_purpose,
-                summary=row.summary,
-                address=row.address,
-                postnr=row.postnr,
-                postort=row.postort,
-                county_code=row.county_code,
-                municipality_code=row.municipality_code,
-                phone=row.phone,
-                co_address=row.co_address,
-                type=row.type,
-                signature=row.signature,
-                roles=parse_json_field(row.roles, []),
-                business_entities=parse_json_field(row.business_entities, []),
-                last_updated=row.last_updated,
-                target_groups=parse_json_field(row.target_groups, []),
-                funding_areas=parse_json_field(row.funding_areas, []),
-                tags=parse_json_field(row.tags, []),
-                category=row.category,
-                raw_data=parse_json_field(row.raw_data, None)
+                id=item["id"],
+                foundation_id=item["foundation_id"],
+                name=item["name"],
+                orgnr=item["orgnr"],
+                purpose=item["purpose"],
+                translated_purpose=item["translated_purpose"],
+                summary=item["summary"],
+                address=item["address"],
+                postnr=item["postnr"],
+                postort=item["postort"],
+                county_code=item["county_code"],
+                municipality_code=item["municipality_code"],
+                phone=item["phone"],
+                co_address=item["co_address"],
+                type=item["type"],
+                signature=item["signature"],
+                roles=item["roles"],
+                business_entities=item["business_entities"],
+                last_updated=item["last_updated"],
+                target_groups=item["target_groups"],
+                funding_areas=item["funding_areas"],
+                tags=item["tags"],
+                category=item["category"],
+                raw_data=item["raw_data"],
             )
-            matched_foundations.append(MatchedFoundation(
+            matched.append(MatchedFoundation(
                 foundation=foundation,
-                similarity_score=round(row.similarity_score, 4)
+                similarity_score=item["similarity_score"]
             ))
-
-        return matched_foundations
-
-    except HTTPException:
-        raise
+        return matched
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -393,15 +260,14 @@ def find_matching_by_profile(
     payload: dict = Depends(get_current_user_payload),
     db: Session = Depends(get_db)
 ):
-    """
-    Find foundations that match the user's profile.
+    """Find foundations that match the user's profile.
+
     Uses vector similarity search on generated profile text against foundation purposes.
     Optionally applies geographic filtering based on county/municipality.
     """
     from uuid import UUID
 
     try:
-        # Get user ID from token
         user_id_str = payload.get("sub")
         if not user_id_str:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -411,216 +277,49 @@ def find_matching_by_profile(
         except ValueError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        # Get user's profile
-        if request.profile_id:
-            profile = db.query(models.Profile).filter(
-                models.Profile.id == request.profile_id,
-                models.Profile.user_id == user_id
-            ).first()
-        else:
-            # Default behavior based on "default" profile
-            profile = db.query(models.Profile).filter(
-                models.Profile.user_id == user_id,
-                models.Profile.is_default
-            ).first()
-
-            if not profile:
-                 profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
-
-        if profile is None:
-            raise HTTPException(status_code=404, detail="Profile not found. Please set up your profile first.")
-
-        # Derive the Matching text from exactly one source — never blended:
-        # either the Self-description (raw free text) or the Structured selections.
-        if request.use_description:
-            profile_text = (profile.self_description or "").strip()
-            if not profile_text:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Self-description is empty. Please write a description of your situation in your profile first."
-                )
-        else:
-            # Convert DB model to schema for text generation
-            profile_schema = schemas.Profile(
-                county_code=profile.county_code,
-                municipality_code=profile.municipality_code,
-                life_situations=profile.life_situations or [],
-                health_conditions=profile.health_conditions or [],
-                health_details=profile.health_details,
-                occupations=profile.occupations or [],
-                support_purposes=profile.support_purposes or [],
-            )
-
-            # Generate Swedish text from profile selections
-            profile_text = generate_profile_text(profile_schema, include_geography=not request.use_geographic_filter)
-
-            if not profile_text.strip():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Profile is empty. Please fill in at least some information in your profile."
-                )
-
-        # Generate embedding for profile text
-        profile_embedding = ollama_embedding_service.generate_embedding(profile_text)
-
-        if profile_embedding is None:
-            raise HTTPException(
-                status_code=503,
-                detail="Could not generate embedding. Embedding service may be unavailable."
-            )
-
-        # Convert embedding to string format for pgvector
-        embedding_str = "[" + ",".join(str(x) for x in profile_embedding) + "]"
-
-        # Build geographic filter clause
-        # parsed_service_area takes precedence over official codes when present
-        geo_filter = ""
-        geo_params = {}
-
-        if request.use_geographic_filter and profile.county_code:
-            geo_params["county_code"] = profile.county_code
-
-            if profile.municipality_code:
-                # Municipality filter: parsed_service_area first, then official codes
-                geo_filter = """AND (
-                    -- Foundation has parsed_service_area AND it is confirmed → check it (takes precedence)
-                    (
-                        parsed_service_area IS NOT NULL
-                        AND (service_area_status IS DISTINCT FROM 'REVIEW')
-                        AND (
-                            parsed_service_area->>'municipality_code' = :municipality_code
-                            OR parsed_service_area->>'county_code' = :county_code
-                        )
-                    )
-                    OR
-                    -- Foundation has NO usable parsed_service_area (NULL or REVIEW) → use official codes
-                    (
-                        (parsed_service_area IS NULL OR service_area_status = 'REVIEW')
-                        AND (
-                            municipality_code = :municipality_code
-                            OR municipality_code IS NULL
-                            OR municipality_code = ''
-                            OR county_code = :county_code
-                        )
-                    )
-                )"""
-                geo_params["municipality_code"] = profile.municipality_code
-            else:
-                # County-only filter: parsed_service_area first, then official codes
-                geo_filter = """AND (
-                    -- Foundation has parsed_service_area AND it is confirmed → check it (takes precedence)
-                    (
-                        parsed_service_area IS NOT NULL
-                        AND (service_area_status IS DISTINCT FROM 'REVIEW')
-                        AND parsed_service_area->>'county_code' = :county_code
-                    )
-                    OR
-                    -- Foundation has NO usable parsed_service_area (NULL or REVIEW) → use official codes
-                    (
-                        (parsed_service_area IS NULL OR service_area_status = 'REVIEW')
-                        AND (
-                            county_code = :county_code
-                            OR county_code IS NULL
-                            OR county_code = ''
-                        )
-                    )
-                )"""
-
-        # Query using pgvector cosine distance operator (<=>)
-        query_text = f"""
-            SELECT
-                id,
-                foundation_id,
-                name,
-                orgnr,
-                purpose,
-                translated_purpose,
-                summary,
-                address,
-                postnr,
-                postort,
-                county_code,
-                municipality_code,
-                parsed_service_area,
-                phone,
-                co_address,
-                type,
-                signature,
-                roles,
-                business_entities,
-                last_updated,
-                target_groups,
-                funding_areas,
-                tags,
-                category,
-                raw_data,
-                1 - (purpose_embedding <=> CAST(:embedding AS vector)) as similarity_score
-            FROM foundations
-            WHERE purpose_embedding IS NOT NULL
-              AND 1 - (purpose_embedding <=> CAST(:embedding AS vector)) >= :threshold
-              {geo_filter}
-            ORDER BY similarity_score DESC
-            LIMIT :limit
-        """
-
-        result = db.execute(text(query_text), {
-            "embedding": embedding_str,
-            "threshold": request.threshold,
-            "limit": request.limit,
-            **geo_params
-        })
-
-        rows = result.fetchall()
-
-        import json
-
-        def parse_json_field(value, default):
-            """Parse a field that might be a JSON string or already parsed."""
-            if value is None:
-                return default
-            if isinstance(value, str):
-                try:
-                    return json.loads(value)
-                except (json.JSONDecodeError, TypeError):
-                    return default
-            return value
-
-        matched_foundations = []
-        for row in rows:
+        service_results = _fm_service(
+            request, user_id, db,
+            embedding_service=ollama_embedding_service,
+            profile_text_generator=generate_profile_text
+        )
+        # Convert service dicts to MatchedFoundation objects
+        matched = []
+        for item in service_results:
             foundation = schemas.Foundation(
-                id=row.id,
-                foundation_id=row.foundation_id,
-                name=row.name,
-                orgnr=row.orgnr,
-                purpose=row.purpose,
-                translated_purpose=row.translated_purpose,
-                summary=row.summary,
-                address=row.address,
-                postnr=row.postnr,
-                postort=row.postort,
-                county_code=row.county_code,
-                municipality_code=row.municipality_code,
-                parsed_service_area=parse_json_field(row.parsed_service_area, None),
-                phone=row.phone,
-                co_address=row.co_address,
-                type=row.type,
-                signature=row.signature,
-                roles=parse_json_field(row.roles, []),
-                business_entities=parse_json_field(row.business_entities, []),
-                last_updated=row.last_updated,
-                target_groups=parse_json_field(row.target_groups, []),
-                funding_areas=parse_json_field(row.funding_areas, []),
-                tags=parse_json_field(row.tags, []),
-                category=row.category,
-                raw_data=parse_json_field(row.raw_data, None)
+                id=item["id"],
+                foundation_id=item["foundation_id"],
+                name=item["name"],
+                orgnr=item["orgnr"],
+                purpose=item["purpose"],
+                translated_purpose=item["translated_purpose"],
+                summary=item["summary"],
+                address=item["address"],
+                postnr=item["postnr"],
+                postort=item["postort"],
+                parsed_service_area=item["parsed_service_area"],
+                phone=item["phone"],
+                co_address=item["co_address"],
+                type=item["type"],
+                signature=item["signature"],
+                roles=item["roles"],
+                business_entities=item["business_entities"],
+                last_updated=item["last_updated"],
+                target_groups=item["target_groups"],
+                funding_areas=item["funding_areas"],
+                tags=item["tags"],
+                category=item["category"],
+                raw_data=item["raw_data"],
             )
-            matched_foundations.append(MatchedFoundation(
+            matched.append(MatchedFoundation(
                 foundation=foundation,
-                similarity_score=round(row.similarity_score, 4)
+                similarity_score=item["similarity_score"]
             ))
-
-        return matched_foundations
-
+        return matched
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
     except HTTPException:
         raise
     except Exception as e:
