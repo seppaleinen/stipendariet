@@ -1,196 +1,19 @@
 import { Helmet } from "react-helmet-async";
-import { useState, useEffect } from "react";
-import { Search, Bookmark, Sparkles } from "lucide-react";
-import { Input } from "@stipendariet/ui";
-import { Button } from "@stipendariet/ui";
-import { Badge } from "@stipendariet/ui";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@stipendariet/ui";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@stipendariet/ui";
-import {
-  getGrants,
-  getSavedGrants,
-  saveGrant,
-  removeSavedGrant,
-} from "@/lib/api";
-import { Grant } from "@/types/grants";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { Sparkles } from "lucide-react";
+import { Button } from "@stipendariet/ui";
 import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
 import FAQSchema, { FAQSection } from "@/components/FAQSchema";
-import { useSSRData } from "@/contexts/SSRDataContext";
-
-const ITEMS_PER_PAGE = 50;
-
-interface GrantsApiResponse {
-  grants: Grant[];
-  total: number;
-  skip: number;
-  limit: number;
-  has_more: boolean;
-}
+import {
+  GrantSearchBar,
+  GrantsResults,
+  useGrantsList,
+  useSavedGrants,
+} from "@/features/grants";
 
 export default function Grants() {
-  // Read pre-fetched grants from SSR. Lazy initialisers make this synchronous.
-  const ssrData = useSSRData();
-  const ssrGrants = (ssrData.grants as GrantsApiResponse | undefined) ?? null;
-
-  const [grants, setGrants] = useState<Grant[]>(() => ssrGrants?.grants ?? []);
-  const [totalCount, setTotalCount] = useState<number>(() => ssrGrants?.total ?? 0);
-  const [loading, setLoading] = useState<boolean>(() => ssrGrants == null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState<boolean>(() => ssrGrants?.has_more ?? true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [skip, setSkip] = useState<number>(() => ssrGrants?.skip ?? 0);
-  const [savedGrantIds, setSavedGrantIds] = useState<Set<string>>(new Set());
-  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
-  const [categories, setCategories] = useState<string[]>(["all"]);
-  const { isAuthenticated } = useAuth();
-  const { toast } = useToast();
-
-  // Debounce search
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  // If SSR provided an initial grants list, the categories can be extracted from it.
-  // Otherwise, fetch on first effect.
-  useEffect(() => {
-    if (ssrGrants?.grants.length) {
-      const uniqueCategories = Array.from(
-        new Set(ssrGrants.grants.map((g) => g.category).filter(Boolean))
-      );
-      setCategories(["all", ...uniqueCategories]);
-      return;
-    }
-    // SSR did not provide grants — fetch the first page
-    loadGrants(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitted: loadGrants closes over `skip`
-  }, [debouncedSearch, categoryFilter]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchSavedGrants();
-    } else {
-      setSavedGrantIds(new Set());
-    }
-  }, [isAuthenticated]);
-
-  const loadGrants = async (reset: boolean = false) => {
-    const newSkip = reset ? 0 : skip;
-    if (reset) {
-      setLoading(true);
-      setSkip(0);
-    } else {
-      setLoadingMore(true);
-    }
-
-    try {
-      const response = await getGrants({
-        search: debouncedSearch || undefined,
-        category: categoryFilter !== "all" ? categoryFilter : undefined,
-        skip: newSkip,
-        limit: ITEMS_PER_PAGE,
-      });
-
-      if (reset) {
-        setGrants(response.grants);
-      } else {
-        setGrants((prev) => [...prev, ...response.grants]);
-      }
-      setTotalCount(response.total);
-      setHasMore(response.has_more);
-      setSkip(newSkip + response.grants.length);
-
-      // Extract categories from first page load
-      if (reset && response.grants.length > 0) {
-        const uniqueCategories = Array.from(
-          new Set(response.grants.map((g) => g.category).filter(Boolean))
-        );
-        setCategories(["all", ...uniqueCategories]);
-      }
-    } catch (error) {
-      console.error("Error loading grants:", error);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  const loadMore = () => {
-    if (!loadingMore && hasMore) {
-      loadGrants(false);
-    }
-  };
-
-  const fetchSavedGrants = async () => {
-    const ids = await getSavedGrants();
-    setSavedGrantIds(new Set(ids));
-  };
-
-  const toggleSave = async (grantId: string, shouldSave: boolean) => {
-    if (savingIds.has(grantId)) return;
-    if (!isAuthenticated) {
-      toast({ title: "Inloggning krävs", description: "Logga in för att spara stipendier.", variant: "destructive" });
-      return;
-    }
-
-    setSavingIds(new Set(savingIds).add(grantId));
-    try {
-      if (shouldSave) {
-        await saveGrant(grantId);
-        const next = new Set(savedGrantIds);
-        next.add(grantId);
-        setSavedGrantIds(next);
-      } else {
-        await removeSavedGrant(grantId);
-        const next = new Set(savedGrantIds);
-        next.delete(grantId);
-        setSavedGrantIds(next);
-      }
-    } catch (error) {
-      console.error("Error toggling saved grant", error);
-    } finally {
-      const nextSaving = new Set(savingIds);
-      nextSaving.delete(grantId);
-      setSavingIds(nextSaving);
-    }
-  };
-
-  // Infinite scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 200 &&
-        !loadingMore &&
-        hasMore &&
-        !loading
-      ) {
-        loadMore();
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMore identity changes every render by design; state flags below already gate the handler
-  }, [loadingMore, hasMore, loading]);
+  const list = useGrantsList();
+  const saved = useSavedGrants();
 
   return (
     <>
@@ -231,151 +54,40 @@ export default function Grants() {
         </ol>
       </nav>
       <div className="space-y-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Stipendier och Bidrag</h1>
-          <Button asChild className="gap-2">
-            <Link to="/matching">
-              <Sparkles className="h-4 w-4" />
-              Hitta matchande
-            </Link>
-          </Button>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <label htmlFor="search-grants" className="sr-only">Sök stipendier</label>
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="search-grants"
-              placeholder="Sök stipendier..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Stipendier och Bidrag</h1>
+            <Button asChild className="gap-2">
+              <Link to="/matching">
+                <Sparkles className="h-4 w-4" />
+                Hitta matchande
+              </Link>
+            </Button>
           </div>
 
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat === "all" ? "Alla Kategorier" : cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <GrantSearchBar
+            searchQuery={list.searchQuery}
+            onSearchChange={list.setSearchQuery}
+            categoryFilter={list.categoryFilter}
+            onCategoryChange={list.setCategoryFilter}
+            categories={list.categories}
+          />
+
+          <GrantsResults
+            grants={list.grants}
+            totalCount={list.totalCount}
+            loading={list.loading}
+            loadingMore={list.loadingMore}
+            hasMore={list.hasMore}
+            savedGrantIds={saved.savedGrantIds}
+            savingIds={saved.savingIds}
+            onSaveToggle={saved.toggleSave}
+            loadMore={list.loadMore}
+          />
         </div>
-      </div>
 
-      {/* Results */}
-      {loading ? (
-        <div className="text-center py-12 text-muted-foreground" role="status" aria-live="polite">
-          <span className="sr-only">Laddar stipendier, vänligen vänta</span>
-          Laddar stipendier...
-        </div>
-      ) : grants.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground" role="status" aria-live="polite">
-          Inga stipendier hittades. Prova att ändra dina sökkriterier.
-        </div>
-      ) : (
-        <>
-          <div className="text-sm text-muted-foreground" role="status" aria-live="polite">
-            {totalCount.toLocaleString("sv-SE")} stipendier hittades ({grants.length} visas)
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {grants.map((grant) => (
-              <Card
-                key={grant.id}
-                className="flex flex-col hover:shadow-lg transition-shadow"
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge variant="secondary">{grant.category}</Badge>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        disabled={savingIds.has(grant.id)}
-                        onClick={() =>
-                          toggleSave(grant.id, !savedGrantIds.has(grant.id))
-                        }
-                        aria-label={savedGrantIds.has(grant.id) ? `Ta bort ${grant.title} från sparade` : `Spara ${grant.title}`}
-                      >
-                        {savedGrantIds.has(grant.id) ? (
-                          <Bookmark className="h-4 w-4 fill-current" aria-hidden="true" />
-                        ) : (
-                          <Bookmark className="h-4 w-4" aria-hidden="true" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  <CardTitle className="line-clamp-2">{grant.title}</CardTitle>
-                  <CardDescription className="line-clamp-3">
-                    {grant.summary}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="flex-1">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Utgivare:</span>
-                      <span className="font-medium">{grant.provider}</span>
-                    </div>
-                    {grant.amount && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Belopp:</span>
-                        <span className="font-medium">{grant.amount}</span>
-                      </div>
-                    )}
-                    {grant.deadline && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Deadline:</span>
-                        <span className="font-medium">{grant.deadline}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {grant.tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-
-                <CardFooter>
-                  <Button asChild className="w-full">
-                    <Link to={`/grants/${grant.id}`}>Läs mer</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-
-          {/* Load more */}
-          {hasMore && (
-            <div className="flex justify-center pt-4">
-              <Button
-                onClick={loadMore}
-                disabled={loadingMore}
-                variant="outline"
-              >
-                {loadingMore ? "Laddar fler..." : "Ladda fler"}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* FAQ Section */}
-      <FAQSection topic="search" />
+        {/* FAQ Section */}
+        <FAQSection topic="search" />
       </div>
     </>
   );
