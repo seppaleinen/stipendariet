@@ -12,7 +12,7 @@ import {
 } from '@stipendariet/ui';
 import { Skeleton } from '@stipendariet/ui';
 import { Play, Search, Eye } from 'lucide-react';
-import { ScholarshipQueueItem } from '@/types';
+import { ScholarshipQueueItem } from '@stipendariet/types';
 import scholarshipService from '@/lib/scholarshipService';
 import { useNavigate } from 'react-router-dom';
 

@@ -1,5 +1,5 @@
 import { api, request } from '@/lib/api';
-import { Scholarship, ScholarshipQueueItem } from '@/types';
+import { Scholarship, ScholarshipQueueItem } from '@stipendariet/types';
 
 const scholarshipService = {
   // Get scholarship queue (NEW and FAILED status)

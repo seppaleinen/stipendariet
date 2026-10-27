@@ -2,6 +2,19 @@
 // These types are shared across apps/frontend and apps/admin.
 // Import via `import { User, Profile, ... } from '@stipendariet/types'`
 
+// ── Admin types ────────────────────────────────────────────────────────
+
+export type {
+  Scholarship,
+  ScholarshipQueueItem,
+  FoundationStats,
+  EnrichmentStats,
+  ActiveJob,
+  ActiveJobsSummary,
+  FoundationSearchResult,
+  EnrichmentDefaults,
+} from './admin';
+
 // ── Auth ──────────────────────────────────────────────────────────────
 
 /** Unified user type matching backend's /auth/me response */

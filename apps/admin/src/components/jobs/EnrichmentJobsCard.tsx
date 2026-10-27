@@ -3,12 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { Input } from '@stipendariet/ui';
 import { api, request } from '@/lib/api';
-import { EnrichmentStatus, FoundationSearchResult, EnrichmentDefaults } from '@/types/jobs';
+import { EnrichmentStats, FoundationSearchResult, EnrichmentDefaults } from '@stipendariet/types';
 
 // --- Bulk enrichment status + trigger ---
 
 export const EnrichmentBulkCard: React.FC = () => {
-  const [status, setStatus] = useState<EnrichmentStatus | null>(null);
+  const [status, setStatus] = useState<EnrichmentStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 

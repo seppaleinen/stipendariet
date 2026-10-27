@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { api, request } from '@/lib/api';
-import { JobProgressState, FoundationStats } from '@/types/jobs';
+import { JobProgressState } from '@/types/jobs';
+import { FoundationStats } from '@stipendariet/types';
 import { formatTimeRemaining } from '@/lib/utils';
 
 interface SyncFoundationsCardProps {

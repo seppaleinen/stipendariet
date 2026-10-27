@@ -7,7 +7,7 @@ import { Separator } from '@stipendariet/ui';
 import { ScrollArea } from '@stipendariet/ui';
 import { Skeleton } from '@stipendariet/ui';
 import { AlertCircle, CheckCircle, FileText, ExternalLink } from 'lucide-react';
-import { Scholarship } from '@/types';
+import { Scholarship } from '@stipendariet/types';
 import scholarshipService from '@/lib/scholarshipService';
 
 const ReviewPage: React.FC = () => {

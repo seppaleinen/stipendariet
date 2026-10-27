@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@stipendariet/ui';
 import { Button } from '@stipendariet/ui';
 import { Input } from '@stipendariet/ui';
 import { api, request } from '@/lib/api';
-import { JobProgressState, ActionState, FoundationStats } from '@/types/jobs';
+import { JobProgressState, ActionState } from '@/types/jobs';
+import { FoundationStats } from '@stipendariet/types';
 import { formatTimeRemaining } from '@/lib/utils';
 
 // --- Bulk translation with progress ---

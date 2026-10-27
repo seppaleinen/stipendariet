@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFoundationStats, FOUNDATION_STATS_POLL_INTERVAL_MS } from './useFoundationStats';
 import { api, request } from '@/lib/api';
-import { FoundationStats } from '@/types/jobs';
+import { FoundationStats } from '@stipendariet/types';
 
 vi.mock('@/lib/api', () => ({
   api: {

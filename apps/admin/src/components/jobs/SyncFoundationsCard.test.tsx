@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { SyncFoundationsCard } from './SyncFoundationsCard';
-import { api, request } from '@/lib/api';
-import { FoundationStats } from '@/types/jobs';
+import { api } from '@/lib/api';
+import { FoundationStats } from '@stipendariet/types';
 
 // Mock the api module
 vi.mock('@/lib/api', () => ({

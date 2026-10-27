@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api, request } from '@/lib/api';
-import { ActiveJobsSummary } from '@/types/jobs';
+import { ActiveJobsSummary } from '@stipendariet/types';
 
 export const useActiveJobs = () => {
   const [activeJobs, setActiveJobs] = useState<ActiveJobsSummary>({});

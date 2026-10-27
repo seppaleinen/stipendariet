@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, request } from '@/lib/api';
-import { FoundationStats } from '@/types/jobs';
+import { FoundationStats } from '@stipendariet/types';
 
 /** Poll interval used while a relevant background job is running. */
 export const FOUNDATION_STATS_POLL_INTERVAL_MS = 10_000;
