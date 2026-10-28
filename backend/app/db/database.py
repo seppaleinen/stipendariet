@@ -1,9 +1,8 @@
 import os
 import time
-from collections.abc import Generator
-from typing import Callable
+from collections.abc import Callable, Generator
 
-from sqlalchemy import create_engine, Engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -64,14 +63,13 @@ def get_db() -> Generator[Session, None, None]:
 
 
 # Lazy re-exports to avoid circular imports
+# Note: create_tables, create_admin_user, Base are available via __getattr__ but not in __all__
+# because they are lazily imported to avoid circular dependencies.
 __all__ = [
     "engine",
     "SessionLocal",
     "get_db",
     "create_engine_with_retry",
-    "create_tables",
-    "create_admin_user",
-    "Base",
 ]
 
 

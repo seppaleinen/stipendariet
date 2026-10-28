@@ -26,6 +26,7 @@ stipendariet.db
 # Generated artifacts
 graphify-out/
 out/
+.trail/
 
 # Playwright E2E test artifacts
 test-results/

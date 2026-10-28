@@ -1,23 +1,17 @@
 """Bootstrap module — database initialization and schema drift handling."""
 from typing import TYPE_CHECKING
 
-from sqlalchemy import text
-from sqlalchemy.orm import sessionmaker
-from passlib.context import CryptContext
-
-from app.db.database import engine, SessionLocal
-from app.db.models import Base, User
-from app.core.config import settings
+from app.db.database import engine
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session  # For type hints only
+    from sqlalchemy.orm import Session  # For type hints only  # noqa: F401
 
 
 def create_tables():
     """Create all tables in the database"""
-    from sqlalchemy import text
+    from sqlalchemy import text  # noqa: F811
 
-    from app.db.models import Base
+    from app.db.models import Base  # noqa: F811
 
     # Enable pgvector extension
     with engine.connect() as conn:
@@ -173,9 +167,10 @@ def create_tables():
 
 def create_admin_user():
     """Create an admin user if it doesn't exist"""
-    from passlib.context import CryptContext
+    from passlib.context import CryptContext  # noqa: F811
+    from sqlalchemy.orm import sessionmaker  # noqa: F811
 
-    from app.core.config import settings
+    from app.core.config import settings  # noqa: F811
 
     # Configure bcrypt for password hashing
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -186,7 +181,7 @@ def create_admin_user():
             return pwd_context.hash("")
         return pwd_context.hash(password)
 
-    SessionLocal = sessionmaker(bind=engine)
+    SessionLocal = sessionmaker(bind=engine)  # noqa: F811
     db = SessionLocal()
 
     try:
