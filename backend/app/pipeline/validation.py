@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 
+from app.pipeline.base import PipelineContext, PipelineStage
 from app.pipeline.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_PROMPT
 from app.services.llm_client import chat_completion, strip_code_fences
 
@@ -51,3 +53,27 @@ async def validate_candidate_url(
         }
 
     return {"is_match": False, "confidence": 0.0, "raw_llm_response": None}
+
+
+class UrlValidationStage(PipelineStage):
+    """Pipeline stage for validating candidate URLs."""
+    name = "validation"
+
+    async def run(self, ctx: PipelineContext) -> None:
+        validation_results = await asyncio.gather(*[
+            validate_candidate_url(
+                cand,
+                ctx.foundation_name,
+                ctx.foundation_orgnr or "",
+                custom_system_prompt=ctx.validation_sys_prompt,
+                custom_user_prompt=ctx.validation_usr_prompt,
+            )
+            for cand in ctx.candidate_urls
+        ])
+
+        validated = []
+        for cand, val in zip(ctx.candidate_urls, validation_results, strict=False):
+            cand_with_validation = {**cand, **val}
+            validated.append(cand_with_validation)
+
+        ctx.validated_sources = validated

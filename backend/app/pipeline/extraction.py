@@ -3,6 +3,7 @@ import logging
 
 from pydantic import BaseModel, ValidationError
 
+from app.pipeline.base import PipelineContext, PipelineStage
 from app.pipeline.prompts import EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_PROMPT
 from app.services.llm_client import chat_completion, strip_code_fences
 
@@ -64,3 +65,31 @@ async def extract_data_from_content(
         logger.error(f"Extraction LLM failed for {foundation_name}: {e}")
 
     return None
+
+
+class ExtractionStage(PipelineStage):
+    """Pipeline stage for extracting data from crawled content."""
+    name = "extraction"
+
+    async def run(self, ctx: PipelineContext) -> None:
+        if not ctx.crawled_pages:
+            ctx.extracted_data = None
+            return
+
+        # Prioritise subpages over homepage
+        pages_sorted = sorted(ctx.crawled_pages, key=lambda p: 0 if p["type"] == "subpage" else 1)
+        combined = "".join(
+            f"\n--- PAGE: {pc['url']} ---\n{pc['content']}\n" for pc in pages_sorted
+        )
+
+        extracted = await extract_data_from_content(
+            combined,
+            ctx.foundation_name,
+            custom_system_prompt=ctx.extraction_sys_prompt,
+            custom_user_prompt=ctx.extraction_usr_prompt,
+        )
+
+        if extracted:
+            ctx.extracted_data = extracted.model_dump()
+        else:
+            ctx.extracted_data = None

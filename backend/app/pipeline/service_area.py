@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from app.data.swedish_regions import COUNTY_LOOKUP, MUNICIPALITY_LOOKUP
+from app.pipeline.base import PipelineContext, PipelineStage
 from app.pipeline.prompts import SERVICE_AREA_SYSTEM_PROMPT, SERVICE_AREA_USER_PROMPT
 from app.services.llm_client import chat_completion, strip_code_fences
 
@@ -244,3 +245,20 @@ async def extract_service_area(
         logger.error(f"Service area extraction failed for {foundation_name}: {e}")
 
     return None
+
+
+class ServiceAreaStage(PipelineStage):
+    """Pipeline stage for extracting geographic service area."""
+    name = "service_area"
+
+    async def run(self, ctx: PipelineContext) -> None:
+        service_area = await extract_service_area(
+            ctx.foundation_name,
+            purpose=ctx.purpose,
+            description=ctx.description,
+            registered_county_code=ctx.registered_county_code,
+            registered_municipality_code=ctx.registered_municipality_code,
+        )
+        if service_area:
+            ctx.service_area_status = service_area.pop("service_area_status", None)
+            ctx.parsed_service_area = service_area

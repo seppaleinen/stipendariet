@@ -4,6 +4,8 @@ import re
 
 from ddgs import DDGS
 
+from app.pipeline.base import PipelineContext, PipelineStage
+
 logger = logging.getLogger(__name__)
 
 # Domains that are pure business registries with no grant info — post-filter only
@@ -111,3 +113,15 @@ async def discover_candidate_urls(
 
     logger.info(f"Discovery complete for '{foundation_name}': {len(candidates)} candidates")
     return candidates
+
+
+class DiscoveryStage(PipelineStage):
+    """Pipeline stage for discovering candidate URLs."""
+    name = "discovery"
+
+    async def run(self, ctx: PipelineContext) -> None:
+        candidates = await discover_candidate_urls(
+            ctx.foundation_name,
+            ctx.foundation_orgnr or "",
+        )
+        ctx.candidate_urls = candidates

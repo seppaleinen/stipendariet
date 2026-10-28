@@ -4,11 +4,12 @@ from datetime import datetime
 
 from app.db.database import SessionLocal
 from app.db.models import EnrichmentData, EnrichmentPage, EnrichmentSource, Foundation
-from app.pipeline.crawler import crawl_foundation_site
-from app.pipeline.discovery import discover_candidate_urls
-from app.pipeline.extraction import extract_data_from_content
-from app.pipeline.service_area import extract_service_area
-from app.pipeline.validation import validate_candidate_url
+from app.pipeline.base import PipelineContext, PipelineStage
+from app.pipeline.crawler import CrawlStage
+from app.pipeline.discovery import DiscoveryStage
+from app.pipeline.extraction import ExtractionStage
+from app.pipeline.service_area import ServiceAreaStage
+from app.pipeline.validation import UrlValidationStage
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,17 @@ def _db_save_parsed_service_area(
             db.commit()
 
 
+def _get_default_stages() -> dict:
+    """Return the default pipeline stages mapping."""
+    return {
+        "service_area": ServiceAreaStage(),
+        "discovery": DiscoveryStage(),
+        "validation": UrlValidationStage(),
+        "crawl": CrawlStage(),
+        "extraction": ExtractionStage(),
+    }
+
+
 async def run_foundation_pipeline_task(
     ctx: dict,
     foundation_id: int,
@@ -131,6 +143,7 @@ async def run_foundation_pipeline_task(
     validation_usr_prompt: str = None,
     extraction_sys_prompt: str = None,
     extraction_usr_prompt: str = None,
+    stages: dict = None,
 ) -> dict:
     """
     Main task triggered by arq to process the full data extraction pipeline.
@@ -138,6 +151,19 @@ async def run_foundation_pipeline_task(
     Raises on unexpected failures so arq can retry via its max_tries setting.
     Expected non-data outcomes (NO_CANDIDATES, no_valid_site, NO_DATA) return normally.
     """
+    if stages is None:
+        stages = _get_default_stages()
+    else:
+        for key, stage in stages.items():
+            if not isinstance(stage, PipelineStage):
+                raise TypeError(
+                    f"stages['{key}'] must be a PipelineStage instance, "
+                    f"got {type(stage).__name__}"
+                )
+        missing = {"service_area", "discovery", "validation", "crawl", "extraction"} - set(stages.keys())
+        if missing:
+            raise ValueError(f"stages dict missing required keys: {sorted(missing)}")
+
     foundation = await asyncio.to_thread(_db_fetch_foundation, foundation_id)
     if not foundation:
         raise ValueError(f"Foundation {foundation_id} not found")
@@ -158,24 +184,37 @@ async def run_foundation_pipeline_task(
         "merged": None,  # final merged result written to DB
     }
 
-    # ── Service Area Extraction ────────────────────────────────────────────────
-    # Lightweight: only needs name + purpose text, no web scraping
-    service_area = await extract_service_area(
-        foundation_name,
+    # Build PipelineContext from foundation and params
+    pctx = PipelineContext(
+        foundation_id=foundation_id,
+        foundation_name=foundation_name,
+        foundation_orgnr=foundation_orgnr,
         purpose=foundation.purpose,
         description=foundation.summary,
         registered_county_code=foundation.county_code,
         registered_municipality_code=foundation.municipality_code,
+        validation_sys_prompt=validation_sys_prompt,
+        validation_usr_prompt=validation_usr_prompt,
+        extraction_sys_prompt=extraction_sys_prompt,
+        extraction_usr_prompt=extraction_usr_prompt,
+        trace=trace,
     )
-    if service_area:
-        sa_status = service_area.pop("service_area_status", None)
-        await asyncio.to_thread(_db_save_parsed_service_area, foundation_id, service_area, sa_status)
-        trace["service_area"] = service_area
-        logger.info(f"Service area extracted for {foundation_name}: {service_area}")
+
+    # ── Service Area Extraction ────────────────────────────────────────────────
+    await stages["service_area"].run(pctx)
+    if pctx.parsed_service_area:
+        await asyncio.to_thread(
+            _db_save_parsed_service_area,
+            foundation_id,
+            pctx.parsed_service_area,
+            pctx.service_area_status,
+        )
+        trace["service_area"] = pctx.parsed_service_area
+        logger.info(f"Service area extracted for {foundation_name}: {pctx.parsed_service_area}")
 
     # ── Discovery ──────────────────────────────────────────────────────────────
-    candidates = await discover_candidate_urls(foundation_name, foundation_orgnr)
-    if not candidates:
+    await stages["discovery"].run(pctx)
+    if not pctx.candidate_urls:
         await asyncio.to_thread(
             _db_update_foundation_status, foundation_id, "NO_CANDIDATES", datetime.utcnow()
         )
@@ -183,39 +222,30 @@ async def run_foundation_pipeline_task(
         logger.info(f"No candidates found for: {foundation_name}")
         return {"status": "no_candidates", "trace": trace}
 
-    trace["discovery"] = candidates
-    logger.info(f"Found {len(candidates)} candidates for {foundation_name}")
+    trace["discovery"] = pctx.candidate_urls
+    logger.info(f"Found {len(pctx.candidate_urls)} candidates for {foundation_name}")
 
     # ── Parallel validation ────────────────────────────────────────────────────
-    validation_results = await asyncio.gather(*[
-        validate_candidate_url(
-            cand,
-            foundation_name,
-            foundation_orgnr,
-            custom_system_prompt=validation_sys_prompt,
-            custom_user_prompt=validation_usr_prompt,
-        )
-        for cand in candidates
-    ])
+    await stages["validation"].run(pctx)
 
     matched_candidates = []
-    for cand, val in zip(candidates, validation_results, strict=False):
+    for cand in pctx.validated_sources:
         source_id = await asyncio.to_thread(
-            _db_save_source, foundation_id, cand["url"], val["is_match"], val["confidence"]
+            _db_save_source, foundation_id, cand["url"], cand["is_match"], cand["confidence"]
         )
         cand["source_id"] = source_id
         trace["validation"].append({
             "url": cand["url"],
             "title": cand.get("title", ""),
             "snippet": cand.get("snippet", ""),
-            "is_match": val["is_match"],
-            "confidence": val["confidence"],
-            "raw_llm_response": val.get("raw_llm_response"),
-            "llm_error": val.get("error"),
-            "prompt_used": val.get("prompt_used"),
+            "is_match": cand["is_match"],
+            "confidence": cand["confidence"],
+            "raw_llm_response": cand.get("raw_llm_response"),
+            "llm_error": cand.get("error"),
+            "prompt_used": cand.get("prompt_used"),
         })
-        logger.info(f"  {cand['url']} → is_match={val['is_match']} confidence={val['confidence']:.2f}")
-        if val["is_match"]:
+        logger.info(f"  {cand['url']} → is_match={cand['is_match']} confidence={cand['confidence']:.2f}")
+        if cand["is_match"]:
             matched_candidates.append(cand)
 
     if not matched_candidates:
@@ -239,7 +269,8 @@ async def run_foundation_pipeline_task(
         is_agg = _is_aggregator(cand["url"])
         logger.info(f"Crawling {'aggregator' if is_agg else 'own-site'}: {cand['url']}")
 
-        pages_crawled = await crawl_foundation_site(cand["url"])
+        pctx.active_source = cand
+        await stages["crawl"].run(pctx)
 
         source_trace: dict = {
             "url": cand["url"],
@@ -249,13 +280,13 @@ async def run_foundation_pipeline_task(
             "fields_extracted": [],
         }
 
-        if not pages_crawled:
+        if not pctx.crawled_pages:
             logger.warning(f"Crawler returned no pages for {cand['url']} — skipping source")
             trace["sources"].append(source_trace)
             # Treat a crawler miss on a single source as transient; continue with others
             continue
 
-        await asyncio.to_thread(_db_save_pages, cand["source_id"], pages_crawled)
+        await asyncio.to_thread(_db_save_pages, cand["source_id"], pctx.crawled_pages)
 
         source_trace["pages"] = [
             {
@@ -264,29 +295,17 @@ async def run_foundation_pipeline_task(
                 "size": len(pc["content"]),
                 "preview": pc["content"][:500] + "..." if len(pc["content"]) > 500 else pc["content"],
             }
-            for pc in pages_crawled
+            for pc in pctx.crawled_pages
         ]
 
-        # Prioritise subpages (application/contact info) over homepage boilerplate
-        pages_sorted = sorted(pages_crawled, key=lambda p: 0 if p["type"] == "subpage" else 1)
-        combined = "".join(
-            f"\n--- PAGE: {pc['url']} ---\n{pc['content']}\n" for pc in pages_sorted
-        )
+        await stages["extraction"].run(pctx)
 
-        extracted = await extract_data_from_content(
-            combined,
-            foundation_name,
-            custom_system_prompt=extraction_sys_prompt,
-            custom_user_prompt=extraction_usr_prompt,
-        )
-
-        if extracted:
-            extracted_dict = extracted.model_dump()
-            fields_found = [k for k, v in extracted_dict.items() if v]
-            source_trace["extraction"] = extracted_dict
+        if pctx.extracted_data:
+            fields_found = [k for k, v in pctx.extracted_data.items() if v]
+            source_trace["extraction"] = pctx.extracted_data
             source_trace["fields_extracted"] = fields_found
 
-            data = {k: v for k, v in extracted_dict.items() if v}
+            data = {k: v for k, v in pctx.extracted_data.items() if v}
             if is_agg:
                 aggregator_data.update(data)
                 if not best_aggregator_url:

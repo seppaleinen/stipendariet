@@ -105,9 +105,9 @@ async def test_crawl_returns_empty_on_browserless_connection_failure(mock_pw):
 
 
 @pytest.mark.asyncio
-@patch('app.pipeline.orchestrator.validate_candidate_url')
-@patch('app.pipeline.orchestrator.discover_candidate_urls')
-@patch('app.pipeline.orchestrator.extract_service_area')
+@patch('app.pipeline.validation.validate_candidate_url')
+@patch('app.pipeline.discovery.discover_candidate_urls')
+@patch('app.pipeline.service_area.extract_service_area')
 async def test_orchestrator_full_pipeline_all_downstream_failures(
     mock_extract_area, mock_discover, mock_validate
 ):

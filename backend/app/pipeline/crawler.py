@@ -4,6 +4,7 @@ import re
 from playwright.async_api import async_playwright
 
 from app.core.config import settings
+from app.pipeline.base import PipelineContext, PipelineStage
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +69,19 @@ async def crawl_foundation_site(start_url: str) -> list[dict[str, str]]:
         logger.error(f"Playwright failure: {e}")
 
     return pages
+
+
+class CrawlStage(PipelineStage):
+    """Pipeline stage for crawling foundation sites."""
+    name = "crawl"
+
+    async def run(self, ctx: PipelineContext) -> None:
+        if not ctx.active_source:
+            return
+
+        url = ctx.active_source.get("url")
+        if not url:
+            return
+
+        pages = await crawl_foundation_site(url)
+        ctx.crawled_pages = pages
