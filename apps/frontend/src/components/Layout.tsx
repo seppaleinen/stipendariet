@@ -18,7 +18,7 @@ import {
   SheetTrigger,
 } from "@stipendariet/ui";
 import { Avatar, AvatarFallback, AvatarImage } from "@stipendariet/ui";
-import { ProfileSwitcher } from "@/components/ProfileSwitcher";
+import { ProfileSwitcher } from "@/features/profile";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();

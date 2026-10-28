@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { ProfileSwitcher } from "./ProfileSwitcher";
+import { ProfileSwitcher } from "../components/ProfileSwitcher";
 import type { Profile } from "@stipendariet/types";
 
 // Controllable useProfile mock

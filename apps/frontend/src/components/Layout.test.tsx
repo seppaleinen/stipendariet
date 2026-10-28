@@ -10,7 +10,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 // Stub out ProfileSwitcher — it has its own dedicated test file
-vi.mock("@/components/ProfileSwitcher", () => ({
+vi.mock("@/features/profile", () => ({
   ProfileSwitcher: () => <div data-testid="profile-switcher" />,
 }));
 

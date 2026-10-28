@@ -1,0 +1,578 @@
+import { useState, useEffect, useMemo } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@stipendariet/ui";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@stipendariet/ui";
+import { Checkbox } from "@stipendariet/ui";
+import { Label } from "@stipendariet/ui";
+import { Textarea } from "@stipendariet/ui";
+import { Input } from "@stipendariet/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@stipendariet/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@stipendariet/ui";
+import {
+  MapPin,
+  Users,
+  Heart,
+  Briefcase,
+  Target,
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  Save,
+  User
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Profile } from "@/lib/api";
+import { SWEDISH_REGIONS, findCountyByCode } from "@/data/swedish-regions";
+import { useProfile } from "@/contexts/ProfileContext";
+// Option definitions shared with the Generate page (prompt building)
+import {
+  LIFE_SITUATION_OPTIONS,
+  HEALTH_CONDITION_OPTIONS,
+  OCCUPATION_OPTIONS,
+  SUPPORT_PURPOSE_OPTIONS,
+} from "@/lib/profile-options";
+import { profileSetupSchema, type ProfileSetupFormValues } from "../types";
+
+type ProfileSetupForm = ProfileSetupFormValues;
+
+const TAB_SECTIONS = [
+  { id: "geography", label: "Geografi", icon: MapPin },
+  { id: "life", label: "Livssituation", icon: Users },
+  { id: "health", label: "Hälsa", icon: Heart },
+  { id: "occupation", label: "Yrke", icon: Briefcase },
+  { id: "purpose", label: "Ändamål", icon: Target },
+];
+
+export function ProfileSetupForm() {
+  const { activeProfile, updateProfile, isLoading: isProfileLoading } = useProfile();
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("geography");
+  const { toast } = useToast();
+
+  const form = useForm<ProfileSetupForm>({
+    resolver: zodResolver(profileSetupSchema),
+    defaultValues: {
+      name: "",
+      countyCode: "",
+      municipalityCode: "",
+      lifeSituations: [],
+      healthConditions: [],
+      healthDetails: "",
+      occupations: [],
+      supportPurposes: [],
+      selfDescription: "",
+    },
+  });
+
+  const selectedCountyCode = form.watch("countyCode");
+  const selfDescriptionValue = form.watch("selfDescription") || "";
+
+  // Get municipalities for selected county
+  const municipalities = useMemo(() => {
+    if (!selectedCountyCode) return [];
+    const county = findCountyByCode(selectedCountyCode);
+    return county?.municipalities || [];
+  }, [selectedCountyCode]);
+
+  // Reset municipality when county changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "countyCode") {
+        form.setValue("municipalityCode", "");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Load active profile data
+  useEffect(() => {
+    if (activeProfile) {
+      form.reset({
+        name: activeProfile.name || "My Profile",
+        countyCode: activeProfile.countyCode || "",
+        municipalityCode: activeProfile.municipalityCode || "",
+        lifeSituations: activeProfile.lifeSituations || [],
+        healthConditions: activeProfile.healthConditions || [],
+        healthDetails: activeProfile.healthDetails || "",
+        occupations: activeProfile.occupations || [],
+        supportPurposes: activeProfile.supportPurposes || [],
+        selfDescription: activeProfile.selfDescription || "",
+      });
+    }
+  }, [activeProfile, form]);
+
+  const onSubmit = async (data: ProfileSetupForm) => {
+    if (!activeProfile?.id) {
+       toast({
+        title: "Fel",
+        description: "Ingen aktiv profil vald.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const profileData: Profile = {
+        id: activeProfile.id, // Keep ID
+        name: data.name,
+        countyCode: data.countyCode || undefined,
+        municipalityCode: data.municipalityCode || undefined,
+        lifeSituations: data.lifeSituations || [],
+        healthConditions: data.healthConditions || [],
+        healthDetails: data.healthDetails || undefined,
+        occupations: data.occupations || [],
+        supportPurposes: data.supportPurposes || [],
+        selfDescription: data.selfDescription || undefined,
+      };
+
+      await updateProfile(activeProfile.id, profileData);
+
+      toast({
+        title: "Profil sparad",
+        description: "Din profil har uppdaterats.",
+      });
+    } catch (error) {
+      console.error("Failed to save profile:", error);
+      toast({
+        title: "Fel",
+        description: "Kunde inte spara profilen. Försök igen.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const goToNextTab = () => {
+    const currentIndex = TAB_SECTIONS.findIndex(t => t.id === activeTab);
+    if (currentIndex < TAB_SECTIONS.length - 1) {
+      setActiveTab(TAB_SECTIONS[currentIndex + 1].id);
+    }
+  };
+
+  const goToPreviousTab = () => {
+    const currentIndex = TAB_SECTIONS.findIndex(t => t.id === activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(TAB_SECTIONS[currentIndex - 1].id);
+    }
+  };
+
+  const isFirstTab = activeTab === TAB_SECTIONS[0].id;
+  const isLastTab = activeTab === TAB_SECTIONS[TAB_SECTIONS.length - 1].id;
+
+  if (isProfileLoading && !activeProfile) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!activeProfile) {
+     return (
+        <div className="container py-8 text-center">
+             <p>Ingen profil vald. Välj en profil i menyn.</p>
+        </div>
+     );
+  }
+
+  return (
+    <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">Profil: {activeProfile.name}</h1>
+        <p className="text-muted-foreground mt-2">
+          Fyll i information för att matcha denna profil mot stiftelser.
+        </p>
+      </div>
+
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+
+        {/* Basic Info */}
+        <Card className="mb-6">
+             <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                   <User className="h-5 w-5" />
+                   Grunduppgifter
+                </CardTitle>
+             </CardHeader>
+             <CardContent>
+                 <div className="grid gap-4 sm:grid-cols-2">
+                     <div className="space-y-2">
+                        <Label htmlFor="name">Namn på profil (t.ex. Klient A)</Label>
+                        <Input
+                            id="name"
+                            {...form.register("name")}
+                            placeholder="Namn på profil"
+                        />
+                        {form.formState.errors.name && (
+                            <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+                        )}
+                     </div>
+                 </div>
+             </CardContent>
+        </Card>
+
+        {/* Self-description (free text in the user's own words) */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Beskriv din situation med egna ord (valfritt)
+            </CardTitle>
+            <CardDescription>
+              Din egen text kan användas istället för svaren nedan när du söker matchande stiftelser.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="space-y-2">
+              <Label htmlFor="selfDescription">Egen beskrivning</Label>
+              <Textarea
+                id="selfDescription"
+                placeholder="Beskriv din situation, dina behov och vad du söker stöd för..."
+                {...form.register("selfDescription")}
+                rows={5}
+                maxLength={2000}
+              />
+              <div className="flex justify-end">
+                <span className="text-xs text-muted-foreground">{selfDescriptionValue.length}/2000</span>
+              </div>
+              <p className="text-sm text-muted-foreground">För bästa resultat, skriv på svenska</p>
+              <p className="text-xs text-muted-foreground">
+                Obs: din län/kommun filtrerar alltid resultatet, även när du söker med egen text.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 gap-2 h-auto p-1">
+            {TAB_SECTIONS.map((section) => (
+              <TabsTrigger
+                key={section.id}
+                value={section.id}
+                className="flex flex-col items-center gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <section.icon className="h-5 w-5" />
+                <span className="text-xs font-medium hidden sm:inline">{section.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* Section 1: Geography */}
+          <TabsContent value="geography" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Var bor klienten?
+                </CardTitle>
+                <CardDescription>
+                  Många stiftelser riktar sig till personer i specifika län eller kommuner.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="county">Län</Label>
+                    <Controller
+                      name="countyCode"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger id="county">
+                            <SelectValue placeholder="Välj län..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SWEDISH_REGIONS.map((county) => (
+                              <SelectItem key={county.code} value={county.code}>
+                                {county.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="municipality">Kommun</Label>
+                    <Controller
+                      name="municipalityCode"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={!selectedCountyCode}
+                        >
+                          <SelectTrigger id="municipality">
+                            <SelectValue placeholder={selectedCountyCode ? "Välj kommun..." : "Välj först ett län"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {municipalities.map((muni) => (
+                              <SelectItem key={muni.code} value={muni.code}>
+                                {muni.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Section 2: Life Situation */}
+          <TabsContent value="life" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Livssituation
+                </CardTitle>
+                <CardDescription>
+                  Välj de alternativ som stämmer in på situationen.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Controller
+                  name="lifeSituations"
+                  control={form.control}
+                  render={({ field }) => (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {LIFE_SITUATION_OPTIONS.map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex items-start space-x-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                        >
+                          <Checkbox
+                            checked={field.value?.includes(option.value)}
+                            onCheckedChange={(checked) => {
+                                // Explicitly casting to avoid Type complexity in this snippet
+                                const val = option.value;
+                                const current = field.value || [];
+                                if (checked) {
+                                    field.onChange([...current, val]);
+                                } else {
+                                    field.onChange(current.filter((v) => v !== val));
+                                }
+                            }}
+                          />
+                          <div className="space-y-0.5">
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-sm text-muted-foreground">{option.description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Section 3: Health */}
+          <TabsContent value="health" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Heart className="h-5 w-5" />
+                  Hälsa & funktionsnedsättning
+                </CardTitle>
+                <CardDescription>
+                  Många stiftelser stödjer personer med specifika hälsotillstånd.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Controller
+                  name="healthConditions"
+                  control={form.control}
+                  render={({ field }) => (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {HEALTH_CONDITION_OPTIONS.map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex items-start space-x-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                        >
+                          <Checkbox
+                            checked={field.value?.includes(option.value)}
+                            onCheckedChange={(checked) => {
+                                const val = option.value;
+                                const current = field.value || [];
+                                if (checked) {
+                                    field.onChange([...current, val]);
+                                } else {
+                                    field.onChange(current.filter((v) => v !== val));
+                                }
+                            }}
+                          />
+                          <div className="space-y-0.5">
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-sm text-muted-foreground">{option.description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                />
+
+                <div className="space-y-2">
+                  <Label htmlFor="healthDetails">Övriga detaljer (valfritt)</Label>
+                  <Textarea
+                    id="healthDetails"
+                    placeholder="Beskriv eventuella specifika diagnoser eller hälsotillstånd..."
+                    {...form.register("healthDetails")}
+                    rows={3}
+                  />
+                  <p className="text-sm text-muted-foreground">För bästa resultat, skriv på svenska</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Section 4: Occupation */}
+          <TabsContent value="occupation" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5" />
+                  Yrke & bakgrund
+                </CardTitle>
+                <CardDescription>
+                  Vissa stiftelser riktar sig till specifika yrkesgrupper.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Controller
+                  name="occupations"
+                  control={form.control}
+                  render={({ field }) => (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {OCCUPATION_OPTIONS.map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex items-start space-x-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                        >
+                          <Checkbox
+                            checked={field.value?.includes(option.value)}
+                            onCheckedChange={(checked) => {
+                                const val = option.value;
+                                const current = field.value || [];
+                                if (checked) {
+                                    field.onChange([...current, val]);
+                                } else {
+                                    field.onChange(current.filter((v) => v !== val));
+                                }
+                            }}
+                          />
+                          <div className="space-y-0.5">
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-sm text-muted-foreground">{option.description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Section 5: Support Purpose */}
+          <TabsContent value="purpose" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Vad söker du stöd för?
+                </CardTitle>
+                <CardDescription>
+                  Välj vilken typ av stöd du är intresserad av.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Controller
+                  name="supportPurposes"
+                  control={form.control}
+                  render={({ field }) => (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {SUPPORT_PURPOSE_OPTIONS.map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex items-start space-x-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                        >
+                          <Checkbox
+                            checked={field.value?.includes(option.value)}
+                            onCheckedChange={(checked) => {
+                                const val = option.value;
+                                const current = field.value || [];
+                                if (checked) {
+                                    field.onChange([...current, val]);
+                                } else {
+                                    field.onChange(current.filter((v) => v !== val));
+                                }
+                            }}
+                          />
+                          <div className="space-y-0.5">
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-sm text-muted-foreground">{option.description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Navigation and Save */}
+        <div className="flex items-center justify-between mt-8 pt-6 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goToPreviousTab}
+            disabled={isFirstTab}
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Föregående
+          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sparar...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Spara profil
+                </>
+              )}
+            </Button>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goToNextTab}
+            disabled={isLastTab}
+          >
+            Nästa
+            <ChevronRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

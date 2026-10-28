@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Profile, listProfiles, createProfile as apiCreateProfile, updateProfileById } from "@/lib/api";
+import { Profile } from "@/lib/api";
+import { listProfiles, createProfile as apiCreateProfile, updateProfileById } from "@/features/profile/services/profileService";
 import { useAuth } from "./AuthContext";
 
 interface ProfileContextType {
