@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { createTokenStorage } from '@stipendariet/api-client';
 
 export type { User } from '@stipendariet/types';
 
@@ -23,36 +24,16 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 // API base URL - configure for your backend
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
-// Token storage keys
-const ACCESS_TOKEN_KEY = "auth_access_token";
-const REFRESH_TOKEN_KEY = "auth_refresh_token";
+const accessTokenStorage = createTokenStorage('auth_access_token');
+const refreshTokenStorage = createTokenStorage('auth_refresh_token');
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get stored token
-  const getAccessToken = useCallback(() => {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  }, []);
-
-  // Store tokens
-  const setTokens = useCallback((accessToken: string, refreshToken?: string) => {
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    if (refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    }
-  }, []);
-
-  // Clear tokens
-  const clearTokens = useCallback(() => {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  }, []);
-
   // Fetch current user from backend
-  const fetchCurrentUser = useCallback(async (): Promise<User | null> => {
-    const token = getAccessToken();
+  const fetchCurrentUser = async (): Promise<User | null> => {
+    const token = accessTokenStorage.get();
     if (!token) return null;
 
     try {
@@ -64,7 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         if (response.status === 401) {
-          clearTokens();
+          accessTokenStorage.clear();
+          refreshTokenStorage.clear();
           return null;
         }
         throw new Error("Failed to fetch user");
@@ -75,13 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Error fetching current user:", error);
       return null;
     }
-  }, [getAccessToken, clearTokens]);
+  };
 
   // Refresh user data
-  const refreshUser = useCallback(async () => {
+  const refreshUser = async () => {
     const userData = await fetchCurrentUser();
     setUser(userData);
-  }, [fetchCurrentUser]);
+  };
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -93,7 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-  }, [fetchCurrentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Login with email/password
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
@@ -112,7 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
-      setTokens(data.access_token, data.refresh_token);
+      accessTokenStorage.set(data.access_token);
+      if (data.refresh_token) refreshTokenStorage.set(data.refresh_token);
       setUser(data.user);
       return {};
     } catch (error) {
@@ -154,7 +138,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // If your backend returns tokens on signup, store them
       if (data.access_token) {
-        setTokens(data.access_token, data.refresh_token);
+        accessTokenStorage.set(data.access_token);
+        if (data.refresh_token) refreshTokenStorage.set(data.refresh_token);
         setUser(data.user);
       }
       
@@ -168,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Logout
   const logout = async () => {
     try {
-      const token = getAccessToken();
+      const token = accessTokenStorage.get();
       if (token) {
         // Optionally notify backend about logout
         await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -181,7 +166,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } finally {
-      clearTokens();
+      accessTokenStorage.clear();
+      refreshTokenStorage.clear();
       setUser(null);
     }
   };
@@ -210,5 +196,5 @@ export function useAuth() {
 
 // Helper to get access token for API calls
 export function getAuthToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  return createTokenStorage('auth_access_token').get();
 }

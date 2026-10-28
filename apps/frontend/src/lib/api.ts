@@ -1,6 +1,5 @@
 import { Grant, Application } from "@/types/grants";
-import { createApiClient } from "@stipendariet/api-client";
-import { getAuthToken } from "@/contexts/AuthContext";
+import { createApiClient, getAuthToken } from "@stipendariet/api-client";
 import type { MatchedFoundation, ParsedServiceArea, Profile, GrantsResponse } from "@stipendariet/types";
 
 // Re-export shared types used by components

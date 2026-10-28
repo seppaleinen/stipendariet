@@ -107,3 +107,13 @@ export function createApiClient(config: ApiClientConfig): HttpClient {
     del: <T = void>(path: string) => request<T>("DELETE", path),
   };
 }
+
+// ── Auth Helpers ───────────────────────────────────────────────────────
+export {
+  createTokenStorage,
+  decodeTokenPayload,
+  isTokenExpired,
+  getAuthToken,
+  type TokenStorage,
+  type TokenPayload,
+} from "./auth";

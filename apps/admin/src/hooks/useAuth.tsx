@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { jwtDecode } from 'jwt-decode';
-import { ApiError } from '@stipendariet/api-client';
+import { ApiError, decodeTokenPayload, isTokenExpired, createTokenStorage } from '@stipendariet/api-client';
 import { apiPublic } from '@/lib/api';
 import { ExchangeResponse } from '@stipendariet/types';
 
@@ -9,14 +8,6 @@ interface User {
   email: string;
   name: string;
   role: string;
-}
-
-interface AdminTokenPayload {
-  sub: string;
-  email: string;
-  name: string;
-  role: string;
-  exp: number;
 }
 
 interface AuthContextType {
@@ -30,29 +21,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-function decodeAdminToken(token: string): User | null {
-  try {
-    const decoded = jwtDecode<AdminTokenPayload>(token);
-    if (decoded.exp * 1000 > Date.now()) {
-      return {
-        id: decoded.sub || 'admin',
-        email: decoded.email || '',
-        name: decoded.name || 'Admin User',
-        role: decoded.role || 'admin',
-      };
-    }
-  } catch {
-    // invalid token
-  }
-  return null;
-}
-
-function removeInvalidToken(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('adminToken');
-  }
-}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -109,9 +77,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('adminToken', access_token);
 
         // Decode user from JWT (backend only returns token fields)
-        const decoded = decodeAdminToken(access_token);
-        if (decoded) {
-          setUser(decoded);
+        const payload = decodeTokenPayload(access_token);
+        if (payload) {
+          setUser({
+            id: payload.sub || 'admin',
+            email: payload.email || '',
+            name: payload.name || 'Admin User',
+            role: payload.role || 'admin',
+          });
         }
         return true;
       } catch {
@@ -127,21 +100,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!token) {
       return exchange();
     }
-
-    try {
-      const decoded = jwtDecode<AdminTokenPayload>(token);
-      const remainingMs = decoded.exp * 1000 - Date.now();
-
-      if (remainingMs > REFRESH_THRESHOLD_MS) {
-        // Token is still valid and has > 5 min remaining
-        return true;
-      }
-      // Token near expiry or invalid — re-exchange
-      return exchange();
-    } catch {
-      // Invalid token — re-exchange
+    if (isTokenExpired(token, REFRESH_THRESHOLD_MS)) {
       return exchange();
     }
+    // Token is still valid — decode user from it
+    const payload = decodeTokenPayload(token);
+    if (payload) {
+      setUser({
+        id: payload.sub || 'admin',
+        email: payload.email || '',
+        name: payload.name || 'Admin User',
+        role: payload.role || 'admin',
+      });
+    }
+    return true;
   }, [exchange]);
 
   useEffect(() => {
@@ -150,15 +122,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const init = async () => {
       if (token) {
-        const u = decodeAdminToken(token);
+        const u = decodeTokenPayload(token);
         if (u) {
-          setUser(u);
+          setUser({
+            id: u.sub || 'admin',
+            email: u.email || '',
+            name: u.name || 'Admin User',
+            role: u.role || 'admin',
+          });
           setIsLoading(false);
           // Proactive refresh check
           await refreshToken();
           return;
         } else {
-          removeInvalidToken();
+          createTokenStorage('adminToken').clear();
         }
       }
 

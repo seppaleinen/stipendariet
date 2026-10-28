@@ -16,6 +16,7 @@ import {
   findMatchingFoundationsByProfile,
 } from "./api";
 import * as AuthContext from "@/contexts/AuthContext";
+import * as ApiClient from "@stipendariet/api-client";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -88,7 +89,7 @@ global.IntersectionObserver = mockIntersectionObserver;
 
 // Mock AuthContext getAuthToken
 const mockGetAuthToken = vi.fn();
-vi.spyOn(AuthContext, "getAuthToken").mockImplementation(mockGetAuthToken);
+vi.spyOn(ApiClient, "getAuthToken").mockImplementation(mockGetAuthToken);
 
 describe("API Functions Integration Tests", () => {
   beforeEach(() => {
