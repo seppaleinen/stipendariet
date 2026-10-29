@@ -1,3 +1,6 @@
+# Tags are set at the endpoint level only to avoid duplication on mixed routers
+# (those with both public and admin-gated endpoints). FastAPI merges router-level
+# and endpoint-level tags, so a router-level tag would duplicate the endpoint tag.
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,7 +12,7 @@ from app.core.security import ACCESS_TOKEN_EXPIRE_HOURS, create_access_token, ge
 from app.db import models, schemas
 from app.db.database import get_db
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth")
 
 # Configure bcrypt for password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -56,7 +59,7 @@ def create_token_for_user(user: models.User, role: str = "user") -> str:
 
 # --- User Endpoints ---
 
-@router.post("/signup", response_model=schemas.TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", response_model=schemas.TokenResponse, status_code=status.HTTP_201_CREATED, tags=["auth"])
 def signup(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     """Create a new user account."""
     if len(payload.password) < 8:
@@ -87,7 +90,7 @@ def signup(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/login", response_model=schemas.TokenResponse)
+@router.post("/login", response_model=schemas.TokenResponse, tags=["auth"])
 def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token."""
     configured_admin_email = settings.ADMIN_EMAIL or "davidbaeriksson@gmail.com"  # Default to known admin
@@ -186,7 +189,7 @@ def _verify_admin_password(password: str) -> bool:
     return password == expected
 
 
-@router.get("/me", response_model=schemas.User)
+@router.get("/me", response_model=schemas.User, tags=["auth"])
 def get_current_user(
     payload: dict = Depends(get_current_user_payload),
     db: Session = Depends(get_db),
@@ -274,13 +277,13 @@ def exchange_token(
     )
 
 
-@router.post("/logout")
+@router.post("/logout", tags=["auth"])
 def logout(payload: dict = Depends(get_current_user_payload)):
     """Logout current user (token invalidation is client-side for stateless JWT)."""
     return {"message": "Logged out successfully"}
 
 
-@router.get("/google")
+@router.get("/google", tags=["auth"])
 def google_oauth_redirect():
     """Redirect to Google OAuth consent screen (stub)."""
     raise HTTPException(

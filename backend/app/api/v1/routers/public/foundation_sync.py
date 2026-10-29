@@ -1,4 +1,7 @@
 
+# Tags are set at the endpoint level only to avoid duplication on mixed routers
+# (those with both public and admin-gated endpoints). FastAPI merges router-level
+# and endpoint-level tags, so a router-level tag would duplicate the endpoint tag.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -9,7 +12,7 @@ from app.db.database import get_db
 from app.foundation.scheduler import get_scheduler
 from app.foundation.sync_service import trigger_foundation_sync
 
-router = APIRouter(prefix="/api/foundation-sync", tags=["foundation-sync"])
+router = APIRouter(prefix="/api/foundation-sync")
 
 
 @router.post("/trigger-sync", tags=["foundation-sync", "admin"], dependencies=[Depends(get_admin_user)])
@@ -33,7 +36,7 @@ def trigger_foundation_sync_endpoint():
         )
 
 
-@router.get("/foundations", response_model=list[schemas.Foundation])
+@router.get("/foundations", response_model=list[schemas.Foundation], tags=["foundation-sync"])
 def get_foundations(db: Session = Depends(get_db)):
     """
     Get all stored foundations from the database.
@@ -42,7 +45,7 @@ def get_foundations(db: Session = Depends(get_db)):
     return foundations
 
 
-@router.get("/foundations/{foundation_id}", response_model=schemas.Foundation)
+@router.get("/foundations/{foundation_id}", response_model=schemas.Foundation, tags=["foundation-sync"])
 def get_foundation(foundation_id: int, db: Session = Depends(get_db)):
     """
     Get a specific foundation by ID.
@@ -53,7 +56,7 @@ def get_foundation(foundation_id: int, db: Session = Depends(get_db)):
     return foundation
 
 
-@router.get("/status")
+@router.get("/status", tags=["foundation-sync"])
 def get_sync_status():
     """
     Get the status of the foundation sync scheduler.
@@ -86,7 +89,7 @@ class GenerationRequest(BaseModel):
 
 
 @router.post(
-    "/generate-application", dependencies=[Depends(get_current_user_payload)]
+    "/generate-application", dependencies=[Depends(get_current_user_payload)], tags=["foundation-sync"]
 )
 def generate_application(request: GenerationRequest):
     """

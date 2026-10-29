@@ -1,3 +1,6 @@
+# Tags are set at the endpoint level only to avoid duplication on mixed routers
+# (those with both public and admin-gated endpoints). FastAPI merges router-level
+# and endpoint-level tags, so a router-level tag would duplicate the endpoint tag.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -50,10 +53,10 @@ class MatchedFoundation(BaseModel):
     similarity_score: float
 
 
-router = APIRouter(prefix="/api/foundations", tags=["foundations"])
+router = APIRouter(prefix="/api/foundations")
 
 
-@router.get("/", response_model=FoundationSearchResponse)
+@router.get("/", response_model=FoundationSearchResponse, tags=["foundations"])
 def get_all_foundations():
     """Get all foundations by polling the external API"""
     result = poll_foundations()
@@ -64,7 +67,7 @@ def get_all_foundations():
     return result
 
 
-@router.get("/search", response_model=FoundationSearchResponse)
+@router.get("/search", response_model=FoundationSearchResponse, tags=["foundations"])
 def search_foundations(query: str | None = None):
     """Search foundations by query parameter"""
     result = get_foundations_by_query(query)
@@ -76,7 +79,7 @@ def search_foundations(query: str | None = None):
 
 
 # Database-stored foundations endpoints
-@router.get("/stored", response_model=list[schemas.Foundation])
+@router.get("/stored", response_model=list[schemas.Foundation], tags=["foundations"])
 def get_stored_foundations(db: Session = Depends(get_db)):
     """Get all stored foundations from the database"""
     repo = FoundationRepository(db)
@@ -84,7 +87,7 @@ def get_stored_foundations(db: Session = Depends(get_db)):
     return foundations
 
 
-@router.get("/stored/{foundation_id}", response_model=schemas.Foundation)
+@router.get("/stored/{foundation_id}", response_model=schemas.Foundation, tags=["foundations"])
 def get_stored_foundation(foundation_id: int, db: Session = Depends(get_db)):
     """Get a specific stored foundation from the database"""
     repo = FoundationRepository(db)
@@ -94,7 +97,7 @@ def get_stored_foundation(foundation_id: int, db: Session = Depends(get_db)):
     return foundation
 
 
-@router.get("/stored/by-category/{category}", response_model=list[schemas.Foundation])
+@router.get("/stored/by-category/{category}", response_model=list[schemas.Foundation], tags=["foundations"])
 def get_stored_foundations_by_category(category: str, db: Session = Depends(get_db)):
     """Get all stored foundations from the database filtered by category"""
     foundations = (
@@ -103,7 +106,7 @@ def get_stored_foundations_by_category(category: str, db: Session = Depends(get_
     return foundations
 
 
-@router.get("/stored/by-county/{county_code}", response_model=list[schemas.Foundation])
+@router.get("/stored/by-county/{county_code}", response_model=list[schemas.Foundation], tags=["foundations"])
 def get_stored_foundations_by_county(county_code: str, db: Session = Depends(get_db)):
     """Get all stored foundations from the database filtered by county code"""
     repo = FoundationRepository(db)
@@ -111,7 +114,7 @@ def get_stored_foundations_by_county(county_code: str, db: Session = Depends(get
     return foundations
 
 
-@router.get("/stored/by-municipality/{municipality_code}", response_model=list[schemas.Foundation])
+@router.get("/stored/by-municipality/{municipality_code}", response_model=list[schemas.Foundation], tags=["foundations"])
 def get_stored_foundations_by_municipality(municipality_code: str, db: Session = Depends(get_db)):
     """Get all stored foundations from the database filtered by municipality code"""
     repo = FoundationRepository(db)
@@ -119,14 +122,14 @@ def get_stored_foundations_by_municipality(municipality_code: str, db: Session =
     return foundations
 
 
-@router.get("/categories", response_model=list[str])
+@router.get("/categories", response_model=list[str], tags=["foundations"])
 def get_all_categories_endpoint(db: Session = Depends(get_db)):
     """Get all unique categories from the database"""
     categories = get_all_categories(db)
     return categories
 
 
-@router.get("/categorization-status", response_model=dict)
+@router.get("/categorization-status", response_model=dict, tags=["foundations"])
 def get_categorization_status_endpoint(db: Session = Depends(get_db)):
     """Get status information about foundation categorization"""
     status = get_categorization_status(db)
@@ -161,6 +164,7 @@ def categorize_db_foundations(db: Session = Depends(get_db)):
 @router.post(
     "/translate-purpose",
     summary="Translate foundation purpose from old Swedish to modern Swedish",
+    tags=["foundations"],
 )
 def translate_purpose_endpoint(translation_request: TranslationRequest):
     """Translate a foundation purpose from old/legalese Swedish to modern Swedish using Ollama.
@@ -195,7 +199,7 @@ def translate_purpose_endpoint(translation_request: TranslationRequest):
         )
 
 
-@router.post("/matching", response_model=list[MatchedFoundation])
+@router.post("/matching", response_model=list[MatchedFoundation], tags=["foundations"])
 def find_matching_foundations(
     matching_request: MatchingRequest,
     db: Session = Depends(get_db)
@@ -262,7 +266,7 @@ def find_matching_foundations(
         )
 
 
-@router.post("/matching-by-profile", response_model=list[MatchedFoundation])
+@router.post("/matching-by-profile", response_model=list[MatchedFoundation], tags=["foundations"])
 def find_matching_by_profile(
     request: ProfileMatchingRequest,
     payload: dict = Depends(get_current_user_payload),
