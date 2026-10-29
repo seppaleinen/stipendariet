@@ -11,6 +11,7 @@ Base = declarative_base()
 
 from app.db.models.application import Application  # noqa: E402
 from app.db.models.enrichment import EnrichmentData, EnrichmentPage, EnrichmentSource  # noqa: E402
+from app.db.models.enrichment_prompts import EnrichmentPrompt  # noqa: E402
 from app.db.models.foundation import Foundation  # noqa: E402
 from app.db.models.grant import Grant  # noqa: E402
 from app.db.models.profile import Profile  # noqa: E402
@@ -26,6 +27,7 @@ __all__ = [
     "EnrichmentSource",
     "EnrichmentPage",
     "EnrichmentData",
+    "EnrichmentPrompt",
     "Grant",
     "Application",
 ]

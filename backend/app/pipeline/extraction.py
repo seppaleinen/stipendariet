@@ -18,6 +18,8 @@ class ExtractedFoundationData(BaseModel):
     how_to_apply: str | None = None
     notes: str | None = None
     enriched_description: str | None = None  # 150+ word Swedish description for LLM citation
+    confidence: float = 0.0
+    per_field_confidence: dict[str, float] = {}
 
 
 

@@ -1,0 +1,35 @@
+# SearXNG settings for stipendariet enrichment pipeline
+# Enables JSON output and multiple search engines for Swedish foundation discovery
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: ""
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "sv"
+
+engines:
+  # Primary engines for Swedish foundation discovery
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+
+formats:
+  - html
+  - json
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+  pool_connections: 100
+  pool_maxsize: 20

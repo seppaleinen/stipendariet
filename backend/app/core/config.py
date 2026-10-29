@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Browserless settings (separated Playwright container)
     BROWSERLESS_URL: str = Field(default="http://browserless:3000", env="BROWSERLESS_URL")
 
+    # SearXNG self-hosted search
+    SEARXNG_URL: str = Field(default="http://searxng:8080", env="SEARXNG_URL")
+
     # Enrichment settings
     ENRICHMENT_LLM_MODEL: str = Field(default="gemma-4-12b", env="ENRICHMENT_LLM_MODEL")
     ENRICHMENT_BATCH_SIZE: int = Field(default=50, env="ENRICHMENT_BATCH_SIZE")
