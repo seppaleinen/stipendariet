@@ -44,6 +44,28 @@ class Settings(BaseSettings):
     # SearXNG self-hosted search
     SEARXNG_URL: str = Field(default="http://searxng:8080", env="SEARXNG_URL")
 
+    # Bolagsverket API settings (for Enrichment Pipeline v2 Stage 0)
+    BOLAGSVERKET_URL: str = Field(
+        default="https://data.bolagsverket.se/api",
+        env="BOLAGSVERKET_URL"
+    )
+    BOLAGSVERKET_API_KEY: str = Field(
+        default="",
+        env="BOLAGSVERKET_API_KEY"
+    )  # Optional OAuth 2.0 Bearer token for production use
+    BOLAGSVERKET_RATE_LIMIT: float = Field(
+        default=1.0,
+        env="BOLAGSVERKET_RATE_LIMIT"
+    )  # Requests per second (Bolagsverket ToS: 60/min = 1/sec)
+    BOLAGSVERKET_MAX_RETRIES: int = Field(
+        default=3,
+        env="BOLAGSVERKET_MAX_RETRIES"
+    )  # Number of retry attempts with exponential backoff
+    BOLAGSVERKET_TIMEOUT: float = Field(
+        default=10.0,
+        env="BOLAGSVERKET_TIMEOUT"
+    )  # HTTP request timeout in seconds
+
     # Enrichment settings
     ENRICHMENT_LLM_MODEL: str = Field(default="gemma-4-12b", env="ENRICHMENT_LLM_MODEL")
     ENRICHMENT_BATCH_SIZE: int = Field(default=50, env="ENRICHMENT_BATCH_SIZE")

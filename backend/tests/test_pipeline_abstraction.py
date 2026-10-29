@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 
 from app.pipeline.base import PipelineContext, PipelineStage
+from app.pipeline.bolagsverket import BolagsverketStage
 from app.pipeline.crawler import CrawlStage
 from app.pipeline.discovery import DiscoveryStage
 from app.pipeline.extraction import ExtractedFoundationData, ExtractionStage
@@ -21,7 +22,14 @@ from app.pipeline.orchestrator import _get_default_stages, run_foundation_pipeli
 from app.pipeline.service_area import ServiceAreaStage
 from app.pipeline.validation import UrlValidationStage
 
-STAGE_KEYS = ["service_area", "discovery", "validation", "crawl", "extraction"]
+STAGE_KEYS = [
+    "bolagsverket",
+    "service_area",
+    "discovery",
+    "validation",
+    "crawl",
+    "extraction",
+]
 
 
 def _make_ctx(**overrides) -> PipelineContext:
@@ -35,11 +43,11 @@ def _make_ctx(**overrides) -> PipelineContext:
 # =============================================================================
 
 
-def test_get_default_stages_returns_five_keys_with_matching_names():
+def test_get_default_stages_returns_six_keys_with_matching_names():
     stages = _get_default_stages()
 
     assert set(stages.keys()) == set(STAGE_KEYS)
-    assert len(stages) == 5
+    assert len(stages) == 6
     for key, stage in stages.items():
         assert stage.name == key
 
@@ -52,6 +60,7 @@ def test_get_default_stages_returns_five_keys_with_matching_names():
 @pytest.mark.parametrize(
     ("stage_cls", "expected_name"),
     [
+        (BolagsverketStage, "bolagsverket"),
         (ServiceAreaStage, "service_area"),
         (DiscoveryStage, "discovery"),
         (UrlValidationStage, "validation"),
@@ -84,11 +93,26 @@ def _make_stub_stages() -> dict:
         async def run(self, ctx: PipelineContext) -> None:
             await self._run_fn(ctx)
 
+    # NEW: Bolagsverket stub — simulates finding official website
+    async def run_bolagsverket(ctx: PipelineContext) -> None:
+        ctx.bolagsverket_data = {
+            "legal_name": "Test Foundation AB",
+            "status": "ACTIVE",
+            "address": "Box 1, 11122 STOCKHOLM",
+        }
+        ctx.official_website = "https://test-foundation.se"
+        ctx.trace["bolagsverket"] = {
+            "found": True,
+            "official_website": ctx.official_website,
+        }
+
     async def run_service_area(ctx: PipelineContext) -> None:
         pass  # parsed_service_area stays None
 
     async def run_discovery(ctx: PipelineContext) -> None:
-        ctx.candidate_urls = [{"url": "https://a.se", "title": "A", "snippet": "s"}]
+        # Only run if official_website not set (orchestrator logic)
+        if not ctx.official_website:
+            ctx.candidate_urls = [{"url": "https://a.se", "title": "A", "snippet": "s"}]
 
     async def run_validation(ctx: PipelineContext) -> None:
         ctx.validated_sources = [
@@ -103,6 +127,7 @@ def _make_stub_stages() -> dict:
         ctx.extracted_data = {"contact_email": "test@foundation.se"}
 
     return {
+        "bolagsverket": StubStage(run_bolagsverket),
         "service_area": StubStage(run_service_area),
         "discovery": StubStage(run_discovery),
         "validation": StubStage(run_validation),

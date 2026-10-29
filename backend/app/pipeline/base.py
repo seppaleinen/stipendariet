@@ -26,6 +26,10 @@ class PipelineContext:
     parsed_service_area: dict | None = None
     service_area_status: str | None = None
 
+    # NEW: Bolagsverket Stage 0 outputs
+    bolagsverket_data: dict | None = None
+    official_website: str | None = None
+
     # Per-source state
     active_source: dict | None = None
     crawled_pages: list[dict] = field(default_factory=list)

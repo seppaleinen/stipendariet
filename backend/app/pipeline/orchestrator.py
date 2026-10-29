@@ -5,6 +5,7 @@ from datetime import datetime
 from app.db.database import SessionLocal
 from app.db.models import EnrichmentData, EnrichmentPage, EnrichmentSource, Foundation
 from app.pipeline.base import PipelineContext, PipelineStage
+from app.pipeline.bolagsverket import BolagsverketStage
 from app.pipeline.crawler import CrawlStage
 from app.pipeline.discovery import DiscoveryStage
 from app.pipeline.extraction import ExtractionStage
@@ -125,8 +126,19 @@ def _db_save_parsed_service_area(
 
 
 def _get_default_stages() -> dict:
-    """Return the default pipeline stages mapping."""
+    """
+    Return the default pipeline stages mapping.
+
+    Stage order (execution sequence):
+    0. bolagsverket — Registry lookup (NEW in Phase 1)
+    1. service_area — Extract geographic service area from name/purpose
+    2. discovery — Find candidate URLs via search
+    3. validation — Validate candidates with LLM
+    4. crawl — Scrape website content
+    5. extraction — Extract grant data from content
+    """
     return {
+        "bolagsverket": BolagsverketStage(),          # Stage 0 (NEW)
         "service_area": ServiceAreaStage(),
         "discovery": DiscoveryStage(),
         "validation": UrlValidationStage(),
@@ -160,7 +172,15 @@ async def run_foundation_pipeline_task(
                     f"stages['{key}'] must be a PipelineStage instance, "
                     f"got {type(stage).__name__}"
                 )
-        missing = {"service_area", "discovery", "validation", "crawl", "extraction"} - set(stages.keys())
+        required_keys = {
+            "bolagsverket",
+            "service_area",
+            "discovery",
+            "validation",
+            "crawl",
+            "extraction",
+        }
+        missing = required_keys - set(stages.keys())
         if missing:
             raise ValueError(f"stages dict missing required keys: {sorted(missing)}")
 
@@ -177,6 +197,7 @@ async def run_foundation_pipeline_task(
     trace = {
         "foundation_id": foundation_id,
         "name": foundation_name,
+        "bolagsverket": None,           # NEW: Stage 0 trace
         "service_area": None,
         "discovery": [],
         "validation": [],
@@ -200,7 +221,24 @@ async def run_foundation_pipeline_task(
         trace=trace,
     )
 
-    # ── Service Area Extraction ────────────────────────────────────────────────
+    # ── Stage 0: Bolagsverket Lookup (NEW) ───────────────────────────────────────
+    await stages["bolagsverket"].run(pctx)
+
+    # Capture Bolagsverket trace
+    if pctx.bolagsverket_data:
+        trace["bolagsverket"] = pctx.trace.get("bolagsverket", {})
+        logger.info(
+            f"Bolagsverket lookup completed for {foundation_name}: "
+            f"found={pctx.bolagsverket_data is not None}, "
+            f"official_website={pctx.official_website}"
+        )
+    else:
+        trace["bolagsverket"] = pctx.trace.get("bolagsverket", {})
+        logger.info(
+            f"Bolagsverket lookup returned no data for {foundation_name}"
+        )
+
+    # ── Stage 1: Service Area Extraction ──────────────────────────────────────────
     await stages["service_area"].run(pctx)
     if pctx.parsed_service_area:
         await asyncio.to_thread(
@@ -213,7 +251,19 @@ async def run_foundation_pipeline_task(
         logger.info(f"Service area extracted for {foundation_name}: {pctx.parsed_service_area}")
 
     # ── Discovery ──────────────────────────────────────────────────────────────
-    await stages["discovery"].run(pctx)
+    if pctx.official_website:
+        # Skip discovery — we already have an official website from Bolagsverket
+        logger.info(
+            f"Skipping discovery — official website found via Bolagsverket: "
+            f"{pctx.official_website}"
+        )
+        pctx.candidate_urls = [
+            {"url": pctx.official_website, "title": "", "snippet": ""}
+        ]
+    else:
+        # Run normal discovery via search
+        await stages["discovery"].run(pctx)
+
     if not pctx.candidate_urls:
         await asyncio.to_thread(
             _db_update_foundation_status, foundation_id, "NO_CANDIDATES", datetime.utcnow()

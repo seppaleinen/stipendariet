@@ -233,13 +233,26 @@
   - Skip Stage 1 (Discovery) if `ctx.official_website` is set
 
 **Definition of Done:**
-- [ ] `BolagsverketStage` exists and implements `PipelineStage`
-- [ ] Orchestrator runs Stage 0, skips Discovery on official website found
-- [ ] Rate limiting enforced (1 req/sec)
-- [ ] Tests pass (mocked Bolagsverket API)
-- [ ] Trace includes Bolagsverket result
+- [x] `BolagsverketStage` exists and implements `PipelineStage`
+- [x] Orchestrator runs Stage 0, skips Discovery on official website found
+- [x] Rate limiting enforced (1 req/sec)
+- [x] Tests pass (mocked Bolagsverket API)
+- [x] Trace includes Bolagsverket result
 
 **Estimated Effort:** 2-3 dev-days
+
+> **STATUS: Phase 1 COMPLETE (2026-10-29)**
+> - `BolagsverketClient` implemented with rate limiting (1 req/sec), exponential backoff retry (3 attempts), optional Bearer auth
+> - `BolagsverketStage` implemented as Stage 0, runs before service_area
+> - `PipelineContext` extended with `bolagsverket_data` and `official_website`
+> - Orchestrator updated: runs Stage 0 first, skips Discovery when `official_website` set, adds trace entry
+> - 5 new config settings: `BOLAGSVERKET_URL`, `BOLAGSVERKET_API_KEY`, `BOLAGSVERKET_RATE_LIMIT`, `BOLAGSVERKET_MAX_RETRIES`, `BOLAGSVERKET_TIMEOUT`
+> - All 327 backend tests pass, `ruff check backend/` clean
+> - New tests: `test_bolagsverket_client.py` (10 unit), `test_pipeline_bolagsverket.py` (8 integration), updated `test_pipeline_abstraction.py`
+> - Docs: ADR `docs/adr/0010-phase1-bolagsverket-registry-lookup.md`, `PR_DESCRIPTION_PHASE1.md`, `CHANGELOG_PHASE1.md`
+> - Security audit: [SUCCESS] — no critical/high vulnerabilities
+> - Code review: [SUCCESS] — spec-complete, quality gates passed
+> - Simplicity audit: [SUCCESS] — advisory findings only, no Critical blockers
 
 ---
 
