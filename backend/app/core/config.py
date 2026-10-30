@@ -43,6 +43,10 @@ class Settings(BaseSettings):
 
     # SearXNG self-hosted search
     SEARXNG_URL: str = Field(default="http://searxng:8080", env="SEARXNG_URL")
+    SEARXNG_RATE_LIMIT: float = Field(default=1.0, env="SEARXNG_RATE_LIMIT")
+    SEARXNG_TIMEOUT: float = Field(default=10.0, env="SEARXNG_TIMEOUT")
+    SEARXNG_MAX_RETRIES: int = Field(default=3, env="SEARXNG_MAX_RETRIES")
+    SEARXNG_ENGINES: list[str] = Field(default=["google", "bing", "duckduckgo", "brave"], env="SEARXNG_ENGINES")
 
     # Bolagsverket API settings (for Enrichment Pipeline v2 Stage 0)
     BOLAGSVERKET_URL: str = Field(

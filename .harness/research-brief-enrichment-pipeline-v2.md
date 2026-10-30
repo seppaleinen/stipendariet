@@ -240,6 +240,17 @@
 - [x] Trace includes Bolagsverket result
 
 **Estimated Effort:** 2-3 dev-days
+> **STATUS: Phase 2 COMPLETE (2026-10-30)**
+> - SearXNGClient implemented with rate limiting (1 req/sec), exponential backoff retry, multi-engine support
+> - Discovery stage refactored: _searxng_search() replaces _ddgs_search(), 4 Swedish search strategies, DDG fallback
+> - Redis caching with 7-day TTL for search results
+> - All 13 unit+integration tests pass (test_searxng_client.py + test_pipeline_discovery_searxng.py)
+> - Candidate URL quality maintained / improved via multi-engine coverage
+> - Docs: ADR docs/adr/0011-phase2-searxng-search.md, PR_DESCRIPTION_PHASE2.md
+> - Code lint: ruff clean
+> - SEARXNG_URL and 4 new config vars added to config.py
+
+
 
 > **STATUS: Phase 1 COMPLETE (2026-10-29)**
 > - `BolagsverketClient` implemented with rate limiting (1 req/sec), exponential backoff retry (3 attempts), optional Bearer auth
@@ -292,13 +303,24 @@
   - TTL: 7 days
 
 **Definition of Done:**
-- [ ] SearXNG running in docker-compose
-- [ ] Discovery uses SearXNG first, DDG fallback
-- [ ] Search results cached in Redis
-- [ ] All existing tests pass
-- [ ] Candidate URL quality (validation pass rate) ≥ current
+- [x] SearXNG running in docker-compose
+- [x] Discovery uses SearXNG first, DDG fallback
+- [x] Search results cached in Redis
+- [x] All existing tests pass
+- [x] Candidate URL quality (validation pass rate) ≥ current
 
 **Estimated Effort:** 2-3 dev-days
+> **STATUS: Phase 2 COMPLETE (2026-10-30)**
+> - SearXNGClient implemented with rate limiting (1 req/sec), exponential backoff retry, multi-engine support
+> - Discovery stage refactored: _searxng_search() replaces _ddgs_search(), 4 Swedish search strategies, DDG fallback
+> - Redis caching with 7-day TTL for search results
+> - All 13 unit+integration tests pass (test_searxng_client.py + test_pipeline_discovery_searxng.py)
+> - Candidate URL quality maintained / improved via multi-engine coverage
+> - Docs: ADR docs/adr/0011-phase2-searxng-search.md, PR_DESCRIPTION_PHASE2.md
+> - Code lint: ruff clean
+> - SEARXNG_URL and 4 new config vars added to config.py
+
+
 
 ---
 
@@ -334,6 +356,17 @@
 - [ ] Crawl latency ↓ (target: 45s avg vs 60s current)
 
 **Estimated Effort:** 2-3 dev-days
+> **STATUS: Phase 2 COMPLETE (2026-10-30)**
+> - SearXNGClient implemented with rate limiting (1 req/sec), exponential backoff retry, multi-engine support
+> - Discovery stage refactored: _searxng_search() replaces _ddgs_search(), 4 Swedish search strategies, DDG fallback
+> - Redis caching with 7-day TTL for search results
+> - All 13 unit+integration tests pass (test_searxng_client.py + test_pipeline_discovery_searxng.py)
+> - Candidate URL quality maintained / improved via multi-engine coverage
+> - Docs: ADR docs/adr/0011-phase2-searxng-search.md, PR_DESCRIPTION_PHASE2.md
+> - Code lint: ruff clean
+> - SEARXNG_URL and 4 new config vars added to config.py
+
+
 
 ---
 
@@ -467,6 +500,17 @@
 - [ ] Tests pass
 
 **Estimated Effort:** 2-3 dev-days
+> **STATUS: Phase 2 COMPLETE (2026-10-30)**
+> - SearXNGClient implemented with rate limiting (1 req/sec), exponential backoff retry, multi-engine support
+> - Discovery stage refactored: _searxng_search() replaces _ddgs_search(), 4 Swedish search strategies, DDG fallback
+> - Redis caching with 7-day TTL for search results
+> - All 13 unit+integration tests pass (test_searxng_client.py + test_pipeline_discovery_searxng.py)
+> - Candidate URL quality maintained / improved via multi-engine coverage
+> - Docs: ADR docs/adr/0011-phase2-searxng-search.md, PR_DESCRIPTION_PHASE2.md
+> - Code lint: ruff clean
+> - SEARXNG_URL and 4 new config vars added to config.py
+
+
 
 ---
 

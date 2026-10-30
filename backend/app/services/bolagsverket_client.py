@@ -10,12 +10,12 @@ optional Bearer token support for flexibility.
 
 import asyncio
 import logging
-import time
 from typing import Any
 
 import httpx
 
 from app.core.config import settings
+from app.services._rate_limit import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -56,24 +56,16 @@ class BolagsverketClient:
         self.max_retries = max_retries or settings.BOLAGSVERKET_MAX_RETRIES
         self.timeout = timeout or settings.BOLAGSVERKET_TIMEOUT
 
-        # Rate limiting state
-        self._min_interval = 1.0 / self.rate_limit if self.rate_limit > 0 else 0
-        self._last_request_time: float = 0.0
-        self._rate_lock = asyncio.Lock()
+        # Rate limiting
+        self._limiter = RateLimiter(self.rate_limit)
 
     async def _respect_rate_limit(self) -> None:
         """
         Enforce minimum interval between requests to respect rate limit.
 
-        Uses an asyncio.Lock to ensure thread-safe rate limiting across
-        concurrent pipeline runs.
+        Uses shared RateLimiter for consistency with other clients.
         """
-        async with self._rate_lock:
-            now = time.monotonic()
-            elapsed = now - self._last_request_time
-            if elapsed < self._min_interval:
-                await asyncio.sleep(self._min_interval - elapsed)
-            self._last_request_time = time.monotonic()
+        await self._limiter.acquire()
 
     def _build_headers(self) -> dict[str, str]:
         """Build HTTP request headers, including auth if API key is configured."""
