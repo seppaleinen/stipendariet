@@ -79,6 +79,16 @@ class Settings(BaseSettings):
     TRANSLATION_CONCURRENCY: int = Field(default=3, env="TRANSLATION_CONCURRENCY")
     TRANSLATION_DELAY: float = Field(default=0.1, env="TRANSLATION_DELAY")
 
+    # Crawler settings (Phase 3 - Trafilatura-first)
+    CRAWL_POLITE_DELAY: float = Field(default=1.0, env="CRAWL_POLITE_DELAY")
+    CRAWL_MIN_CONTENT_LENGTH: int = Field(default=500, env="CRAWL_MIN_CONTENT_LENGTH")
+    CRAWL_MAX_SUBPAGES: int = Field(default=5, env="CRAWL_MAX_SUBPAGES")
+    CRAWL_TIMEOUT: int = Field(default=30, env="CRAWL_TIMEOUT")
+    CRAWLER_USER_AGENT: str = Field(
+        default="StipendarietBot/1.0 (+https://stipendariet.se)",
+        env="CRAWLER_USER_AGENT"
+    )
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 settings = Settings()

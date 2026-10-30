@@ -91,7 +91,7 @@ def _db_save_pages(source_id: int, pages: list):
                 source_id=source_id,
                 url=pc["url"],
                 page_type=pc["type"],
-                raw_content=pc["content"],
+                raw_content=pc["markdown"] if "markdown" in pc else pc.get("content", ""),
             )
             db.add(ep)
         db.commit()
@@ -342,8 +342,10 @@ async def run_foundation_pipeline_task(
             {
                 "url": pc["url"],
                 "type": pc["type"],
-                "size": len(pc["content"]),
-                "preview": pc["content"][:500] + "..." if len(pc["content"]) > 500 else pc["content"],
+                "size": len(pc.get("markdown", pc.get("content", ""))),
+                "preview": (pc.get("markdown", pc.get("content", ""))[:500] + "..."
+                           if len(pc.get("markdown", pc.get("content", ""))) > 500
+                           else pc.get("markdown", pc.get("content", ""))),
             }
             for pc in pctx.crawled_pages
         ]

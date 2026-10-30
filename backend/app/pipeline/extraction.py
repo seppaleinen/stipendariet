@@ -81,7 +81,8 @@ class ExtractionStage(PipelineStage):
         # Prioritise subpages over homepage
         pages_sorted = sorted(ctx.crawled_pages, key=lambda p: 0 if p["type"] == "subpage" else 1)
         combined = "".join(
-            f"\n--- PAGE: {pc['url']} ---\n{pc['content']}\n" for pc in pages_sorted
+            f"\n--- PAGE: {pc['url']} ---\n{pc.get('markdown', pc.get('content', ''))}\n"
+            for pc in pages_sorted
         )
 
         extracted = await extract_data_from_content(

@@ -80,7 +80,8 @@ async def test_discovery_returns_empty_on_ddg_empty_results(mock_probe, mock_ddg
 
 @pytest.mark.asyncio
 @patch('app.pipeline.crawler.async_playwright')
-async def test_crawl_returns_empty_on_browserless_connection_failure(mock_pw):
+@patch('app.pipeline.crawler.trafilatura.fetch_url', return_value=None)
+async def test_crawl_returns_empty_on_browserless_connection_failure(mock_fetch, mock_pw):
     """Returns [] when both CDP connect and headless launch fail."""
     mock_pw_instance = MagicMock()
     mock_pw_instance.chromium.connect_over_cdp = AsyncMock(
@@ -234,7 +235,8 @@ async def test_discovery_still_returns_results_when_direct_probe_fails(mock_prob
 
 @pytest.mark.asyncio
 @patch('app.pipeline.crawler.async_playwright')
-async def test_crawl_returns_pages_on_cdp_fallback_to_headless(mock_pw):
+@patch('app.pipeline.crawler.trafilatura.fetch_url', return_value=None)
+async def test_crawl_returns_pages_on_cdp_fallback_to_headless(mock_fetch, mock_pw):
     """Returns pages when CDP fails but headless launch succeeds."""
     # CDP fails; headless launch succeeds
     mock_pw_instance = MagicMock()
@@ -245,7 +247,7 @@ async def test_crawl_returns_pages_on_cdp_fallback_to_headless(mock_pw):
     mock_page = MagicMock()
     mock_page.goto = AsyncMock()
     mock_page.evaluate = AsyncMock(
-        return_value="Homepage text content"
+        return_value="Homepage text content " * 50
     )
     mock_page.query_selector_all = MagicMock(return_value=[])
 
@@ -264,5 +266,5 @@ async def test_crawl_returns_pages_on_cdp_fallback_to_headless(mock_pw):
 
     assert len(result) == 1
     assert result[0]["url"] == "https://www.test.se"
-    assert result[0]["content"] == "Homepage text content"
+    assert result[0]["markdown"] == "Homepage text content " * 50
     assert result[0]["type"] == "homepage"
