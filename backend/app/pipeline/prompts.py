@@ -41,21 +41,31 @@ Letar efter fält som:
 
 Observera att datumangivelser kan vara på svenska (t.ex. "1 mars", "oktober månad").
 Om ett värde saknas helt, returnera null för det fältet.
+
+INSTRUKTIONER FÖR KONFIDENS:
+För varje extraherat fält, ange en konfidenssiffra mellan 0.0 och 1.0 som speglar hur säker du är på att värdet är korrekt baserat på källtexten:
+- 0.9–1.0: Värdet explicit finns i texten, ingen tvekan.
+- 0.7–0.8: Värdet kan utläses men texten är något tvetydig eller kräver tolkning.
+- 0.4–0.6: Värdet är en rimlig gissning baserad på sammanhang.
+- 0.0–0.3: Mycket osäkert, nästan en gissning.
+Returnera ALLTID konfidens för varje fält, också när värdet är null (konfidens 0.0 betyder att du är säker på att fältet saknas).
 """
 
 EXTRACTION_USER_PROMPT = """TEXTINNEHÅLL ATT ANALYSERA:
 {content}
 
-Extrahera informationen i detta JSON-format:
+Källans URL: {url}
+
+Extrahera informationen i detta JSON-format (varje fält är ett objekt med "value" och "confidence"):
 {{
-  "contact_email": "e-postadress eller null",
-  "contact_phone": "telefonnummer eller null",
-  "application_open": "när ansökan öppnar (datum/period) eller null",
-  "application_deadline": "sista ansökningsdag (datum/period) eller null",
-  "who_can_apply": "vem kan söka / ändamål (kort beskrivning) eller null",
-  "how_to_apply": "hur man söker (formulär/e-post/brev) eller null",
-  "notes": "övrig relevant info eller null",
-  "enriched_description": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null"
+  "contact_email": {{"value": "e-postadress eller null", "confidence": 0.9}},
+  "contact_phone": {{"value": "telefonnummer eller null", "confidence": 0.0}},
+  "application_open": {{"value": "när ansökan öppnar (datum/period) eller null", "confidence": 0.8}},
+  "application_deadline": {{"value": "sista ansökningsdag (datum/period) eller null", "confidence": 0.8}},
+  "who_can_apply": {{"value": "vem kan söka / ändamål (kort beskrivning) eller null", "confidence": 0.7}},
+  "how_to_apply": {{"value": "hur man söker (formulär/e-post/brev) eller null", "confidence": 0.7}},
+  "notes": {{"value": "övrig relevant info eller null", "confidence": 0.5}},
+  "enriched_description": {{"value": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null", "confidence": 0.9}}
 }}
 
 Returnera ENDAST giltig JSON, inga förklaringar.

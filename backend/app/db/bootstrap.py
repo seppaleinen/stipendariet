@@ -161,6 +161,24 @@ def create_tables():
         else:
             print("Source_type column already exists in enrichment_sources table")
 
+        # Check if the source_url column exists on enrichment_data, if not, add it
+        result = conn.execute(
+            text(
+                """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='enrichment_data' AND column_name='source_url'
+        """
+            )
+        )
+
+        if not result.fetchone():
+            conn.execute(text("ALTER TABLE enrichment_data ADD COLUMN source_url VARCHAR"))
+            conn.commit()
+            print("Added 'source_url' column to enrichment_data table")
+        else:
+            print("Source_url column already exists in enrichment_data table")
+
     # Create admin user if it doesn't exist
     create_admin_user()
 

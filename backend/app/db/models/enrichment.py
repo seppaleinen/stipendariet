@@ -48,6 +48,7 @@ class EnrichmentData(Base):
     source_id = Column(Integer, ForeignKey("enrichment_sources.id"), nullable=True)
     extracted_data = Column(JSON)  # Structured JSON from LLM
     confidence = Column(Float, default=0.0)
+    source_url = Column(String, nullable=True)  # Which URL contributed this extraction (for per-source extractions)
     extracted_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

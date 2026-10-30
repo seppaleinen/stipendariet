@@ -8,9 +8,10 @@ from app.pipeline.base import PipelineContext, PipelineStage
 from app.pipeline.bolagsverket import BolagsverketStage
 from app.pipeline.crawler import CrawlStage
 from app.pipeline.discovery import DiscoveryStage
-from app.pipeline.extraction import ExtractionStage
+from app.pipeline.extraction import ExtractedFoundationData, ExtractionStage, extract_from_source, merge_extractions
 from app.pipeline.service_area import ServiceAreaStage
 from app.pipeline.validation import UrlValidationStage
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ def _db_save_pages(source_id: int, pages: list):
         db.commit()
 
 
-def _db_save_extraction(foundation_id: int, source_id: int, extracted_data: dict, confidence: float):
+def _db_save_extraction(foundation_id: int, source_id: int, extracted_data: dict, confidence: float, source_url: str | None = None):
     with SessionLocal() as db:
         # Delete previous enrichment data — no history, just latest run
         db.query(EnrichmentData).filter(EnrichmentData.foundation_id == foundation_id).delete()
@@ -106,6 +107,7 @@ def _db_save_extraction(foundation_id: int, source_id: int, extracted_data: dict
             source_id=source_id,
             extracted_data=extracted_data,
             confidence=confidence,
+            source_url=source_url,
         )
         db.add(ed)
         db.commit()
@@ -309,13 +311,27 @@ async def run_foundation_pipeline_task(
     # Sort: own-site first, aggregators last so own-site data takes priority in merge
     matched_candidates.sort(key=lambda c: 1 if _is_aggregator(c["url"]) else 0)
 
+    # Cost control: limit to top 5 validated sources
+    MAX_SOURCES_PER_PIPELINE = 5
+    sources_to_process = matched_candidates[:MAX_SOURCES_PER_PIPELINE]
+    if len(sources_to_process) < len(matched_candidates):
+        logger.info(
+            f"Limiting extraction to top {len(sources_to_process)} of {len(matched_candidates)} "
+            f"validated sources (cost control)"
+        )
+
+    # Content fields for filtering/building merged dict
+    CONTENT_FIELDS = (
+        "contact_email", "contact_phone", "application_open", "application_deadline",
+        "who_can_apply", "how_to_apply", "notes", "enriched_description",
+    )
+
     # ── Per-source crawl + extraction ──────────────────────────────────────────
-    aggregator_data: dict = {}
-    own_site_data: dict = {}
+    extractions: list[tuple[ExtractedFoundationData, str]] = []  # (ExtractedFoundationData, source_url)
     best_own_site_url: str | None = None
     best_aggregator_url: str | None = None
 
-    for cand in matched_candidates:
+    for cand in sources_to_process:
         is_agg = _is_aggregator(cand["url"])
         logger.info(f"Crawling {'aggregator' if is_agg else 'own-site'}: {cand['url']}")
 
@@ -350,34 +366,50 @@ async def run_foundation_pipeline_task(
             for pc in pctx.crawled_pages
         ]
 
+        # Run extraction stage per source (populates pctx.extracted_data)
         await stages["extraction"].run(pctx)
 
         if pctx.extracted_data:
-            fields_found = [k for k, v in pctx.extracted_data.items() if v]
-            source_trace["extraction"] = pctx.extracted_data
-            source_trace["fields_extracted"] = fields_found
+            # Rehydrate ExtractedFoundationData from dict (handles both real and stub output)
+            try:
+                extracted = ExtractedFoundationData(**pctx.extracted_data)
+            except ValidationError:
+                logger.warning(f"Failed to rehydrate extracted data for {cand['url']}")
+                extracted = None
 
-            data = {k: v for k, v in pctx.extracted_data.items() if v}
-            if is_agg:
-                aggregator_data.update(data)
-                if not best_aggregator_url:
-                    best_aggregator_url = cand["url"]
+            if extracted:
+                fields_found = [
+                    k for k, v in pctx.extracted_data.items()
+                    if v is not None and k in CONTENT_FIELDS
+                ]
+                source_trace["extraction"] = pctx.extracted_data
+                source_trace["fields_extracted"] = fields_found
+
+                # Track best URL per category (for fallback website_url)
+                if is_agg:
+                    if not best_aggregator_url and fields_found:
+                        best_aggregator_url = cand["url"]
+                else:
+                    if not best_own_site_url and fields_found:
+                        best_own_site_url = cand["url"]
+
+                logger.info(f"  Extracted {len(fields_found)} fields from {cand['url']}: {fields_found}")
+                extractions.append((extracted, cand["url"]))
             else:
-                own_site_data.update(data)
-                if not best_own_site_url:
-                    best_own_site_url = cand["url"]
-
-            logger.info(f"  Extracted {len(fields_found)} fields from {cand['url']}: {fields_found}")
+                logger.info(f"  Extraction returned null for {cand['url']}")
         else:
             logger.info(f"  Extraction returned null for {cand['url']}")
 
         trace["sources"].append(source_trace)
 
-    # Merge: aggregator as baseline, own-site overwrites (preferred)
-    merged = {**aggregator_data, **own_site_data}
+    # Merge extractions using highest-confidence-wins per field
+    merged_extraction = merge_extractions(extractions)
+
+    # Build plain dict of only the content fields for DB/storage (omit None)
+    merged = {f: v for f in CONTENT_FIELDS if (v := getattr(merged_extraction, f)) is not None}
     best_url = best_own_site_url or best_aggregator_url
 
-    if not merged:
+    if not any(merged.values()):
         await asyncio.to_thread(
             _db_update_foundation_status,
             foundation_id, "NO_DATA", datetime.utcnow(),
@@ -387,10 +419,12 @@ async def run_foundation_pipeline_task(
         logger.warning(f"No data extracted from any source for {foundation_name}")
         return {"status": "no_data", "trace": trace}
 
-    trace["merged"] = merged
+    # Include confidence and audit trail in trace
+    trace["merged"] = merged_extraction.model_dump()
     primary_source_id = matched_candidates[0].get("source_id")
     await asyncio.to_thread(
-        _db_save_extraction, foundation_id, primary_source_id, {**merged, "_trace": trace}, 1.0
+        _db_save_extraction, foundation_id, primary_source_id, {**merged, "_trace": trace},
+        merged_extraction.confidence, best_url
     )
     await asyncio.to_thread(
         _db_update_foundation_status,
