@@ -35,6 +35,10 @@ class PipelineContext:
     crawled_pages: list[dict] = field(default_factory=list)
     extracted_data: dict | None = None
 
+    # Re-search state (Phase 6)
+    re_search_iterations: int = 0
+    missing_fields: list[str] = field(default_factory=list)
+
     # Output/trace
     trace: dict = field(default_factory=dict)
 

@@ -2,20 +2,35 @@ import asyncio
 import logging
 from datetime import datetime
 
+from pydantic import ValidationError
+
 from app.db.database import SessionLocal
 from app.db.models import EnrichmentData, EnrichmentPage, EnrichmentSource, Foundation
 from app.pipeline.base import PipelineContext, PipelineStage
 from app.pipeline.bolagsverket import BolagsverketStage
 from app.pipeline.crawler import CrawlStage
-from app.pipeline.discovery import DiscoveryStage
-from app.pipeline.extraction import ExtractedFoundationData, ExtractionStage, extract_from_source, merge_extractions
+from app.pipeline.discovery import DiscoveryStage, _searxng_search, generate_targeted_query
+from app.pipeline.extraction import (
+    ExtractedFoundationData,
+    ExtractionStage,
+    merge_extractions,
+    merge_missing_only,
+)
 from app.pipeline.service_area import ServiceAreaStage
-from app.pipeline.validation import UrlValidationStage
-from pydantic import ValidationError
+from app.pipeline.validation import UrlValidationStage, validate_candidate_url
 
 logger = logging.getLogger(__name__)
 
 AGGREGATOR_DOMAINS = ['stiftelsemedel.se', 'stiftelseansokan.se']
+
+# Phase 6: required content fields + re-search budget
+REQUIRED_FIELDS = (
+    "contact_email", "contact_phone", "application_open", "application_deadline",
+    "who_can_apply", "how_to_apply", "notes", "enriched_description",
+)
+MAX_RESEARCH_ITERATIONS = 2
+RESEARCH_SOURCES_PER_ITERATION = 3
+
 
 
 def _is_aggregator(url: str) -> bool:
@@ -419,6 +434,126 @@ async def run_foundation_pipeline_task(
         logger.warning(f"No data extracted from any source for {foundation_name}")
         return {"status": "no_data", "trace": trace}
 
+    # ── Phase 6: Targeted Re-Search for Missing Fields ─────────────────────────
+    # Gap analysis: identify which REQUIRED_FIELDS are still missing
+    pctx.missing_fields = [f for f in REQUIRED_FIELDS if not getattr(merged_extraction, f, None)]
+    trace["re_search"] = []
+
+    while pctx.missing_fields and pctx.re_search_iterations < MAX_RESEARCH_ITERATIONS:
+        pctx.re_search_iterations += 1
+        iteration = pctx.re_search_iterations
+        logger.info(
+            f"Phase 6 re-search iteration {iteration}/{MAX_RESEARCH_ITERATIONS}: "
+            f"targeting {len(pctx.missing_fields)} missing fields: {pctx.missing_fields}"
+        )
+
+        # Generate targeted queries for each missing field
+        targeted_queries = [
+            generate_targeted_query(field, foundation_name)
+            for field in pctx.missing_fields
+        ]
+        logger.info(f"  Targeted queries: {targeted_queries}")
+
+        # Run Discovery with targeted queries (skip Stages 0-1, reuse validated pipeline)
+        targeted_candidates: list[dict] = []
+        for query in targeted_queries:
+            logger.info(f"  Running targeted discovery: {query}")
+            results = await _searxng_search(query, max_results=5)
+            for r in results:
+                url = r.get("url", "")
+                if url and url not in {c["url"] for c in pctx.candidate_urls}:
+                    targeted_candidates.append({
+                        "url": url,
+                        "title": r.get("title", ""),
+                        "snippet": r.get("snippet", ""),
+                        "strategy": f"targeted_{iteration}",
+                    })
+
+        if not targeted_candidates:
+            logger.info("  No new candidates from targeted queries — stopping re-search")
+            break
+
+        # Validate targeted candidates
+        logger.info(f"  Validating {len(targeted_candidates)} targeted candidates")
+        validated_targeted: list[dict] = []
+        for cand in targeted_candidates:
+            val = await validate_candidate_url(
+                cand,
+                foundation_name,
+                foundation_orgnr or "",
+                custom_system_prompt=validation_sys_prompt,
+                custom_user_prompt=validation_usr_prompt,
+            )
+            cand_with_validation = {**cand, **val}
+            if val["is_match"]:
+                validated_targeted.append(cand_with_validation)
+
+        if not validated_targeted:
+            logger.info("  No validated targeted candidates — stopping re-search")
+            break
+
+        # Limit sources for cost control
+        sources_to_crawl = validated_targeted[:RESEARCH_SOURCES_PER_ITERATION]
+        logger.info(f"  Crawling {len(sources_to_crawl)} targeted sources")
+
+        # Crawl + extract from targeted sources
+        targeted_extractions: list[tuple[ExtractedFoundationData, str]] = []
+        for cand in sources_to_crawl:
+            is_agg = _is_aggregator(cand["url"])
+            logger.info(f"  Crawling targeted {'aggregator' if is_agg else 'own-site'}: {cand['url']}")
+
+            pctx.active_source = cand
+            await stages["crawl"].run(pctx)
+
+            if not pctx.crawled_pages:
+                logger.warning(f"  Crawler returned no pages for targeted {cand['url']} — skipping")
+                continue
+
+            await stages["extraction"].run(pctx)
+
+            if pctx.extracted_data:
+                try:
+                    extracted = ExtractedFoundationData(**pctx.extracted_data)
+                    fields_found = [
+                        k for k, v in pctx.extracted_data.items()
+                        if v is not None and k in CONTENT_FIELDS
+                    ]
+                    if fields_found:
+                        logger.info(f"    Extracted {len(fields_found)} fields: {fields_found}")
+                        targeted_extractions.append((extracted, cand["url"]))
+                except ValidationError:
+                    logger.warning(f"  Failed to rehydrate targeted extraction for {cand['url']}")
+
+        if not targeted_extractions:
+            logger.info("  No data extracted from targeted sources — stopping re-search")
+            break
+
+        # Merge ONLY missing fields (don't overwrite existing high-confidence values)
+        merged_extraction = merge_missing_only(
+            merged_extraction,
+            targeted_extractions,
+            target_fields=pctx.missing_fields,
+        )
+
+        # Update merged dict and trace
+        merged = {f: v for f in CONTENT_FIELDS if (v := getattr(merged_extraction, f)) is not None}
+        trace["re_search"].append({
+            "iteration": iteration,
+            "queries": targeted_queries,
+            "sources_crawled": [c["url"] for c in sources_to_crawl],
+            "extractions_count": len(targeted_extractions),
+            "fields_filled": [
+                f for f in REQUIRED_FIELDS
+                if getattr(merged_extraction, f, None) is not None and f in pctx.missing_fields
+            ],
+        })
+
+        # Re-calculate missing fields for next iteration
+        pctx.missing_fields = [f for f in REQUIRED_FIELDS if not getattr(merged_extraction, f, None)]
+        logger.info(f"  After iteration {iteration}: {len(pctx.missing_fields)} fields still missing")
+
+    # End Phase 6 re-search loop ────────────────────────────────────────────────
+
     # Include confidence and audit trail in trace
     trace["merged"] = merged_extraction.model_dump()
     primary_source_id = matched_candidates[0].get("source_id")
@@ -442,6 +577,10 @@ async def run_foundation_pipeline_task(
         enriched_description=merged.get("enriched_description"),
     )
 
-    logger.info(f"Pipeline completed for {foundation_name}: {list(merged.keys())}")
+    logger.info(
+        f"Pipeline completed for {foundation_name}: {len(merged)} fields, "
+        f"re_search_iterations={pctx.re_search_iterations}, "
+        f"missing_fields={len(pctx.missing_fields)}"
+    )
     return {"status": "success", "data": merged, "trace": trace}
 

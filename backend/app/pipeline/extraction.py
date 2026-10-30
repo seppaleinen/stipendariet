@@ -268,8 +268,78 @@ def merge_extractions(
         f"Merged {len(extractions)} extractions: {len(merged_data)} fields, "
         f"avg_confidence={avg_confidence:.2f}, sources={set(merged_sources.values())}"
     )
-    
+
     return result
+
+
+def merge_missing_only(
+    current: ExtractedFoundationData,
+    new_extractions: list[tuple[ExtractedFoundationData, str]],
+    target_fields: list[str] | None = None,
+) -> ExtractedFoundationData:
+    """
+    Fill missing fields on `current` from `new_extractions` without overwriting.
+
+    Used by the Phase 6 re-search loop: after the initial merge, targeted
+    re-search produces new extractions. Only fields that are still None on
+    `current` (optionally restricted to `target_fields`) are filled — existing
+    values, regardless of confidence, are never replaced.
+
+    When multiple new extractions provide the same missing field, the
+    highest-confidence value wins (same rule as merge_extractions).
+
+    Args:
+        current: The merged result from the initial run (may have gaps)
+        new_extractions: List of (ExtractedFoundationData, source_url) from re-search
+        target_fields: Optional whitelist of fields to consider (the gap set)
+
+    Returns:
+        An updated ExtractedFoundationData (a new instance; `current` is not mutated)
+    """
+    if not new_extractions:
+        return ExtractedFoundationData(**current.model_dump())
+
+    content_fields = [
+        f for f in ExtractedFoundationData.model_fields.keys()
+        if f not in ("confidence", "per_field_confidence", "source_per_field")
+    ]
+
+    # Best candidate per missing field across the new extractions
+    best_for_missing: dict[str, tuple[str, float, str]] = {}
+    for extracted, source_url in new_extractions:
+        for field_name in content_fields:
+            if target_fields is not None and field_name not in target_fields:
+                continue
+            value = getattr(extracted, field_name, None)
+            if value is None:
+                continue
+            conf = extracted.per_field_confidence.get(field_name, 0.0)
+            if field_name not in best_for_missing:
+                best_for_missing[field_name] = (value, conf, source_url)
+            else:
+                _, best_conf, _ = best_for_missing[field_name]
+                if conf > best_conf:
+                    best_for_missing[field_name] = (value, conf, source_url)
+
+    # Apply only to fields still missing on current
+    data = current.model_dump()
+    filled: dict[str, str] = {}
+    for field_name, (value, conf, source_url) in best_for_missing.items():
+        if data.get(field_name) is None:
+            data[field_name] = value
+            filled[field_name] = f"{source_url} (conf {conf:.2f})"
+            data.setdefault("per_field_confidence", {})[field_name] = conf
+            data.setdefault("source_per_field", {})[field_name] = source_url
+
+    if not filled:
+        logger.info("merge_missing_only: no new fields to fill")
+        return ExtractedFoundationData(**current.model_dump())
+
+    logger.info(
+        f"merge_missing_only: filled {len(filled)} missing fields: "
+        f"{', '.join(sorted(filled.keys()))}"
+    )
+    return ExtractedFoundationData(**data)
 
 
 class ExtractionStage(PipelineStage):

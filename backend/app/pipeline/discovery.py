@@ -70,6 +70,43 @@ def _is_excluded(url: str) -> bool:
     return any(domain in url.lower() for domain in EXCLUDED_DOMAINS)
 
 
+REQUIRED_FIELDS = [
+    "contact_email",
+    "contact_phone",
+    "application_open",
+    "application_deadline",
+    "who_can_apply",
+    "how_to_apply",
+    "notes",
+    "enriched_description",
+]
+
+
+def generate_targeted_query(field_name: str, foundation_name: str) -> str:
+    """Generate a targeted search query for a specific missing field.
+
+    Swedish-specific query templates per field type.
+    Args:
+        field_name: One of the REQUIRED_FIELDS
+        foundation_name: Name of the foundation
+
+    Returns:
+        A Swedish search query string targeting the specific field
+    """
+    query_templates = {
+        "contact_email": f'"{foundation_name}" kontakt e-post',
+        "contact_phone": f'"{foundation_name}" telefon kontakt',
+        "application_open": f'"{foundation_name}" ansökan öppnar',
+        "application_deadline": f'"{foundation_name}" sista ansökningsdag',
+        "who_can_apply": f'"{foundation_name}" vem kan söka',
+        "how_to_apply": f'"{foundation_name}" hur ansöker',
+        "notes": f'"{foundation_name}" bidrag information',
+        "enriched_description": f'"{foundation_name}" stiftelse ändamål',
+    }
+
+    return query_templates.get(field_name, f'"{foundation_name}" {field_name}')
+
+
 def _valid_url(url: str) -> bool:
     """Validate url has http(s) scheme and netloc."""
     try:
