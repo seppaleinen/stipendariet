@@ -1,42 +1,56 @@
 # SearXNG settings for stipendariet enrichment pipeline
-# Enables JSON output and multiple search engines for Swedish foundation discovery
-#
-# Each engine needs both `name` (display) and `engine` (Python module).
-# See: https://docs.searxng.org/admin/settings/settings_engines.html
+# Based on default template with overrides for JSON output and 4 engines
+# See: https://docs.searxng.org/admin/settings/
+
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "SearXNG - Stipendariet"
+  donation_url: "https://docs.searxng.org/donate.html"
+  enable_metrics: true
+
+search:
+  safe_search: 0
+  default_lang: "sv"
+  formats:
+    - html
+    - json
+    - csv
+    - rss
 
 server:
   port: 8080
   bind_address: "0.0.0.0"
-  secret_key: ""
+  secret_key: "changeme-dev-only"
   limiter: false
   image_proxy: false
+  public_instance: false
+  method: "GET"
 
-search:
-  safe_search: 0
-  autocomplete: ""
-  default_lang: "sv"
-
-engines:
-  # Primary engines for Swedish foundation discovery
-  - name: google
-    engine: google
-    disabled: false
-  - name: bing
-    engine: bing
-    disabled: false
-  - name: duckduckgo
-    engine: duckduckgo
-    disabled: false
-  - name: brave
-    engine: brave
-    disabled: false
-
-formats:
-  - html
-  - json
+valkey:
+  url: false
 
 outgoing:
   request_timeout: 10.0
   max_request_timeout: 15.0
   pool_connections: 100
   pool_maxsize: 20
+
+engines:
+  - name: google
+    engine: google
+    shortcut: "g"
+    disabled: false
+  - name: bing
+    engine: bing
+    shortcut: "b"
+    disabled: false
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: "d"
+    disabled: false
+  - name: brave
+    engine: brave
+    shortcut: "br"
+    disabled: false
