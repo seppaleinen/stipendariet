@@ -1,5 +1,8 @@
 # SearXNG settings for stipendariet enrichment pipeline
 # Enables JSON output and multiple search engines for Swedish foundation discovery
+#
+# Each engine needs both `name` (display) and `engine` (Python module).
+# See: https://docs.searxng.org/admin/settings/settings_engines.html
 
 server:
   port: 8080
@@ -16,12 +19,16 @@ search:
 engines:
   # Primary engines for Swedish foundation discovery
   - name: google
+    engine: google
     disabled: false
   - name: bing
+    engine: bing
     disabled: false
   - name: duckduckgo
+    engine: duckduckgo
     disabled: false
   - name: brave
+    engine: brave
     disabled: false
 
 formats:
