@@ -1,3 +1,47 @@
+"""Prompt templates for the enrichment pipeline.
+
+This module provides the system and user prompt strings used by the pipeline.
+
+**Loading order:**
+1. If the database is available, templates are loaded from ``app.services.prompt_service.PromptService``
+   (production version, rendered with Jinja2).
+2. If the DB is unavailable or no production version is set, the module-level constants
+   (defined below) are used as a fallback — this enables zero-downtime rollout.
+
+Typical usage::
+
+    from app.pipeline.prompts import get_validation_system_prompt
+    prompt = get_validation_system_prompt(name="validation")
+"""
+
+
+
+def _fallback_validation_system() -> str:
+    return VALIDATION_SYSTEM_PROMPT
+
+
+def _fallback_validation_user(name: str, orgnr: str, title: str, snippet: str, url: str) -> str:
+    return VALIDATION_USER_PROMPT.format(name=name, orgnr=orgnr, title=title, snippet=snippet, url=url)
+
+
+def _fallback_extraction_system() -> str:
+    return EXTRACTION_SYSTEM_PROMPT
+
+
+def _fallback_extraction_user(content: str, url: str) -> str:
+    return EXTRACTION_USER_PROMPT.format(content=content, url=url)
+
+
+def _fallback_service_area_system() -> str:
+    return SERVICE_AREA_SYSTEM_PROMPT
+
+
+def _fallback_service_area_user(foundation_name: str, purpose: str) -> str:
+    return SERVICE_AREA_USER_PROMPT.format(foundation_name=foundation_name, purpose=purpose)
+
+
+# --- Module-level constants (also used as fallback by PromptService) ---
+
 VALIDATION_SYSTEM_PROMPT = """Du är en AI-assistent specialiserad på att identifiera officiella webbplatser för svenska stiftelser.
 Du får ett stiftelsenamn, organisationsnummer och ett sökresultat (titel, snippet och URL).
 Din uppgift är att avgöra om sökresultatet sannolikt är stiftelsens officiella hemsida ELLER en sida som innehåller information om stiftelsens bidragsgivning.
@@ -11,6 +55,7 @@ Exkludera:
 - Allmänna bolagsregister utan bidragsinformation (bolagsfakta.se, allabolag.se, proff.se)
 - Nyhetsartiklar som inte handlar om att söka bidrag
 - Wikipedia och generella encyklopedier
+
 """
 
 VALIDATION_USER_PROMPT = """Stiftelsenamn: {name}
@@ -36,7 +81,7 @@ Letar efter fält som:
 - Sista ansökningsdag (datum eller period, t.ex. "31 mars", "15 oktober")
 - Vem som kan söka (ändamål, målgrupp)
 - Hur man söker (formulär, e-post, brev)
-- En berikande sammanfattning (enriched_description) — en sammanhängande svensk text på MINST 150 ord som beskriver vad stiftelsen finansierar, vem som kan söka (behörighet), typiska användningsområden för bidraget, och konkreta tips för sökande. Detta fält är kritiskt för LLM-citering och måste vara substantiellt.
+- En berikande sammanfattning (enriched_description) — en sammanhängande svensk text på MINST 150 ord som beskriver vad stiftelsen finansierar, vem som kan söka (behörighet), typiska användningsområden för bidraget, och konkreta tips för sökande. Detta fält är kritiskt för LLM-citering och måste vara substantiell.
 - Övrig relevant information
 
 Observera att datumangivelser kan vara på svenska (t.ex. "1 mars", "oktober månad").
@@ -57,16 +102,16 @@ EXTRACTION_USER_PROMPT = """TEXTINNEHÅLL ATT ANALYSERA:
 Källans URL: {url}
 
 Extrahera informationen i detta JSON-format (varje fält är ett objekt med "value" och "confidence"):
-{{
-  "contact_email": {{"value": "e-postadress eller null", "confidence": 0.9}},
-  "contact_phone": {{"value": "telefonnummer eller null", "confidence": 0.0}},
-  "application_open": {{"value": "när ansökan öppnar (datum/period) eller null", "confidence": 0.8}},
-  "application_deadline": {{"value": "sista ansökningsdag (datum/period) eller null", "confidence": 0.8}},
-  "who_can_apply": {{"value": "vem kan söka / ändamål (kort beskrivning) eller null", "confidence": 0.7}},
-  "how_to_apply": {{"value": "hur man söker (formulär/e-post/brev) eller null", "confidence": 0.7}},
-  "notes": {{"value": "övrig relevant info eller null", "confidence": 0.5}},
-  "enriched_description": {{"value": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null", "confidence": 0.9}}
-}}
+{
+  "contact_email": {"value": "e-postadress eller null", "confidence": 0.9},
+  "contact_phone": {"value": "telefonnummer eller null", "confidence": 0.0},
+  "application_open": {"value": "när ansökan öppnar (datum/period) eller null", "confidence": 0.8},
+  "application_deadline": {"value": "sista ansökningsdag (datum/period) eller null", "confidence": 0.8},
+  "who_can_apply": {"value": "vem kan söka / ändamål (kort beskrivning) eller null", "confidence": 0.7},
+  "how_to_apply": {"value": "hur man söker (formulär/e-post/brev) eller null", "confidence": 0.7},
+  "notes": {"value": "övrig relevant info eller null", "confidence": 0.5},
+  "enriched_description": {"value": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null", "confidence": 0.9}
+}
 
 Returnera ENDAST giltig JSON, inga förklaringar.
 """
@@ -119,3 +164,41 @@ Svara ENDAST med ett JSON-objekt:
 Om stiftelsen inte är geografiskt begränsad, svara med:
 {{"location_name": null, "granularity": null, "service_area_detail": null}}
 """
+
+# Aliases for backward compatibility / quick access
+VALIDATION_SYSTEM_PROMPT_ALIAS = VALIDATION_SYSTEM_PROMPT
+VALIDATION_USER_PROMPT_ALIAS = VALIDATION_USER_PROMPT
+EXTRACTION_SYSTEM_PROMPT_ALIAS = EXTRACTION_SYSTEM_PROMPT
+EXTRACTION_USER_PROMPT_ALIAS = EXTRACTION_USER_PROMPT
+SERVICE_AREA_SYSTEM_PROMPT_ALIAS = SERVICE_AREA_SYSTEM_PROMPT
+SERVICE_AREA_USER_PROMPT_ALIAS = SERVICE_AREA_USER_PROMPT
+
+
+def get_validation_system_prompt() -> str:
+    """Return the validation system prompt."""
+    return VALIDATION_SYSTEM_PROMPT
+
+
+def get_validation_user_prompt(name: str, orgnr: str, title: str, snippet: str, url: str) -> str:
+    """Return the validation user prompt for the given data."""
+    return VALIDATION_USER_PROMPT.format(name=name, orgnr=orgnr, title=title, snippet=snippet, url=url)
+
+
+def get_extraction_system_prompt() -> str:
+    """Return the extraction system prompt."""
+    return EXTRACTION_SYSTEM_PROMPT
+
+
+def get_extraction_user_prompt(content: str, url: str) -> str:
+    """Return the extraction user prompt for the given content and URL."""
+    return EXTRACTION_USER_PROMPT.format(content=content, url=url)
+
+
+def get_service_area_system_prompt() -> str:
+    """Return the service area system prompt."""
+    return SERVICE_AREA_SYSTEM_PROMPT
+
+
+def get_service_area_user_prompt(foundation_name: str, purpose: str) -> str:
+    """Return the service area user prompt for the given foundation."""
+    return SERVICE_AREA_USER_PROMPT.format(foundation_name=foundation_name, purpose=purpose)

@@ -1,0 +1,13 @@
+{# Service area prompt for enrichment pipeline #}
+{# Identifies if a foundation is geographically restricted #}
+
+Stiftelsenamn: {foundation_name}
+Ändamål/Beskrivning: {purpose}
+
+Identifiera om denna stiftelse är geografiskt begränsad. Om ja, ange kommun (om möjligt) eller län. Om texten anger en finare detalj (gata, stadsdel, församling eller annat avgränsat område), ange den i service_area_detail.
+
+Svara ENDAST med ett JSON-objekt:
+{"location_name": "kommun-eller-lannamn", "granularity": "municipality_eller_county", "service_area_detail": "finare detalj eller null"}
+
+Om stiftelsen inte är geografiskt begränsad, svara med:
+{"location_name": null, "granularity": null, "service_area_detail": null}

@@ -1,0 +1,21 @@
+{# Extraction prompt for enrichment pipeline #}
+{# Returns per-field confidence scores #}
+
+TEXTINNEHÅLL ATT ANALYSERA:
+{content}
+
+Källans URL: {url}
+
+Extrahera informationen i detta JSON-format (varje fält är ett objekt med "value" och "confidence"):
+{
+  "contact_email": {"value": "e-postadress eller null", "confidence": 0.9},
+  "contact_phone": {"value": "telefonnummer eller null", "confidence": 0.0},
+  "application_open": {"value": "när ansökan öppnar (datum/period) eller null", "confidence": 0.8},
+  "application_deadline": {"value": "sista ansökningsdag (datum/period) eller null", "confidence": 0.8},
+  "who_can_apply": {"value": "vem kan söka / ändamål (kort beskrivning) eller null", "confidence": 0.7},
+  "how_to_apply": {"value": "hur man söker (formulär/e-post/brev) eller null", "confidence": 0.7},
+  "notes": {"value": "övrig relevant info eller null", "confidence": 0.5},
+  "enriched_description": {"value": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null", "confidence": 0.9}
+}
+
+Returnera ENDAST giltig JSON, inga förklaringar.

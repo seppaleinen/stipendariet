@@ -1,0 +1,15 @@
+{# Validation prompt for enrichment pipeline #}
+{# Used to determine if a search result is the official foundation website #}
+
+Stiftelsenamn: {name}
+Organisationsnummer: {orgnr}
+
+Sökresultat:
+  Titel: {title}
+  Snippet: {snippet}
+  URL: {url}
+
+Är detta en sida som innehåller användbar information om stiftelsen (t.ex. ändamål, ansökan, kontaktuppgifter eller utdelningsinformation)?
+
+Svara ENDAST med ett JSON-objekt:
+{"is_match": true, "confidence": 0.95}
