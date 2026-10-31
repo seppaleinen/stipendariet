@@ -1,118 +1,164 @@
-# Welcome to your Lovable project
+# StipendieAssistenten - Frontend
 
-## Project info
+A React-based web application that helps Swedish families discover grants and scholarships. Users describe their situation once and receive matched foundations whose purposes align with their needs.
 
-**URL**: https://lovable.dev/projects/0b883ba7-353c-41cc-b963-661284ea3b2e
+## Overview
 
-## How can I edit this code?
+Built with **Vite 5**, **TypeScript**, **React 18**, **shadcn-ui**, and **Tailwind CSS**. Connects to a FastAPI backend for grant discovery, profile management, and AI-powered application generation.
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+| Layer | Technology |
+|-------|------------|
+| Framework | React 18 + Vite 5 (SWC) |
+| Type System | TypeScript (relaxed: `noImplicitAny: false`) |
+| Styling | Tailwind CSS 3.x + shadcn-ui (Radix primitives) |
+| State | React Query `@tanstack/react-query` |
+| Routing | React Router DOM 6 |
+| Linting | ESLint 9 + TypeScript ESLint |
+| Testing | Vitest 3.x + Playwright |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0b883ba7-353c-41cc-b963-661284ea3b2e) and start prompting.
+## Project Structure
 
-Changes made via Lovable will be committed automatically to this repo.
+```
+apps/frontend/
+├── src/
+│   ├── App.tsx           # Root component with routing
+│   ├── main.tsx          # Entry point
+│   ├── components/       # Reuseable UI components
+│   ├── features/         # Domain-specific modules (grants, profile)
+│   ├── hooks/            # Custom hooks (use-toast, use-mobile)
+│   ├── lib/              # Utilities, API client
+│   ├── pages/            # Route components
+│   ├── contexts/         # React contexts (Auth, Profile, SSR)
+│   ├── types/            # TypeScript definitions
+│   └── data/             # Static data (swedish-regions.ts)
+├── e2e/                  # Playwright end-to-end tests
+├── public/               # Static assets
+└── vite.config.ts        # Vite config with `@/` alias
+```
 
-**Use your preferred IDE**
+## Quick Start
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+# Install dependencies
+npm install
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository with submodules using the project's Git URL.
-git clone --recurse-submodules <YOUR_GIT_URL>
-# OR if you have the alias set up: git clone-recursive <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server (http://localhost:8082)
 npm run dev
+
+# Build for production
+npm run build
+
+# Run linter
+npm run lint
+
+# Run tests
+npm run test
+npm run test:watch  # for TDD
+npm run test:e2e    # end-to-end tests
 ```
 
-## Working with Submodules
+### Docker Development
 
-This project includes the `infra-test` repository as a Git submodule. If you didn't clone with `--recurse-submodules`, initialize it:
+```bash
+# From repo root - start full stack with Docker
+cd ../..
+docker compose -f docker-compose.yml up -d
 
-```sh
-# Initialize and update submodules
-git submodule update --init --recursive
-# OR if you have the alias: git submodule-update
-
-# Update submodules to latest
-git submodule update --remote
+# Or using Turbo with Docker infrastructure
+pnpm run dev:infra    # Start Postgres, Redis, SearXNG
+pnpm run dev          # Start frontend dev server
 ```
 
-**Edit a file directly in GitHub**
+## Path Mapping
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- `@/` → `./src/` (configured in `vite.config.ts` and `tsconfig.json`)
+- Always use path aliases — never relative imports crossing src/
 
-**Use GitHub Codespaces**
+## API Client Convention
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+All API calls go through `src/lib/api.ts`:
 
-## What technologies are used for this project?
+```typescript
+import { getGrants, getProfile } from '@/lib/api';
 
-This project is built with:
+// Server state with caching
+const { data } = useQuery(['grants'], () => getGrants({ category: 'education' }));
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## Docker Development Setup
-
-This project includes a complete Docker setup with hot reload for both frontend and backend development.
-
-### Quick Start with Docker
-
-```sh
-# Navigate to the infrastructure directory
-cd infra-test
-
-# Start development environment with hot reload
-./dev.sh
-
-# Or use docker compose directly
-docker compose watch
+// API client handles:
+// - snake_case → camelCase transformation
+// - Mock data fallback when backend unavailable
+// - Authentication via @tanstack/react-query
 ```
 
-### Available Services
+## Environment Variables
 
-- **Frontend**: http://localhost:8080 (React + Vite with hot reload)
-- **Backend**: http://localhost:8000 (FastAPI with auto-reload)
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `VITE_API_URL` | `/api` | Backend API base URL |
 
-### Development Features
+Access via `import.meta.env.VITE_API_URL`. Prefix **must** be `VITE_` for Vite to expose.
 
-- ✅ **Hot Reload**: File changes automatically trigger reloads
-- ✅ **File Sync**: Source files are synced to containers in real-time
-- ✅ **Auto Rebuild**: Dependency changes trigger container rebuilds
-- ✅ **Health Checks**: Built-in health monitoring
+## Key Pages
 
-See `infra-test/README.md` for detailed Docker setup documentation.
+| Path | Component | Purpose |
+|------|-----------|---------|
+| `/` | `Home.tsx` | Overview, grant highlights |
+| `/grants` | `Grants.tsx` | Filterable grant list with search |
+| `/grants/[id]` | `GrantDetail.tsx` | Individual grant view |
+| `/applications` | `Applications.tsx` | Saved/submitted applications |
+| `/generate` | `Generate.tsx` | AI application generation |
+| `/family-setup` | `FamilySetup.tsx` | Profile configuration |
+| `/matching` | `Matching.tsx` | Foundation matching results |
 
-## How can I deploy this project?
+## Testing
 
-Simply open [Lovable](https://lovable.dev/projects/0b883ba7-353c-41cc-b963-661284ea3b2e) and click on Share -> Publish.
+### Unit Tests
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+npm run test              # Run all tests
+npm run test:watch        # Watch mode for TDD
+npm run test:coverage     # With coverage report
+```
 
-Yes, you can!
+### End-to-End Tests
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```bash
+npm run test:e2e          # Run Playwright tests
+npm run test:e2e:ui       # Interactive mode
+npm run test:e2e:debug    # Debug mode
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Tests live alongside code: `Component.test.tsx`, `utils.test.ts`. Integration tests in `api.integration.test.ts` require running backend via Docker.
+
+## Deployment
+
+- **Docker image**: `seppaleinen/stipendariet-frontend:latest`
+- **Served by**: Nginx on port 8080 (container)
+- **Host port**: 8082 (to avoid conflict with SearXNG)
+- **Helm chart**: `seppaleinen/stipendiateet` via helmfile
+
+## Type Conventions
+
+- Backend uses **snake_case** in API responses
+- Frontend uses **camelCase** in types
+- Transformation handled in `api.ts` mappers
+- Prefer `unknown` + type guards over `any`
+
+## Git Hooks
+
+Activate pre-push lint hook:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Pre-push runs `ruff check .` on backend and blocks on lint errors.
+
+## Related Documentation
+
+- **[Root README.md](../README.md)** - Monorepo overview
+- **[CONTEXT.md](../CONTEXT.md)** - Domain language
+- **[AGENTS.md](../AGENTS.md)** - Agent conventions
+- **docs/architecture-overview.md** - System diagrams
