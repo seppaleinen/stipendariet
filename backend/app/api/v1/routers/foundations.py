@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
@@ -21,21 +21,57 @@ class TranslationRequest(BaseModel):
 
 class MatchingRequest(BaseModel):
     needs: str  # User's description of their needs
-    threshold: float | None = SIMILARITY_THRESHOLD  # Similarity threshold (0-1)
-    limit: int | None = 20  # Max results
+    category: str | None = Field(default=None, max_length=100)  # Filter by category
+    county: str | None = Field(default=None, pattern=r"^(0[1-9]|1[0-9]|2[0-3])$")  # Filter by county code (Swedish LANKOD 01-23)
+    threshold: float | None = Field(default=None, ge=0.0, le=1.0)  # Similarity threshold (0-1)
+    limit: int | None = Field(default=None, ge=1, le=200)  # Max results
+
+    @field_validator("threshold", mode="before")
+    @classmethod
+    def default_threshold(cls, v):
+        return v if v is not None else SIMILARITY_THRESHOLD
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def default_limit(cls, v):
+        return v if v is not None else 50
+
+    @field_validator("county", mode="before")
+    @classmethod
+    def validate_county(cls, v):
+        if v is not None and v != "":
+            # Ensure it's a valid 2-digit Swedish LANKOD (01-23)
+            if not v.isdigit() or len(v) != 2 or int(v) < 1 or int(v) > 23:
+                raise ValueError("County must be a 2-digit Swedish LANKOD (01-23)")
+        return v
 
 
 class ProfileMatchingRequest(BaseModel):
     profile_id: int | None = None  # Specific profile to match against
     use_geographic_filter: bool = True  # If True, hard filter by county/municipality
     use_description: bool = False  # If True, embed the profile's self-description instead of its structured selections
-    threshold: float | None = SIMILARITY_THRESHOLD
-    limit: int | None = 20
+    threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    limit: int | None = Field(default=None, ge=1, le=200)
+
+    @field_validator("threshold", mode="before")
+    @classmethod
+    def default_threshold(cls, v):
+        return v if v is not None else SIMILARITY_THRESHOLD
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def default_limit(cls, v):
+        return v if v is not None else 20
 
 
 class MatchedFoundation(BaseModel):
     foundation: schemas.Foundation
     similarity_score: float
+
+
+class MatchingResponse(BaseModel):
+    grants: list[MatchedFoundation]
+    categories: list[str]
 
 
 router = APIRouter(prefix="/api/foundations", tags=["foundations"])
@@ -243,7 +279,7 @@ def translate_purpose(translation_request: TranslationRequest):
         )
 
 
-@router.post("/matching", response_model=list[MatchedFoundation])
+@router.post("/matching", response_model=MatchingResponse)
 def find_matching_foundations(
     matching_request: MatchingRequest,
     db: Session = Depends(get_db)
@@ -251,12 +287,13 @@ def find_matching_foundations(
     """
     Find foundations that semantically match the user's needs.
     Uses vector similarity search on translated purposes.
+    Optionally filters by category and county.
 
     Args:
-        matching_request: Contains the user's needs description and optional threshold/limit
+        matching_request: Contains the user's needs description, optional category, county, threshold, and limit
 
     Returns:
-        List of foundations ranked by similarity score (highest first)
+        MatchingResponse with grants (list of foundations ranked by similarity score) and categories
     """
     try:
         if not matching_request.needs or not matching_request.needs.strip():
@@ -277,14 +314,40 @@ def find_matching_foundations(
         # Convert embedding to string format for pgvector
         embedding_str = "[" + ",".join(str(x) for x in needs_embedding) + "]"
 
-        # Calculate threshold as cosine distance (lower is more similar)
-        # Cosine similarity = 1 - cosine distance
-        # If threshold is 0.5, we want similarity >= 0.5, so distance <= 0.5
-        1 - matching_request.threshold
+        # Use validated threshold and limit (validators handle defaults)
+        threshold = matching_request.threshold
+        limit = matching_request.limit
 
-        # Query using pgvector cosine distance operator (<=>)
-        # Returns foundations with embeddings, ordered by similarity
-        query = text("""
+        # Build query with conditional WHERE clauses using bound parameters
+        where_clauses = [
+            "purpose_embedding IS NOT NULL",
+            "1 - (purpose_embedding <=> CAST(:embedding AS vector)) >= :threshold"
+        ]
+        params = {
+            "embedding": embedding_str,
+            "threshold": threshold,
+            "limit": limit,
+        }
+
+        # County filter (Swedish LANKOD 01-23)
+        if matching_request.county:
+            params["county_code"] = matching_request.county
+            where_clauses.append("""(
+                (parsed_service_area IS NOT NULL
+                 AND (service_area_status IS DISTINCT FROM 'REVIEW')
+                 AND parsed_service_area->>'county_code' = :county_code)
+                OR
+                ((parsed_service_area IS NULL OR service_area_status = 'REVIEW')
+                 AND (county_code = :county_code OR county_code IS NULL OR county_code = ''))
+            )""")
+
+        # Category filter
+        if matching_request.category:
+            params["category"] = matching_request.category
+            where_clauses.append("category = :category")
+
+        # Build final query
+        query = text(f"""
             SELECT
                 id,
                 foundation_id,
@@ -298,6 +361,7 @@ def find_matching_foundations(
                 postort,
                 county_code,
                 municipality_code,
+                parsed_service_area,
                 phone,
                 co_address,
                 type,
@@ -312,17 +376,12 @@ def find_matching_foundations(
                 raw_data,
                 1 - (purpose_embedding <=> CAST(:embedding AS vector)) as similarity_score
             FROM foundations
-            WHERE purpose_embedding IS NOT NULL
-              AND 1 - (purpose_embedding <=> CAST(:embedding AS vector)) >= :threshold
+            WHERE {' AND '.join(where_clauses)}
             ORDER BY similarity_score DESC
             LIMIT :limit
         """)
 
-        result = db.execute(query, {
-            "embedding": embedding_str,
-            "threshold": matching_request.threshold,
-            "limit": matching_request.limit
-        })
+        result = db.execute(query, params)
 
         rows = result.fetchall()
 
@@ -354,6 +413,7 @@ def find_matching_foundations(
                 postort=row.postort,
                 county_code=row.county_code,
                 municipality_code=row.municipality_code,
+                parsed_service_area=parse_json_field(row.parsed_service_area, None),
                 phone=row.phone,
                 co_address=row.co_address,
                 type=row.type,
@@ -372,7 +432,17 @@ def find_matching_foundations(
                 similarity_score=round(row.similarity_score, 4)
             ))
 
-        return matched_foundations
+        # Fetch distinct categories from the database for the response
+        categories = (
+            db.query(models.Foundation.category)
+            .distinct()
+            .filter(models.Foundation.category.isnot(None))
+            .filter(models.Foundation.category != "")
+            .all()
+        )
+        category_list = [cat[0] for cat in categories]
+
+        return MatchingResponse(grants=matched_foundations, categories=category_list)
 
     except HTTPException:
         raise
