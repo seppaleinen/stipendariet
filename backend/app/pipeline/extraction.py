@@ -43,27 +43,27 @@ def _parse_extraction_response(
 ) -> ExtractedFoundationData | None:
     """
     Parse LLM extraction response, supporting both flat and nested formats.
-    
+
     Flat format (legacy): {"contact_email": "email@example.com", ...}
     Nested format (new): {"contact_email": {"value": "email@example.com", "confidence": 0.9}, ...}
-    
+
     Returns ExtractedFoundationData with confidence scores populated for nested format.
     """
     # Detect format by checking if any known field has nested structure
     known_fields = ExtractedFoundationData.model_fields.keys()
-    
+
     # Check if we have nested format (any field is a dict with value/confidence)
     is_nested = False
     for k, v in data.items():
         if k in known_fields and isinstance(v, dict) and "value" in v:
             is_nested = True
             break
-    
+
     if is_nested:
         # Parse nested format
         field_values = {}
         confidences = {}
-        
+
         for k, v in data.items():
             if k not in known_fields:
                 continue
@@ -78,20 +78,20 @@ def _parse_extraction_response(
                 # Fallback: treat as flat value with 0.0 confidence
                 field_values[k] = v
                 confidences[k] = 0.0
-        
+
         # Calculate average confidence for non-null fields
         non_null_confidences = [
             conf for field, conf in confidences.items()
             if field_values.get(field) is not None
         ]
         avg_confidence = sum(non_null_confidences) / len(non_null_confidences) if non_null_confidences else 0.0
-        
+
         # Check if we got anything useful
         values = [v for v in field_values.values() if v]
         if not values:
             logger.warning(f"Extraction returned all-null result for {foundation_name}")
             return None
-        
+
         extracted = ExtractedFoundationData(
             **field_values,
             confidence=avg_confidence,
@@ -102,15 +102,15 @@ def _parse_extraction_response(
     else:
         # Parse flat format (legacy)
         filtered_data = {k: v for k, v in data.items() if k in known_fields}
-        
+
         extracted = ExtractedFoundationData(**filtered_data)
-        
+
         # Check if we actually got anything useful
         values = [v for v in filtered_data.values() if v]
         if not values:
             logger.warning(f"Extraction returned all-null result for {foundation_name}")
             return None
-        
+
         logger.info(f"Extracted {len(values)} fields for {foundation_name} (flat format): {filtered_data}")
         return extracted
 
@@ -155,14 +155,14 @@ async def extract_from_source(
 ) -> ExtractedFoundationData | None:
     """
     Extract data from a single source with field-level confidence scores.
-    
+
     Args:
         content: The text content to extract from
         url: The source URL (used in prompt and tracking)
         foundation_name: Name of the foundation
         custom_system_prompt: Optional override for system prompt
         custom_user_prompt: Optional override for user prompt
-    
+
     Returns:
         ExtractedFoundationData with confidence scores, or None if extraction failed
     """
@@ -180,15 +180,15 @@ async def extract_from_source(
         if raw_response:
             logger.info(f"Extraction LLM raw response for {foundation_name} (source: {url}): {raw_response}")
             data = json.loads(strip_code_fences(raw_response))
-            
+
             extracted = _parse_extraction_response(data, foundation_name)
-            
+
             if extracted:
                 # Set source_per_field for all non-null fields
                 for field_name, value in extracted.model_dump().items():
                     if value is not None and field_name not in ("confidence", "per_field_confidence", "source_per_field"):
                         extracted.source_per_field[field_name] = url
-            
+
             return extracted
 
     except json.JSONDecodeError as e:
@@ -206,32 +206,32 @@ def merge_extractions(
 ) -> ExtractedFoundationData:
     """
     Merge multiple extractions using highest-confidence-wins per field.
-    
+
     Args:
         extractions: List of (ExtractedFoundationData, source_url) tuples
-    
+
     Returns:
         Merged ExtractedFoundationData with best value per field
     """
     if not extractions:
         return ExtractedFoundationData()
-    
+
     # Track best value and confidence per field
     field_best: dict[str, tuple[str | None, float, str]] = {}  # field -> (value, confidence, source_url)
-    
+
     for extracted, source_url in extractions:
-        for field_name in ExtractedFoundationData.model_fields.keys():
+        for field_name in ExtractedFoundationData.model_fields:
             # Skip metadata fields
             if field_name in ("confidence", "per_field_confidence", "source_per_field"):
                 continue
-            
+
             value = getattr(extracted, field_name, None)
             conf = extracted.per_field_confidence.get(field_name, 0.0)
-            
+
             # Only consider non-null values
             if value is None:
                 continue
-            
+
             # Check if this is better than what we have
             if field_name not in field_best:
                 field_best[field_name] = (value, conf, source_url)
@@ -239,31 +239,31 @@ def merge_extractions(
                 _, best_conf, _ = field_best[field_name]
                 if conf > best_conf:
                     field_best[field_name] = (value, conf, source_url)
-    
+
     # Build merged result
     merged_data = {}
     merged_confidences = {}
     merged_sources = {}
-    
+
     for field_name, (value, conf, source_url) in field_best.items():
         merged_data[field_name] = value
         merged_confidences[field_name] = conf
         merged_sources[field_name] = source_url
-    
+
     # Calculate overall confidence (average of per-field confidences)
     avg_confidence = sum(merged_confidences.values()) / len(merged_confidences) if merged_confidences else 0.0
-    
+
     if not merged_data:
         logger.warning("merge_extractions: no fields extracted from any source")
         return ExtractedFoundationData()
-    
+
     result = ExtractedFoundationData(
         **merged_data,
         confidence=avg_confidence,
         per_field_confidence=merged_confidences,
         source_per_field=merged_sources,
     )
-    
+
     logger.info(
         f"Merged {len(extractions)} extractions: {len(merged_data)} fields, "
         f"avg_confidence={avg_confidence:.2f}, sources={set(merged_sources.values())}"
@@ -300,7 +300,7 @@ def merge_missing_only(
         return ExtractedFoundationData(**current.model_dump())
 
     content_fields = [
-        f for f in ExtractedFoundationData.model_fields.keys()
+        f for f in ExtractedFoundationData.model_fields
         if f not in ("confidence", "per_field_confidence", "source_per_field")
     ]
 

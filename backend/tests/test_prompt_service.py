@@ -1,11 +1,10 @@
 """Tests for PromptService — prompt versioning + Jinja2 template rendering."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.services.prompt_service import PromptService
-
 
 # ---------------------------------------------------------------------------
 # Helper: create a minimal mock row
@@ -73,9 +72,9 @@ def test_get_production_prompt_queries_db_when_production_exists():
     row = _make_mock_row(is_production=True, template="some template")
     with patch.object(svc, "_get_session") as mock_cm:
         mock_cm.return_value = _make_mock_session(scalar_one_return=row)
-        result = svc.get_production_prompt("validation")
+        svc.get_production_prompt("validation")
         # Result depends on rendering; just verify no crash
-        assert result is not None or True
+        assert True
 
 
 def test_get_production_prompt_no_production_version():
@@ -110,7 +109,6 @@ def test_get_production_prompt_falls_back_to_raw_on_render_error():
 def test_create_prompt_version_success():
     """New version is created and ID is returned."""
     svc = PromptService()
-    from app.db.models.enrichment_prompts import EnrichmentPrompt
 
     with patch.object(svc, "_get_session") as mock_cm:
         session = _make_mock_session()  # no existing row
@@ -242,7 +240,6 @@ def test_get_production_version_returns_none_when_no_production():
 def test_prompt_service_full_flow():
     """End-to-end flow: create → set production → get metrics → increment runs."""
     svc = PromptService()
-    from app.db.models.enrichment_prompts import EnrichmentPrompt
 
     # 1. Create a new version
     with patch.object(svc, "_get_session") as mock_cm:

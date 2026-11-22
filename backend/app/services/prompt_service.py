@@ -11,7 +11,8 @@ zero-downtime rollout. The same constants are also exported from
 ``app.pipeline.prompts`` for direct use.
 """
 
-from contextlib import contextmanager
+
+import contextlib
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from sqlalchemy import select
@@ -182,7 +183,7 @@ class PromptService:
             stmt = (
                 select(EnrichmentPrompt)
                 .where(EnrichmentPrompt.name == name)
-                .where(EnrichmentPrompt.is_production == True)
+                .where(EnrichmentPrompt.is_production)
             )
             row = session.execute(stmt).scalar_one_or_none()
         finally:
@@ -274,12 +275,9 @@ class PromptService:
 
         metrics_by_version = {}
         for row in rows:
-            vars_dict = {}
             if row.variables:
-                try:
-                    vars_dict = row.variables if isinstance(row.variables, dict) else {}
-                except Exception:
-                    vars_dict = {}
+                with contextlib.suppress(Exception):
+                    row.variables if isinstance(row.variables, dict) else {}
 
             metrics_by_version[row.version] = {
                 "avg_confidence": row.metrics.get("avg_confidence", 0.0) if row.metrics else 0.0,
@@ -296,7 +294,7 @@ class PromptService:
             stmt = (
                 select(EnrichmentPrompt.version)
                 .where(EnrichmentPrompt.name == name)
-                .where(EnrichmentPrompt.is_production == True)
+                .where(EnrichmentPrompt.is_production)
             )
             row = session.execute(stmt).scalar_one_or_none()
         finally:
