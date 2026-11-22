@@ -31,13 +31,17 @@ export function createTokenStorage(key: string): TokenStorage {
       if (typeof window === 'undefined') return;
       try {
         localStorage.setItem(key, token);
-      } catch {}
+      } catch {
+        // ignore localStorage errors
+      }
     },
     clear(): void {
       if (typeof window === 'undefined') return;
       try {
         localStorage.removeItem(key);
-      } catch {}
+      } catch {
+        // ignore localStorage errors
+      }
     },
   };
 }

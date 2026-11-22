@@ -1,10 +1,5 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.core.security import get_admin_user
-
-# Initialize router with authentication dependency (Bearer JWT admin)
-router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(get_admin_user)])
-
 # Import from split modules
 from app.api.admin.categorization import (
     reset_categories_endpoint,
@@ -54,6 +49,10 @@ from app.api.admin.translation import (
     translate_single_foundation_endpoint,
     trigger_bulk_purpose_translation_endpoint,
 )
+from app.core.security import get_admin_user
+
+# Initialize router with authentication dependency (Bearer JWT admin)
+router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(get_admin_user)])
 
 
 # --- Sync Routes ---

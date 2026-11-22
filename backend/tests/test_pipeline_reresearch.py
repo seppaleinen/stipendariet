@@ -13,7 +13,6 @@ import pytest
 from app.pipeline.discovery import REQUIRED_FIELDS, generate_targeted_query
 from app.pipeline.extraction import ExtractedFoundationData, merge_missing_only
 
-
 # =============================================================================
 # generate_targeted_query
 # =============================================================================
@@ -247,7 +246,6 @@ async def test_orchestrator_gap_analysis_identifies_missing_fields():
     Gap analysis correctly identifies which REQUIRED_FIELDS are missing
     after the initial merge.
     """
-    from app.pipeline.base import PipelineContext
 
     # Simulate a merged extraction with only 3 of 8 fields
     merged = ExtractedFoundationData(
@@ -326,54 +324,48 @@ async def test_orchestrator_re_search_loop_max_iterations(
     mock_stage = AsyncMock()
     mock_stage.run = AsyncMock()
 
-    with patch('app.pipeline.orchestrator._db_fetch_foundation', return_value=mock_foundation):
-        with patch('app.pipeline.orchestrator._get_default_stages', return_value={
+    with (
+        patch('app.pipeline.orchestrator._db_fetch_foundation', return_value=mock_foundation),
+        patch('app.pipeline.orchestrator._get_default_stages', return_value={
             "bolagsverket": mock_stage,
             "service_area": mock_stage,
             "discovery": type("MockStage", (), {"run": staticmethod(mock_discovery_run)})(),
             "validation": type("MockStage", (), {"run": staticmethod(mock_validation_run)})(),
             "crawl": type("MockStage", (), {"run": staticmethod(mock_crawl_run)})(),
             "extraction": type("MockStage", (), {"run": staticmethod(mock_extraction_run)})(),
-        }):
-            # Mock merge_extractions to return partial data (missing fields)
-            with patch('app.pipeline.orchestrator.merge_extractions') as mock_merge:
-                mock_merge.return_value = ExtractedFoundationData(
-                    contact_email="test@example.se",
-                    confidence=0.9,
-                )
+        }),
+        patch('app.pipeline.orchestrator.merge_extractions') as mock_merge,
+        patch('app.pipeline.orchestrator.merge_missing_only') as mock_merge_missing,
+        patch('app.pipeline.orchestrator._searxng_search') as mock_searxng,
+        patch('app.pipeline.orchestrator.validate_candidate_url') as mock_validate,
+    ):
+        mock_merge.return_value = ExtractedFoundationData(
+            contact_email="test@example.se",
+            confidence=0.9,
+        )
+        mock_merge_missing.side_effect = lambda current, new, target_fields: (
+            ExtractedFoundationData(
+                contact_email="test@example.se",
+                confidence=0.9,
+            )
+        )
+        mock_searxng.return_value = [
+            {"url": "https://targeted.se", "title": "Test", "snippet": "..."}
+        ]
+        mock_validate.return_value = {
+            "is_match": True,
+            "confidence": 0.8,
+        }
 
-                # Mock merge_missing_only to keep returning partial data
-                # (so loop continues until max iterations)
-                with patch('app.pipeline.orchestrator.merge_missing_only') as mock_merge_missing:
-                    mock_merge_missing.side_effect = lambda current, new, target_fields: (
-                        ExtractedFoundationData(
-                            contact_email="test@example.se",
-                            confidence=0.9,
-                        )
-                    )
+        # Run pipeline
+        await run_foundation_pipeline_task(
+            {},
+            foundation_id=1,
+        )
 
-                    # Mock _searxng_search to return candidates
-                    with patch('app.pipeline.orchestrator._searxng_search') as mock_searxng:
-                        mock_searxng.return_value = [
-                            {"url": "https://targeted.se", "title": "Test", "snippet": "..."}
-                        ]
-
-                        # Mock validate_candidate_url
-                        with patch('app.pipeline.orchestrator.validate_candidate_url') as mock_validate:
-                            mock_validate.return_value = {
-                                "is_match": True,
-                                "confidence": 0.8,
-                            }
-
-                            # Run pipeline
-                            result = await run_foundation_pipeline_task(
-                                {},
-                                foundation_id=1,
-                            )
-
-                            # Verify re-search ran max iterations
-                            # (merge_missing_only called once per iteration after initial merge)
-                            assert mock_merge_missing.call_count == MAX_RESEARCH_ITERATIONS
+        # Verify re-search ran max iterations
+        # (merge_missing_only called once per iteration after initial merge)
+        assert mock_merge_missing.call_count == MAX_RESEARCH_ITERATIONS
 
 
 @pytest.mark.asyncio
