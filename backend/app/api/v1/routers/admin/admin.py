@@ -6,29 +6,33 @@ from app.core.security import get_admin_user
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(get_admin_user)])
 
 # Import from split modules
-from .categorization import (
+from app.api.admin.categorization import (
     reset_categories_endpoint,
     trigger_bulk_categorization_endpoint,
 )
-from .embeddings import (
+from app.api.admin.embeddings import (
     generate_single_embedding_endpoint,
     trigger_bulk_embedding_generation_endpoint,
 )
-from .enrichment import (
+from app.api.admin.enrichment import (
     EnrichmentTestRequest,
+    ExportRequest,
     backfill_service_area_endpoint,
     enrich_single_foundation_endpoint,
+    export_enrichment_data_endpoint,
     get_enrichment_defaults_endpoint,
     get_enrichment_details_endpoint,
     get_enrichment_status_endpoint,
     get_enrichment_trace_endpoint,
+    get_field_completeness_endpoint,
+    get_prompt_metrics_endpoint,
     reset_enrichment_status_endpoint,
     trigger_enrichment_endpoint,
 )
-from .foundations import list_foundations_for_translation_endpoint
+from app.api.admin.foundations import list_foundations_for_translation_endpoint
 
 # --- Enrichment Source Schema ---
-from .sources import (
+from app.api.admin.sources import (
     EnrichmentSourceCreate,
     EnrichmentSourceUpdate,
     create_source_endpoint,
@@ -37,18 +41,18 @@ from .sources import (
     list_sources_endpoint,
     update_source_endpoint,
 )
-from .sync import (
+from app.api.admin.sync import (
     get_sync_status_endpoint,
     trigger_foundation_sync_endpoint,
     trigger_grant_sync_endpoint,
 )
-from .system import (
+from app.api.admin.system import (
     clear_database_endpoint,
     get_active_jobs_endpoint,
     get_foundation_stats_endpoint,
     search_foundations_admin_endpoint,
 )
-from .translation import (
+from app.api.admin.translation import (
     get_translation_defaults_endpoint,
     get_translation_task_status_endpoint,
     translate_single_foundation_endpoint,
@@ -171,6 +175,19 @@ def get_enrichment_defaults():
 @router.get("/enrich/trace/{foundation_id}")
 def get_enrichment_trace(foundation_id: int):
     return get_enrichment_trace_endpoint(foundation_id)
+
+# --- Enrichment Observability (Phase 7) ---
+@router.get("/enrich/field-completeness")
+def get_field_completeness(days: int = Query(30, ge=1, le=365)):
+    return get_field_completeness_endpoint(days=days)
+
+@router.get("/enrich/prompt-metrics")
+def get_prompt_metrics():
+    return get_prompt_metrics_endpoint()
+
+@router.post("/enrich/export")
+def export_enrichment_data(request: ExportRequest):
+    return export_enrichment_data_endpoint(request)
 
 # --- Foundations (translation judging) Routes ---
 @router.get("/foundations/translations")

@@ -67,7 +67,7 @@ Sökresultat:
 Är detta en sida som innehåller användbar information om stiftelsen (t.ex. ändamål, ansökan, kontaktuppgifter eller utdelningsinformation)?
 
 Svara ENDAST med ett JSON-objekt:
-{"is_match": true, "confidence": 0.95}
+{{"is_match": true, "confidence": 0.95}}
 """
 
 _EXTRACTION_SYSTEM_PROMPT = """Du är en dataextraktionsspecialist som analyserar text från svenska stiftelsers webbplatser och informationssidor.
@@ -100,16 +100,16 @@ _EXTRACTION_USER_PROMPT = """TEXTINNEHÅLL ATT ANALYSERA:
 Källans URL: {url}
 
 Extrahera informationen i detta JSON-format (varje fält är ett objekt med "value" och "confidence"):
-{
-  "contact_email": {"value": "e-postadress eller null", "confidence": 0.9},
-  "contact_phone": {"value": "telefonnummer eller null", "confidence": 0.0},
-  "application_open": {"value": "när ansökan öppnar (datum/period) eller null", "confidence": 0.8},
-  "application_deadline": {"value": "sista ansökningsdag (datum/period) eller null", "confidence": 0.8},
-  "who_can_apply": {"value": "vem kan söka / ändamål (kort beskrivning) eller null", "confidence": 0.7},
-  "how_to_apply": {"value": "hur man söker (formulär/e-post/brev) eller null", "confidence": 0.7},
-  "notes": {"value": "övrig relevant info eller null", "confidence": 0.5},
-  "enriched_description": {"value": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null", "confidence": 0.9}
-}
+{{
+  "contact_email": {{"value": "e-postadress eller null", "confidence": 0.9}},
+  "contact_phone": {{"value": "telefonnummer eller null", "confidence": 0.0}},
+  "application_open": {{"value": "när ansökan öppnar (datum/period) eller null", "confidence": 0.8}},
+  "application_deadline": {{"value": "sista ansökningsdag (datum/period) eller null", "confidence": 0.8}},
+  "who_can_apply": {{"value": "vem kan söka / ändamål (kort beskrivning) eller null", "confidence": 0.7}},
+  "how_to_apply": {{"value": "hur man söker (formulär/e-post/brev) eller null", "confidence": 0.7}},
+  "notes": {{"value": "övrig relevant info eller null", "confidence": 0.5}},
+  "enriched_description": {{"value": "150+ word Swedish description of what the grant funds, eligibility, use cases, tips, or null", "confidence": 0.9}}
+}}
 
 Returnera ENDAST giltig JSON, inga förklaringar.
 """
@@ -157,10 +157,10 @@ _SERVICE_AREA_USER_PROMPT = """Stiftelsenamn: {foundation_name}
 Identifiera om denna stiftelse är geografiskt begränsad. Om ja, ange kommun (om möjligt) eller län. Om texten anger en finare detalj (gata, stadsdel, församling eller annat avgränsat område), ange den i service_area_detail.
 
 Svara ENDAST med ett JSON-objekt:
-{"location_name": "kommun-eller-lannamn", "granularity": "municipality_eller_county", "service_area_detail": "finare detalj eller null"}
+{{"location_name": "kommun-eller-lannamn", "granularity": "municipality_eller_county", "service_area_detail": "finare detalj eller null"}}
 
 Om stiftelsen inte är geografiskt begränsad, svara med:
-{"location_name": null, "granularity": null, "service_area_detail": null}
+{{"location_name": null, "granularity": null, "service_area_detail": null}}
 """
 
 

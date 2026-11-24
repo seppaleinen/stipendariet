@@ -1,7 +1,10 @@
 import asyncio
+import csv
+import io
 import logging
+from datetime import datetime, timedelta
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Response, status
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -479,4 +482,228 @@ def get_enrichment_trace_endpoint(foundation_id: int):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch trace: {str(e)}"
+        )
+
+
+# === Phase 7: Observability Endpoints ===
+
+FIELDS = [
+    "contact_email",
+    "contact_phone",
+    "application_open",
+    "application_deadline",
+    "who_can_apply",
+    "how_to_apply",
+    "notes",
+    "enriched_description",
+]
+
+
+def get_field_completeness_endpoint(days: int = 30):
+    """
+    Get field completeness statistics for enrichment data within the given time window.
+
+    Args:
+        days: Look back N days (default 30)
+
+    Returns:
+        Dict with overall stats and per-field fill rates
+    """
+    try:
+        from app.db import models
+        from app.db.database import get_db
+
+        db = next(get_db())
+        try:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+
+            # Query EnrichmentData within the time window
+            records = (
+                db.query(models.EnrichmentData)
+                .filter(models.EnrichmentData.extracted_at >= cutoff)
+                .all()
+            )
+
+            if not records:
+                return {
+                    "days": days,
+                    "overall": {"total_foundations": 0, "foundations_with_5plus": 0},
+                    "field_fills": {f: {"filled": 0, "total": 0, "rate": 0.0} for f in FIELDS},
+                }
+
+            # Group by foundation_id to count fields per foundation
+            foundation_fields = {}
+            for rec in records:
+                fid = rec.foundation_id
+                if fid not in foundation_fields:
+                    foundation_fields[fid] = set()
+                data = rec.extracted_data or {}
+                for field in FIELDS:
+                    if data.get(field):
+                        foundation_fields[fid].add(field)
+
+            # Calculate per-field stats
+            field_stats = {}
+            for field in FIELDS:
+                filled = sum(1 for fields in foundation_fields.values() if field in fields)
+                total = len(foundation_fields)
+                field_stats[field] = {
+                    "filled": filled,
+                    "total": total,
+                    "rate": round((filled / total * 100) if total > 0 else 0.0, 1),
+                }
+
+            # Overall: foundations with >=5 fields
+            foundations_with_5plus = sum(1 for fields in foundation_fields.values() if len(fields) >= 5)
+
+            return {
+                "days": days,
+                "overall": {
+                    "total_foundations": len(foundation_fields),
+                    "foundations_with_5plus": foundations_with_5plus,
+                },
+                "field_fills": field_stats,
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error getting field completeness: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get field completeness: {str(e)}"
+        )
+
+
+def get_prompt_metrics_endpoint():
+    """
+    Get metrics for all enrichment prompt versions.
+
+    Returns:
+        List of prompt objects with name, version, is_production, and metrics
+    """
+    try:
+        from app.db import models
+        from app.db.database import get_db
+
+        db = next(get_db())
+        try:
+            prompts = db.query(models.EnrichmentPrompt).all()
+
+            results = []
+            for p in prompts:
+                metrics = p.metrics or {}
+                created_at = getattr(p, 'created_at', None)
+                results.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "version": p.version,
+                    "is_production": p.is_production,
+                    "avg_confidence": metrics.get("avg_confidence", 0.0),
+                    "field_completeness": metrics.get("field_completeness", 0.0),
+                    "runs_count": metrics.get("runs_count", 0),
+                    "created_at": created_at.isoformat() if created_at else None,
+                })
+
+            return results
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error getting prompt metrics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get prompt metrics: {str(e)}"
+        )
+
+
+class ExportRequest(BaseModel):
+    format: str = "json"  # "csv" or "json"
+    foundation_ids: list[int] | None = None
+
+
+def export_enrichment_data_endpoint(request: ExportRequest):
+    """
+    Export enrichment data in CSV or JSON format.
+
+    Args:
+        request: ExportRequest with format and optional foundation_ids filter
+
+    Returns:
+        CSV text or JSON list of enrichment records with foundation details
+    """
+    try:
+        from app.db import models
+        from app.db.database import get_db
+
+        db = next(get_db())
+        try:
+            # Query EnrichmentData, ordered by extracted_at desc
+            query = db.query(models.EnrichmentData)
+
+            if request.foundation_ids:
+                query = query.filter(models.EnrichmentData.foundation_id.in_(request.foundation_ids))
+
+            records = query.order_by(models.EnrichmentData.extracted_at.desc()).all()
+
+            if not records:
+                if request.format == "csv":
+                    output = io.StringIO()
+                    writer = csv.writer(output)
+                    writer.writerow(["foundation_id", "foundation_name"] + FIELDS + ["confidence", "source_url", "extracted_at", "trace"])
+                    return output.getvalue()
+                return []
+
+            # Build results with foundation name lookup
+            results = []
+            for rec in records:
+                foundation = db.query(models.Foundation).filter(models.Foundation.id == rec.foundation_id).first()
+                foundation_name = foundation.name if foundation else f"ID:{rec.foundation_id}"
+
+                data = rec.extracted_data or {}
+
+                row = {
+                    "foundation_id": rec.foundation_id,
+                    "foundation_name": foundation_name,
+                }
+
+                # Add field values
+                for field in FIELDS:
+                    row[field] = data.get(field)
+
+                row["confidence"] = rec.confidence
+                row["source_url"] = rec.source_url
+                row["extracted_at"] = rec.extracted_at.isoformat() if rec.extracted_at else None
+
+                # Include trace if present in extracted_data OR as a separate attribute on the record
+                trace_data = data.get("_trace") or getattr(rec, "trace", None)
+                if trace_data:
+                    row["trace"] = trace_data
+
+                results.append(row)
+
+            if request.format == "csv":
+                output = io.StringIO()
+                if results:
+                    writer = csv.DictWriter(output, fieldnames=results[0].keys())
+                    writer.writeheader()
+                    writer.writerows(results)
+                else:
+                    # Write header even if no results
+                    writer = csv.writer(output)
+                    writer.writerow(["foundation_id", "foundation_name"] + FIELDS + ["confidence", "source_url", "extracted_at", "trace"])
+                return Response(content=output.getvalue(), media_type="text/csv")
+
+            return results
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error exporting enrichment data: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export enrichment data: {str(e)}"
         )
